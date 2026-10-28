@@ -44,7 +44,7 @@ BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 S
 Node.js 18 이상이 필요합니다. 아직 npm 레지스트리에 배포하지 않았으므로 소스에서 패키지를 만들어 설치합니다.
 
 ```bash
-git clone https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack     # to-nexus-bridge-sdk-<버전>.tgz 생성
 
@@ -57,12 +57,23 @@ npm install /path/to/to-nexus-bridge-sdk-<버전>.tgz ethers
 Go 1.24 이상이 필요합니다.
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@latest
+go get github.com/to-nexus/bridge-sdk/go@v0.1.0
 ```
 
 ### cast
 
 foundry 의 `cast` 와 `python3` 가 필요합니다. 따로 설치할 것 없이 저장소의 `cast/` 스크립트를 실행합니다.
+
+### 버전
+
+릴리스는 git 태그로 냅니다. 같은 릴리스에 태그가 두 개 붙습니다.
+
+| 태그 | 대상 | 쓰는 곳 |
+|---|---|---|
+| `vX.Y.Z` | 저장소 전체 · TypeScript SDK | `git clone --branch vX.Y.Z` |
+| `go/vX.Y.Z` | Go SDK (`go/` 모듈) | `go get github.com/to-nexus/bridge-sdk/go@vX.Y.Z` |
+
+Go SDK 는 저장소의 `go/` 폴더에 있는 모듈이라, Go 는 `go/` 가 붙은 태그만 그 모듈의 버전으로 인식합니다. `go get` 에는 `go/` 없이 `@vX.Y.Z` 로 적습니다.
 
 ## 빠른 시작
 
@@ -214,6 +225,18 @@ cd js && npm ci && npm run typecheck && npm test
 # Go
 cd go && go vet ./... && go test ./...
 ```
+
+### 릴리스
+
+같은 커밋에 `vX.Y.Z` 와 `go/vX.Y.Z` 태그를 함께 만들고 push 합니다. `js/package.json` 의 `version` 도 같은 값으로 맞춥니다.
+
+```bash
+git tag -a vX.Y.Z -m vX.Y.Z
+git tag -a go/vX.Y.Z -m go/vX.Y.Z
+git push origin vX.Y.Z go/vX.Y.Z
+```
+
+### 네트워크 설정
 
 네트워크 설정은 루트의 `networks.json` 에서만 바꿉니다. 바꾼 뒤 `node tools/gen.mjs` 로 SDK 와 문서에 반영하고 `node tools/check-consistency.mjs` 로 확인합니다. 도구 설명은 [tools/README.md](tools/README.md) 에 있습니다.
 

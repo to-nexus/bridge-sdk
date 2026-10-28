@@ -11,8 +11,10 @@ ONE 브리지 Go SDK 입니다. BSC · ONE · HyperEVM 사이의 전송을 견�
 ## 설치
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@latest
+go get github.com/to-nexus/bridge-sdk/go@v0.1.0
 ```
+
+버전 태그는 `go/vX.Y.Z` 형식입니다(이 모듈이 저장소의 `go/` 폴더에 있기 때문). `go get` 에는 `go/` 없이 `@vX.Y.Z` 로 적습니다.
 
 ```go
 import "github.com/to-nexus/bridge-sdk/go/bridgesdk"

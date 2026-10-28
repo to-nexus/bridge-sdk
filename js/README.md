@@ -13,7 +13,7 @@ ONE 브리지 TypeScript SDK 입니다. BSC · ONE · HyperEVM 사이의 전송�
 아직 npm 레지스트리에 배포하지 않았으므로 소스에서 패키지를 만들어 설치합니다.
 
 ```bash
-git clone https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack
 

@@ -29,7 +29,7 @@ cd js && npm ci && npm run build            # dist/ 생성
 npm install /경로/js                         # 내 프로젝트에서 설치 (패키지 이름: @to-nexus/bridge-sdk)
 
 # Go  (릴리스는 `go/vX.Y.Z` 태그 — 서브디렉터리 모듈)
-#   go get github.com/to-nexus/bridge-sdk/go@vX.Y.Z
+#   go get github.com/to-nexus/bridge-sdk/go@v0.1.0
 #   로컬 소스를 쓰려면 go.mod 에:  replace github.com/to-nexus/bridge-sdk/go => /경로/go
 
 # cast
