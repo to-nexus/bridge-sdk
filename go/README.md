@@ -73,7 +73,7 @@ res, err := c.Track(ctx, h, bridgesdk.TrackOpts{})                  // 터미널
 - **견적↔클라이언트 바인딩**: `Send` 는 맨 먼저 견적의 네트워크·체인·설정 소유 주소(브리지·라우터·허브·고정 토큰·approve spender)를 이 클라이언트 설정과 대조한다(다르면 `*NetworkMismatchError`, 사용자 입력 값이 calldata 와 다르면 `*LimitViolationError`).
 - **불변 스냅샷**: `Quote()` 는 요청을 복사하고(`*big.Int`·바이트 슬라이스·맵), `Send` 는 견적의 **비공개 복사본**으로 일하며, 콜백(`OnSubmitting`/`OnSigned`)과 반환 구조체는 복사본을 받는다 — 호출자가 `big.Int` 나 슬라이스를 바꿔도 서명 내용은 그대로다. `OnSigned` 는 raw tx 를 브로드캐스트 **전에** 받는다(오류를 돌려주면 보내지 않는다).
 - 견적 한도 불변 + 재견적 규칙, 정확한 approve(+ zero-first), 자동 재전송 없음, `BroadcastOutcomeUnknownError{Intent, Checkpoint, Hash, Nonce, Raw}`.
-- 설정이 null 인 경로(메인넷 HyperEVM 등)는 `Quote` 에서 `*AddressNotConfiguredError`.
+- 설정이 null 인 경로(메인넷 X3 등)는 `Quote` 에서 `*AddressNotConfiguredError`.
 
 ## 예제 (dry-run 기본)
 

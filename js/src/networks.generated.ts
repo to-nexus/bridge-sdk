@@ -3,10 +3,10 @@ import type { NetworksData } from './networks-types.js';
 
 export const networksData: NetworksData = {
   "schemaVersion": 1,
-  "verifiedAt": "2026-10-27",
+  "verifiedAt": "2026-10-28",
   "notes": [
     "SINGLE SOURCE OF TRUTH. Edit only this file, then run `node tools/gen.mjs` and `node tools/check-consistency.mjs`.",
-    "Unconfirmed values are null with a greppable marker in `todo` (TODO(PENDING) = HyperEVM mainnet bridge side not finalized yet, TODO(UNCONFIRMED) = no official source found).",
+    "Unconfirmed values are null with a greppable marker in `todo` (TODO(PENDING) = not set up on chain yet, TODO(UNCONFIRMED) = no official source found).",
     "bridgeVerifier / bridgeExecutor are informational: the SDKs always resolve them live from bridge.bridgeVerifier() / bridge.bridgeExecutor().",
     "Every non-null address has an entry in `provenance` that points at a row id in SOURCES.md."
   ],
@@ -18,9 +18,9 @@ export const networksData: NetworksData = {
         "cross": {
           "chainId": 612055,
           "name": "CROSS Mainnet",
-          "nativeSymbol": null,
+          "nativeSymbol": "ONE",
           "rpc": "https://mainnet.onechain.nexus:22001",
-          "explorer": null,
+          "explorer": "https://explorer.onechain.nexus/612055",
           "bridge": "0xb81d6e000000000000000000000000000000C0de",
           "bridgeVerifier": "0xcf6498dDc3a5d5Ca797444a87EB8B4AA6eB1F9c4",
           "bridgeExecutor": "0xF356ab353c7f9d2010B66c24bba69c4532AC0f8F",
@@ -63,8 +63,6 @@ export const networksData: NetworksData = {
             }
           },
           "todo": {
-            "nativeSymbol": "TODO(UNCONFIRMED) CROSS 체인 네이티브 심볼의 공식 출처 미확인 (CROSS/ONE 추측 금지)",
-            "explorer": "TODO(UNCONFIRMED) CROSS 메인넷 익스플로러 공식 URL 미확인",
             "swap.swapBridgeRouter": "TODO(UNCONFIRMED) 메인넷 SwapBridgeRouter 주소를 찾지 못함 (X3 메인넷 비활성)"
           }
         },
@@ -100,27 +98,22 @@ export const networksData: NetworksData = {
           "nativeSymbol": "HYPE",
           "rpc": "https://rpc.hyperliquid.xyz/evm",
           "explorer": "https://hyperevmscan.io",
-          "bridge": null,
-          "bridgeVerifier": null,
-          "bridgeExecutor": null,
+          "bridge": "0xd8A89e931E504Bdf7775640F800fe46528D097E5",
+          "bridgeVerifier": "0x75665acd4B5C94c0E865f6ba92FbA266338ADcFC",
+          "bridgeExecutor": "0x4c3bd7914F9d2bDA7C67233D320953a0976f707b",
           "tokens": {
             "ONE": {
               "address": "0xFaA92e0e9BF90102ff1F731e7DeBD89CD7D1Ebe5",
               "symbol": "ONE",
               "decimals": 18,
-              "kind": "erc20",
-              "status": "provisional"
+              "kind": "erc20"
             }
           },
           "coreSystemAddress": null,
           "coreInfoApi": "https://api.hyperliquid.xyz/info",
           "swap": null,
           "todo": {
-            "bridge": "TODO(PENDING) HyperEVM 메인넷 브리지 설정 확정 전 — 확정되면 갱신 (2026-10-27)",
-            "bridgeVerifier": "TODO(PENDING) HyperEVM 메인넷 브리지 설정 확정 전 — 확정되면 갱신",
-            "bridgeExecutor": "TODO(PENDING) HyperEVM 메인넷 브리지 설정 확정 전 — 확정되면 갱신",
-            "tokens.ONE": "TODO(PENDING) 토큰 주소는 온체인에 코드가 있으나(페어 등록 확인됨) 브리지 측 설정 미완료 - provisional, 확정되면 갱신",
-            "coreSystemAddress": "TODO(PENDING) 메인넷 ONE 의 HyperCore 시스템 주소 미확인 (isCoreTokenIndexSet=false), X2 메인넷 비활성",
+            "coreSystemAddress": "TODO(PENDING) 메인넷 ONE 토큰이 아직 HyperCore 에 링크되지 않음 (isCoreTokenIndexSet=false), X2 메인넷 비활성",
             "explorer": "hyperevmscan.io 는 Hyperliquid 공식 문서의 explorer 목록(네트워크 구분 표기 없음)에 있음"
           }
         }
@@ -277,6 +270,11 @@ export const networksData: NetworksData = {
     "testnet.bsc.explorer": "S-E03",
     "testnet.bsc.nativeSymbol": "S-E03",
     "testnet.hyperevm.nativeSymbol": "S-E02",
-    "mainnet.hyperevm.coreInfoApi": "S-E04"
+    "mainnet.hyperevm.coreInfoApi": "S-E04",
+    "mainnet.hyperevm.bridge": "S-M17",
+    "mainnet.hyperevm.bridgeVerifier": "S-M18",
+    "mainnet.hyperevm.bridgeExecutor": "S-M19",
+    "mainnet.cross.explorer": "S-E05",
+    "mainnet.cross.nativeSymbol": "S-E05"
   }
 };

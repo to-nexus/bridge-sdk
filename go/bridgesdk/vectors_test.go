@@ -294,9 +294,10 @@ func TestConfigGateRefusesNullRoutesBeforeAnyRPC(t *testing.T) {
 	for _, r := range []Route{RouteOneToHyperEVM, RouteHyperEVMToOne, RouteBSCToOneToHyperEVM, RouteHyperEVMToOneToBSC, RouteOneToHyperCore} {
 		req := base
 		req.Route = r
+		// mainnet HyperEVM routes are fully configured: they get past the config gate and fail only at the (unreachable) RPC
 		_, err := c.Quote(ctx, req)
 		var nc *AddressNotConfiguredError
-		if !errors.As(err, &nc) || !strings.Contains(nc.Field, "hyperevm.bridge") || !strings.Contains(nc.Todo, "TODO(PENDING)") {
+		if err == nil || errors.As(err, &nc) {
 			t.Fatalf("%s: %v", r, err)
 		}
 	}

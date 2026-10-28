@@ -129,9 +129,11 @@ p $N $R "token.totalSupply()" $H_TOK_M "totalSupply()(uint256)"
 p $N $R "token.isCoreTokenIndexSet()" $H_TOK_M "isCoreTokenIndexSet()(bool)"
 p $N $R "token.coreUnit()" $H_TOK_M "coreUnit()(uint256)"
 code $N $R "token" $H_TOK_M
-bridge_probe $N $R $B56   # 0xa6a1...06c5 on 999: proxy code but views revert (setup in progress)
-code $N $R "0xa6a1..06c5 (same addr as BSC bridge)" $B56
-impl $N $R $B56
+B999_M=0xd8A89e931E504Bdf7775640F800fe46528D097E5
+bridge_probe $N $R $B999_M
+impl $N $R $B999_M
+p $N $R "getTokenPair(612055,ONE)" $B999_M "getTokenPair(uint256,address)($PAIR_T)" 612055 $H_TOK_M
+fee $N $R $B999_M 612055 $H_TOK_M 10000000000000000000
 
 # ================================================================ CROSS testnet 612044
 N=cross-testnet; R=$RPC_CROSS_TEST

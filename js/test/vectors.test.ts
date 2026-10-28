@@ -151,8 +151,9 @@ test('config: routes with null values are refused at quote() - before any RPC, a
   // no provider is configured at all: the config gate must fire before any network access
   const c = new BridgeClient({ network: 'mainnet', providers: {} });
   const base = { amount: 10n ** 19n, sender: '0x1111111111111111111111111111111111111111', recipient: '0x2222222222222222222222222222222222222222' };
+  // mainnet HyperEVM routes are fully configured: they get past the config gate and fail only for lack of a provider
   for (const route of [Route.ONE_TO_HYPEREVM, Route.HYPEREVM_TO_ONE, Route.BSC_TO_ONE_TO_HYPEREVM, Route.HYPEREVM_TO_ONE_TO_BSC, Route.ONE_TO_HYPERCORE]) {
-    await assert.rejects(() => c.quote({ ...base, route }), (e: any) => e instanceof AddressNotConfiguredError && /hyperevm\.bridge/.test(e.field) && /TODO\(PENDING\)/.test(e.todo), route);
+    await assert.rejects(() => c.quote({ ...base, route }), (e: any) => !(e instanceof AddressNotConfiguredError), route);
   }
   await assert.rejects(() => c.quote({ ...base, route: Route.SWAP_BRIDGE, x3: { tokenIn: 'native', tokenOut: '0x3333333333333333333333333333333333333333', poolFee: 0, toChain: 'bsc' } }), (e: any) => e instanceof AddressNotConfiguredError && /swapBridgeRouter/.test(e.field) && /TODO\(UNCONFIRMED\)/.test(e.todo));
   const t = new BridgeClient({ network: 'testnet', providers: {} });

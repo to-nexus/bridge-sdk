@@ -1,7 +1,7 @@
 # CROSS / ONE 브리지 SDK
 
 CROSS / ONE 브리지(BSC ↔ ONE 허브 ↔ HyperEVM)를 브리지 내부 구조를 몰라도 쓸 수 있게 하는 SDK 와 예제 모음: TypeScript SDK, Go SDK, 셸(cast) 예제.
-값(주소·RPC·chainId)은 모두 `networks.json` 한 곳에서 온다. 확인일 2026-10-27.
+값(주소·RPC·chainId)은 모두 `networks.json` 한 곳에서 온다. 확인일 2026-10-28.
 
 | 파일 | 내용 |
 |---|---|
@@ -19,15 +19,15 @@ CROSS / ONE 브리지(BSC ↔ ONE 허브 ↔ HyperEVM)를 브리지 내부 구�
 |---|---|---|---|---|---|---|
 | R1 | BSC → ONE | ✅ | ✅ `Route.BSC_TO_ONE` | ✅ `RouteBSCToOne` | ✅ `r1.sh` | |
 | R2 | ONE → BSC | ✅ | ✅ | ✅ | ✅ `r2.sh` | |
-| R3 | ONE → HyperEVM | ✅ | ✅ | ✅ | ✅ `r3.sh` | ⚠️ 메인넷 `TODO(PENDING)` |
-| R4 | HyperEVM → ONE | ✅ | ✅ | ✅ | ✅ `r4.sh` | ⚠️ 메인넷 `TODO(PENDING)` |
-| R5 | BSC → ONE → HyperEVM | ✅ | ✅ | ✅ | ✅ `r5.sh` | ⚠️ 메인넷 `TODO(PENDING)` |
-| R6 | HyperEVM → ONE → BSC | ✅ | ✅ | ✅ | ✅ `r6.sh` | ⚠️ 메인넷 `TODO(PENDING)` |
+| R3 | ONE → HyperEVM | ✅ | ✅ | ✅ | ✅ `r3.sh` | |
+| R4 | HyperEVM → ONE | ✅ | ✅ | ✅ | ✅ `r4.sh` | |
+| R5 | BSC → ONE → HyperEVM | ✅ | ✅ | ✅ | ✅ `r5.sh` | |
+| R6 | HyperEVM → ONE → BSC | ✅ | ✅ | ✅ | ✅ `r6.sh` | |
 | X1 | BSC USDT → ONEUSD (executor 스왑) | ✅ | ✅ | ✅ | ✅ `x1.sh` | ⚠️ 테스트넷 `TODO(UNCONFIRMED)` |
-| X2 | HyperCore 입금 (R3/R5 옵션) | ✅ | ✅ `Route.ONE_TO_HYPERCORE`, `hypercore: true` | ✅ `RouteOneToHyperCore`, `Hypercore` | ✅ `CORE_RECIPIENT` + `x2.md` | ⚠️ 메인넷 `TODO(PENDING)` |
+| X2 | HyperCore 입금 (R3/R5 옵션) | ✅ | ✅ `Route.ONE_TO_HYPERCORE`, `hypercore: true` | ✅ `RouteOneToHyperCore`, `Hypercore` | ✅ `CORE_RECIPIENT` + `x2.md` | ⚠️ 메인넷 HyperCore 링크 전 (`preflight` 가 `CORE_NOT_LINKED` 로 거부) |
 | X3 | SwapBridgeRouter | ✅ | ✅ `Route.SWAP_BRIDGE` | ✅ `RouteSwapBridge` | ✅ `x3.sh` | ⚠️ 메인넷 `TODO(UNCONFIRMED)` |
 
-⚠️ 는 값이 아직 확인되지 않아 **SDK 가 `quote()` 에서 거부**(`AddressNotConfiguredError`)하는 조합이다. 목록: `GUIDE.md §10.1`, `SOURCES.md §5`.
+⚠️ 는 SDK 가 거부하는 조합이다 — 값이 확인되지 않았으면 `quote()` 에서 `AddressNotConfiguredError`, 체인 쪽 설정이 아직이면 `preflight()` 에서 막힌다. 목록: `GUIDE.md §10.1`, `SOURCES.md §5`.
 
 ## 가장 빠른 시작
 
