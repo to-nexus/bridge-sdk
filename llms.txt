@@ -1,0 +1,29 @@
+# ONE Bridge SDK
+
+> TypeScript and Go SDKs for the ONE Bridge. They move ONE and USDT between BSC, the ONE chain (the hub) and HyperEVM, from a fee quote to a confirmed delivery: quote → send → wait for a handle → track. Network settings are built in. Never re-send a transfer whose broadcast outcome is unknown; use findSourceTransfer instead.
+
+The TypeScript package (@to-nexus/bridge-sdk) is not on the npm registry: build it from a release tag with `npm ci && npm run build && npm pack` in `js/`. The Go module is `github.com/to-nexus/bridge-sdk/go` (`go get github.com/to-nexus/bridge-sdk/go@v0.1.0`).
+
+## Start here
+
+- [AGENTS.md](https://github.com/to-nexus/bridge-sdk/blob/master/AGENTS.md): install, route choice, minimal integration and the rules generated code must follow
+- [README.md](https://github.com/to-nexus/bridge-sdk/blob/master/README.md): supported routes, networks, quick start in TypeScript, Go and cast
+
+## API
+
+- [TypeScript SDK](https://github.com/to-nexus/bridge-sdk/blob/master/js/README.md): client options, quote request fields, send options, methods, errors
+- [Go SDK](https://github.com/to-nexus/bridge-sdk/blob/master/go/README.md): the same API in Go
+- [Tracking and recovery](https://github.com/to-nexus/bridge-sdk/blob/master/TRACKING_AND_RECOVERY.md): transfer states, the retry table, when a new transaction is safe, revert reasons
+- [TypeScript types](https://github.com/to-nexus/bridge-sdk/blob/master/js/src/types.ts): Route, QuoteRequest, SendOptions, TransferHandle, TransferState, TrackResult
+
+## Examples
+
+- [TypeScript examples](https://github.com/to-nexus/bridge-sdk/tree/master/js/examples): one dry-run program per route
+- [Go examples](https://github.com/to-nexus/bridge-sdk/tree/master/go/examples): one dry-run program per route
+- [cast scripts](https://github.com/to-nexus/bridge-sdk/tree/master/cast): shell scripts built on foundry cast
+
+## Optional
+
+- [networks.json](https://github.com/to-nexus/bridge-sdk/blob/master/networks.json): chain IDs, RPC endpoints and contract addresses for mainnet and testnet
+- [GUIDE.md](https://github.com/to-nexus/bridge-sdk/blob/master/GUIDE.md): full integration guide in Korean (contract calls, fees, multihop math)
+- [SOURCES.md](https://github.com/to-nexus/bridge-sdk/blob/master/SOURCES.md): where each address comes from (Korean)

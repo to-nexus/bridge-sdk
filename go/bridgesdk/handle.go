@@ -92,19 +92,19 @@ func matchesBridge(m *MatchSpec, e *parsedInitiated, from common.Address) bool {
 
 // SwapTransfer is one X3 transfer decoded from the router's SwapBridge log and the bridge's BridgeInitiated log it is LINKED to (structural, intent-free).
 type SwapTransfer struct {
-	User          common.Address
+	User          common.Address // the account that called the router
 	TokenIn       common.Address
 	TokenOut      common.Address
 	AmountIn      *big.Int
-	AmountOut     *big.Int
+	AmountOut     *big.Int // swap output that was bridged
 	ToChainID     *big.Int
 	ToToken       common.Address // BridgeInitiated.toToken (what the BRIDGE emitted)
 	Recipient     common.Address // BridgeInitiated.to
 	ExtraDataHash common.Hash    // keccak256(BridgeInitiated.extraData)
-	Index         *big.Int
-	Value         *big.Int
-	SwapLogIndex  uint
-	SwapEmitter   common.Address
+	Index         *big.Int       // bridge transfer index of the linked BridgeInitiated
+	Value         *big.Int       // bridged value
+	SwapLogIndex  uint           // log index of the router's SwapBridge log within the receipt
+	SwapEmitter   common.Address // contract that emitted the SwapBridge log
 	bi            *parsedInitiated
 }
 

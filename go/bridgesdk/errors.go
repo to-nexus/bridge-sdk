@@ -16,10 +16,15 @@ import (
 
 // All SDK errors are pointer types so errors.As(err, &target) works.
 
+// NetworkMismatchError: something does not belong to the network this client is configured for: an RPC (or the signer) on another chain id, or a
+// quote built for another network or contract. Nothing was sent.
 type NetworkMismatchError struct {
-	Scope    string
+	// Scope names what was checked, for example "<chain> RPC", "signer" or "quote.<field>".
+	Scope string
+	// Expected is the configured chain id.
 	Expected int64
-	Actual   string
+	// Actual is the value that was found (a chain id, or the quote's value for a non-chain-id field).
+	Actual string
 	// ExpectedValue is set instead of Expected when the mismatching field is not a chain id (quote -> client binding: network name,
 	// configured contract address); Scope names the field (for example "quote.tx.to").
 	ExpectedValue string
@@ -32,25 +37,32 @@ func (e *NetworkMismatchError) Error() string {
 	return fmt.Sprintf("network mismatch (%s): expected chainId %d, got %s. Nothing was sent.", e.Scope, e.Expected, e.Actual)
 }
 
+// AddressNotConfiguredError: the route needs a value that is not configured on this network (a contract or token address that is null in the
+// configuration). It is returned before any network access, so nothing was approved or sent.
 type AddressNotConfiguredError struct {
 	Route Route
-	Field string
-	Todo  string
+	Field string // dotted configuration path of the missing value, for example "one.swap.swapBridgeRouter"
+	Todo  string // the configuration's explanation of why the value is missing
 }
 
 func (e *AddressNotConfiguredError) Error() string {
 	return fmt.Sprintf("route %s is not available on this network: %s is not configured (%s)", e.Route, e.Field, e.Todo)
 }
 
+// QuoteExpiredError: the quote is older than its TTL. Send refuses it before any approve; call Quote again. AgeMs and TTLMs are in milliseconds.
 type QuoteExpiredError struct{ AgeMs, TTLMs int64 }
 
 func (e *QuoteExpiredError) Error() string {
 	return fmt.Sprintf("quote expired (%d ms old, ttl %d ms). Request a new quote.", e.AgeMs, e.TTLMs)
 }
 
+// LimitViolationError: a quote violates a limit, or its seal was rejected. Nothing was sent.
 type LimitViolationError struct {
+	// Violated lists the violated limits (for example "maxTotalSpend", "minDelivered"); a name starting with "tampered:" means the quote
+	// no longer matches this client's configuration.
 	Violated []string
-	Quote    *Quote
+	// Quote is a copy of the offending quote, when one exists.
+	Quote *Quote
 	// Quote seal failures: Field == "seal", Reason one of missing | unsupported-version | unsupported-sdk | corrupt | invalid-payload | modified,
 	// Path = the offending JSON path (invalid-payload / modified).
 	Field, Reason, Path, Detail string
@@ -120,9 +132,10 @@ func (e *RpcTimeoutError) Error() string {
 	return fmt.Sprintf("RPC %s timed out after %s", e.Method, e.Timeout)
 }
 
+// SimulationRevertError: the transaction reverted in the pre-send simulation (or gas estimation). Nothing was sent.
 type SimulationRevertError struct {
-	Decoded *DecodedError
-	Data    []byte
+	Decoded *DecodedError // the decoded bridge error; nil when the selector is unknown
+	Data    []byte        // raw revert data, when the node returned any
 	Cause   error
 }
 
@@ -134,15 +147,18 @@ func (e *SimulationRevertError) Error() string {
 }
 func (e *SimulationRevertError) Unwrap() error { return e.Cause }
 
+// ApproveFailedError: the ERC-20 approve before the transfer failed (could not be submitted, timed out, or reverted). The bridge transaction was
+// not sent. If Hash is set the approve was broadcast and may or may not be on chain: re-read the allowance before retrying.
 type ApproveFailedError struct {
 	Msg   string
-	Hash  common.Hash
+	Hash  common.Hash // the approve transaction, when it was broadcast
 	Cause error
 }
 
 func (e *ApproveFailedError) Error() string { return "approve failed: " + e.Msg }
 func (e *ApproveFailedError) Unwrap() error { return e.Cause }
 
+// SigningError: the signer returned an error. Nothing was broadcast.
 type SigningError struct{ Cause error }
 
 func (e *SigningError) Error() string {
@@ -150,18 +166,22 @@ func (e *SigningError) Error() string {
 }
 func (e *SigningError) Unwrap() error { return e.Cause }
 
+// SenderMismatchError: the signer's address differs from the quote's Sender. Nothing was signed.
 type SenderMismatchError struct{ Expected, Actual common.Address }
 
 func (e *SenderMismatchError) Error() string {
 	return fmt.Sprintf("signer address %s does not match the quote sender %s. Nothing was signed.", e.Actual, e.Expected)
 }
 
+// SourceTxFailedError: the source transaction was mined but reverted (receipt status 0), so no bridge transfer was created.
 type SourceTxFailedError struct{ Hash common.Hash }
 
 func (e *SourceTxFailedError) Error() string {
 	return fmt.Sprintf("source transaction %s failed (status 0). No bridge transfer was created.", e.Hash)
 }
 
+// WaitTimeoutError: no receipt for the source transaction arrived within the wait timeout. The transaction may still be mined; keep waiting or
+// track it by Hash (for example Client.HandleFromTx once it is mined).
 type WaitTimeoutError struct{ Hash common.Hash }
 
 func (e *WaitTimeoutError) Error() string {
@@ -170,11 +190,11 @@ func (e *WaitTimeoutError) Error() string {
 
 // BroadcastOutcomeUnknownError: the tx may or may not be on chain. DO NOT resend.
 type BroadcastOutcomeUnknownError struct {
-	Intent     *SubmittedIntent
+	Intent     *SubmittedIntent // pass to Client.FindSourceTransfer together with Checkpoint
 	Checkpoint Checkpoint
-	Hash       common.Hash
+	Hash       common.Hash // hash of the signed transaction (known even though the outcome is not)
 	Nonce      uint64
-	Raw        []byte
+	Raw        []byte // the signed transaction; Client.Rebroadcast may send exactly this again
 	Cause      error
 }
 
@@ -183,11 +203,11 @@ func (e *BroadcastOutcomeUnknownError) Error() string {
 }
 func (e *BroadcastOutcomeUnknownError) Unwrap() error { return e.Cause }
 
-// SourceCandidate describes one candidate BridgeInitiated of a source receipt.
+// SourceCandidateInfo describes one candidate BridgeInitiated log of a source receipt.
 type SourceCandidateInfo struct {
 	ToChainID uint64
-	Index     *big.Int
-	LogIndex  uint
+	Index     *big.Int // bridge transfer index
+	LogIndex  uint     // log index within the receipt
 }
 
 // AmbiguousSourceError: several candidate transfers in one receipt; never auto-selected. Pick one with HandleOptions.Index / LogIndex.
@@ -253,12 +273,13 @@ var (
 	errTable     map[string]errorTableEntry
 )
 
+// DecodedError is a decoded contract revert: the error name, its arguments and, when known, a hint on what to do.
 type DecodedError struct {
-	Selector  string
+	Selector  string // 4-byte selector as hex
 	Name      string
 	Signature string
-	Args      map[string]interface{}
-	Hint      string
+	Args      map[string]interface{} // decoded arguments by name
+	Hint      string                 // what the error usually means or how to fix it; empty when unknown
 }
 
 func (d *DecodedError) String() string {

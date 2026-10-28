@@ -153,10 +153,10 @@ func (c *Client) FindSourceTransfer(ctx context.Context, intent *SubmittedIntent
 type ReplacementParams struct {
 	Intent          *SubmittedIntent
 	Checkpoint      Checkpoint
-	OriginalHash    common.Hash
-	OriginalNonce   uint64
+	OriginalHash    common.Hash // the transaction that was meant to be mined at OriginalNonce
+	OriginalNonce   uint64      // the nonce of the original transaction
 	ReplacementHash common.Hash // optional (wallet history / explorer); otherwise a bounded block scan locates it
-	MaxScanBlocks   uint64
+	MaxScanBlocks   uint64      // blocks to scan from Checkpoint.BlockBefore when locating the replacement (0 = 500)
 }
 
 // AnalyzeReplacement: is a new tx provably safe after a tx was mined at the original nonce? Only when the replacement's receipt proves it

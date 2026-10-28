@@ -1,0 +1,11 @@
+{
+  "name": "one-bridge-sdk",
+  "version": "0.1.0",
+  "description": "Teaches Claude to integrate the ONE Bridge SDK (TypeScript or Go): route choice, install, quote/send/track code and safe error handling",
+  "author": {
+    "name": "to-nexus"
+  },
+  "repository": "https://github.com/to-nexus/bridge-sdk",
+  "license": "MIT",
+  "keywords": ["bridge", "one-chain", "bsc", "hyperevm", "sdk"]
+}

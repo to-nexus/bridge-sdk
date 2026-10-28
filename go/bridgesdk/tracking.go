@@ -525,9 +525,9 @@ func (c *Client) TrackOnce(ctx context.Context, in *TransferHandle) (*TrackResul
 
 // TrackOpts for Track.
 type TrackOpts struct {
-	Timeout  time.Duration // default 10 min; on timeout the current NON-terminal state is returned with TimedOut=true
-	Poll     time.Duration // default 5 s
-	OnUpdate func(*TrackResult)
+	Timeout  time.Duration      // default 10 min; on timeout the current NON-terminal state is returned with TimedOut=true
+	Poll     time.Duration      // default 5 s
+	OnUpdate func(*TrackResult) // called with each evaluated result
 }
 
 // Track polls until a terminal state or the timeout. With Timeout > 0 (default 10 min) every RPC call of the track is bounded by

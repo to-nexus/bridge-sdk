@@ -14,31 +14,37 @@ import (
 //go:embed networks.json
 var networksJSON []byte
 
+// NetworkName selects a built-in network configuration.
 type NetworkName string
 
 const (
-	Mainnet NetworkName = "mainnet"
-	Testnet NetworkName = "testnet"
+	Mainnet NetworkName = "mainnet" // the production networks
+	Testnet NetworkName = "testnet" // the test networks
 )
 
+// ChainKey names a chain inside a NetworkData. The ONE chain is the hub of every multihop route.
 type ChainKey string
 
 const (
-	ChainOne    ChainKey = "one"
-	ChainBSC      ChainKey = "bsc"
-	ChainHyperEVM ChainKey = "hyperevm"
+	ChainOne      ChainKey = "one"      // the ONE chain (hub)
+	ChainBSC      ChainKey = "bsc"      // BSC
+	ChainHyperEVM ChainKey = "hyperevm" // HyperEVM
 )
 
+// NativeToken is the placeholder address that stands for the native coin (ONE on the ONE chain) wherever a token address is expected, for example
+// as the source token of a native bridge transfer.
 const NativeToken = "0x0000000000000000000000000000000000000001"
 
+// Token is a token of a chain. A token that is not configured on a network appears as a nil entry in ChainConfig.Tokens.
 type Token struct {
 	Address  string  `json:"address"`
 	Symbol   *string `json:"symbol"`
 	Decimals int     `json:"decimals"`
-	Kind     string  `json:"kind"`
-	Status   string  `json:"status,omitempty"`
+	Kind     string  `json:"kind"`             // "native" or "erc20"
+	Status   string  `json:"status,omitempty"` // optional marker carried by the configuration schema; empty when unset
 }
 
+// X1Pool is the swap pool used by the X1 route (USDTx to ONEUSD on the ONE chain).
 type X1Pool struct {
 	TokenIn  string `json:"tokenIn"`
 	TokenOut string `json:"tokenOut"`
@@ -46,6 +52,8 @@ type X1Pool struct {
 	Pool     string `json:"pool"`
 }
 
+// SwapConfig holds the swap contracts of a chain. A nil field means the contract is not configured on this network; routes that need it are
+// refused with *AddressNotConfiguredError.
 type SwapConfig struct {
 	V3SwapRouter     *string `json:"v3SwapRouter"`
 	QuoterV2         *string `json:"quoterV2"`
@@ -54,33 +62,41 @@ type SwapConfig struct {
 	X1Pool           *X1Pool `json:"x1Pool"`
 }
 
+// ChainConfig is the configuration of one chain. Pointer fields are nil when the value is not configured on this network.
 type ChainConfig struct {
-	ChainID           int64             `json:"chainId"`
-	Name              string            `json:"name"`
-	NativeSymbol      *string           `json:"nativeSymbol"`
-	RPC               string            `json:"rpc"`
-	Explorer          *string           `json:"explorer"`
-	Bridge            *string           `json:"bridge"`
-	BridgeVerifier    *string           `json:"bridgeVerifier"`
-	BridgeExecutor    *string           `json:"bridgeExecutor"`
-	Tokens            map[string]*Token `json:"tokens"`
-	Swap              *SwapConfig       `json:"swap"`
-	CoreSystemAddress *string           `json:"coreSystemAddress"`
-	CoreInfoAPI       *string           `json:"coreInfoApi"`
-	Todo              map[string]string `json:"todo"`
+	ChainID      int64   `json:"chainId"`
+	Name         string  `json:"name"`
+	NativeSymbol *string `json:"nativeSymbol"`
+	RPC          string  `json:"rpc"` // default public RPC; ClientOptions.RPCURLs overrides it
+	Explorer     *string `json:"explorer"`
+	Bridge       *string `json:"bridge"`
+	// BridgeVerifier and BridgeExecutor are informational: the SDK always resolves them live from the bridge.
+	BridgeVerifier *string `json:"bridgeVerifier"`
+	BridgeExecutor *string `json:"bridgeExecutor"`
+	// Tokens is keyed by token name (for example "ONE", "USDT", "USDTx", "ONEUSD", "WCROSS"); an unconfigured token is a nil entry.
+	Tokens map[string]*Token `json:"tokens"`
+	Swap   *SwapConfig       `json:"swap"`
+	// CoreSystemAddress is the HyperCore system address (HyperEVM only).
+	CoreSystemAddress *string `json:"coreSystemAddress"`
+	// CoreInfoAPI is the HyperCore info API that CheckCoreBalance queries (HyperEVM only).
+	CoreInfoAPI *string `json:"coreInfoApi"`
+	// Todo explains each value that is not configured, keyed by its dotted path inside the chain (for example "tokens.ONEUSD").
+	Todo map[string]string `json:"todo"`
 }
 
+// NetworkData is the configuration of one network: its chains and which one is the hub.
 type NetworkData struct {
 	Label    string                    `json:"label"`
 	HubChain ChainKey                  `json:"hubChain"`
 	Chains   map[ChainKey]*ChainConfig `json:"chains"`
 }
 
+// NetworksData is the whole embedded configuration file (all networks plus its metadata).
 type NetworksData struct {
 	SchemaVersion int                          `json:"schemaVersion"`
-	VerifiedAt    string                       `json:"verifiedAt"`
+	VerifiedAt    string                       `json:"verifiedAt"` // when the values were last checked against their sources
 	Networks      map[NetworkName]*NetworkData `json:"networks"`
-	Provenance    map[string]string            `json:"provenance"`
+	Provenance    map[string]string            `json:"provenance"` // source reference per configured value
 }
 
 var (

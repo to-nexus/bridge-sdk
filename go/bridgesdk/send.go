@@ -19,10 +19,12 @@ import (
 
 // TxSigner signs transactions locally (Go is always "Mode L": the SDK knows raw tx, hash and nonce BEFORE broadcast).
 type TxSigner struct {
+	// Address is the account that signs; it must equal Quote.Sender (*SenderMismatchError otherwise).
 	Address common.Address
 	// ChainID the signer is bound to (nil = unknown; the SDK still signs for the quote's chain and re-verifies the sender).
 	ChainID *big.Int
-	Sign    func(tx *types.Transaction) (*types.Transaction, error)
+	// Sign signs the transaction the SDK built. The SDK re-verifies the result (chain id, sender, every field) before broadcasting.
+	Sign func(tx *types.Transaction) (*types.Transaction, error)
 }
 
 // NewKeyedSigner signs with an in-memory key for the given chain.
@@ -385,7 +387,8 @@ func (c *Client) Send(ctx context.Context, signer TxSigner, q0in *Quote, opts Se
 	return sent, nil
 }
 
-// WaitOptions for WaitHandle.
+// WaitOptions for WaitHandle. Timeout bounds the wait for the source receipt (default 10 min, then *WaitTimeoutError); Poll is the receipt polling
+// interval (default 3 s).
 type WaitOptions struct{ Timeout, Poll time.Duration }
 
 // WaitHandle waits for the source receipt and returns the TransferHandle (persist it).

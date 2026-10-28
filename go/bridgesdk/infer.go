@@ -15,7 +15,8 @@ type HandleOptions struct {
 	// Route is verified against the route decoded from the receipt (contradiction => *RouteMismatchError).
 	Route Route
 	// Index selects the candidate whose BridgeInitiated index equals this; LogIndex selects by log index.
-	Index    *big.Int
+	Index *big.Int
+	// LogIndex selects the candidate by the log index of its BridgeInitiated within the receipt.
 	LogIndex *uint
 	// ScanFrom: destination block numbers recorded at send time (tracking scan start), if known.
 	ScanFrom map[ChainKey]uint64

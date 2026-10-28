@@ -217,6 +217,18 @@ cd go && go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
 - [GUIDE.md](GUIDE.md) (Korean): integration guide covering each route in detail, how the bridge works, fees, status tracking, error handling and recovery
 - [cast/README.md](cast/README.md) (Korean): shell scripts and environment variables
 - [SOURCES.md](SOURCES.md) (Korean): where each address and setting comes from, and how to verify it yourself
+- [TRACKING_AND_RECOVERY.md](TRACKING_AND_RECOVERY.md): transfer states, the retry table, when a new transaction is safe, revert reasons
+
+## Using with AI coding agents
+
+- [AGENTS.md](AGENTS.md) gives coding agents (Codex, Cursor, Claude Code and others) the install steps, route choice, a minimal integration and the rules generated code must follow. Agents that support `AGENTS.md` read it automatically when they work in a clone of this repository.
+- [llms.txt](llms.txt) is a map of the documentation for tools that read it.
+- Claude Code users can install the integration skill as a plugin:
+  ```text
+  /plugin marketplace add to-nexus/bridge-sdk
+  /plugin install one-bridge-sdk@to-nexus
+  ```
+  The `one-bridge-integration` skill then activates when you ask Claude to add bridging to a project.
 
 ## Development
 

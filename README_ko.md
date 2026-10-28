@@ -217,6 +217,18 @@ cd go && go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
 - [go/README_ko.md](go/README_ko.md) — Go API
 - [cast/README.md](cast/README.md) — 셸 스크립트와 환경변수
 - [SOURCES.md](SOURCES.md) — 주소와 설정값의 출처, 직접 확인하는 방법
+- [TRACKING_AND_RECOVERY.md](TRACKING_AND_RECOVERY.md) (영문) — GUIDE §7·§8 영문판: 전송 상태, 재시도 결정표, 새 트랜잭션이 안전한 경우, revert 사유
+
+## AI 코딩 에이전트와 함께 쓰기
+
+- [AGENTS.md](AGENTS.md) (영문) 는 코딩 에이전트(Codex, Cursor, Claude Code 등)에게 설치 방법, 경로 고르기, 최소 연동 코드, 생성 코드가 지켜야 할 규칙을 알려 줍니다. `AGENTS.md` 를 지원하는 에이전트는 이 저장소를 클론해 작업할 때 자동으로 읽습니다.
+- [llms.txt](llms.txt) 는 이 형식을 읽는 도구를 위한 문서 지도입니다.
+- Claude Code 에서는 연동 skill 을 플러그인으로 설치할 수 있습니다.
+  ```text
+  /plugin marketplace add to-nexus/bridge-sdk
+  /plugin install one-bridge-sdk@to-nexus
+  ```
+  설치 후 프로젝트에 브리지 연동을 추가해 달라고 하면 `one-bridge-integration` skill 이 켜집니다.
 
 ## 개발
 

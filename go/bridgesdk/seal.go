@@ -26,7 +26,7 @@ import (
 
 // QuoteSeal is public, enumerable and survives value copies and a JSON round-trip.
 type QuoteSeal struct {
-	V       int    `json:"v"`
+	V       int    `json:"v"`   // seal format version
 	SDK     string `json:"sdk"` // "go"; a seal of the other SDK is refused ("unsupported-sdk")
 	Payload string `json:"payload"`
 	Digest  string `json:"digest"` // 0x-hex keccak256(utf8(Payload))

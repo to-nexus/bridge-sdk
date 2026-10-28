@@ -41,10 +41,11 @@ func MultihopAmounts(v2 *big.Int, hub FeeTriple, buffer *big.Int) (ef2Declared, 
 	return ef, add(v2, hub.NetworkFee, ef), nil
 }
 
+// ForwardSettlement is the hub's settlement of a forwarded hop 2 as computed by ResolveForwardAmounts.
 type ForwardSettlement struct {
-	Reverted bool
-	Value    *big.Int
-	ExFee    *big.Int
+	Reverted bool     // the arrived value cannot cover the quoted value plus the network fee; Value and ExFee are nil
+	Value    *big.Int // hop-2 value after re-settlement: at least the quoted value, more when fees dropped
+	ExFee    *big.Int // hop-2 exFee that remains after the value and the network fee
 }
 
 // ResolveForwardAmounts mirrors CrossBridge._resolveForwardAmounts (verified against the Solidity-generated vectors).
@@ -62,6 +63,7 @@ func ResolveForwardAmounts(ctxValue, quotedValue, networkFee, rate, denom *big.I
 	return ForwardSettlement{Value: new(big.Int).Set(value), ExFee: new(big.Int).Sub(avail, value)}
 }
 
+// ExpectedBridge is the result of ExpectedBridgeAmount.
 type ExpectedBridge struct {
 	Status                         string // Success | InsufficientForFee | InsufficientValue
 	BridgeValue, NetworkFee, ExFee *big.Int

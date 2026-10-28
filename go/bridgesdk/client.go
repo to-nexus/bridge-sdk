@@ -24,8 +24,10 @@ type ClientOptions struct {
 	ScanChunkBlocks uint64
 	// ScanLookbackBlocks: when a handle has no recorded scan start (default 20000).
 	ScanLookbackBlocks uint64
-	Now                func() time.Time
-	Sleep              func(ctx context.Context, d time.Duration) error
+	// Now replaces the clock (tests); default time.Now.
+	Now func() time.Time
+	// Sleep replaces the waiting between polls (tests); default is a timer that honours ctx.
+	Sleep func(ctx context.Context, d time.Duration) error
 	// Networks overrides the built-in configuration (tests).
 	Networks *NetworkData
 }
@@ -41,6 +43,9 @@ type Client struct {
 	verified map[ChainKey]bool
 }
 
+// NewClient creates a client for the built-in "mainnet" or "testnet" configuration. opts may be nil. It performs no network access: each chain's
+// RPC is dialled on first use and its eth_chainId is checked against the configuration once (a mismatch fails with *NetworkMismatchError before
+// anything is read or sent). It fails only if the network name is unknown.
 func NewClient(ctx context.Context, network NetworkName, opts *ClientOptions) (*Client, error) {
 	o := ClientOptions{}
 	if opts != nil {
@@ -60,6 +65,7 @@ func NewClient(ctx context.Context, network NetworkName, opts *ClientOptions) (*
 	return c, nil
 }
 
+// Network returns the network configuration this client uses: the built-in one, or ClientOptions.Networks when set. Treat it as read-only.
 func (c *Client) Network() *NetworkData { return c.net }
 
 func (c *Client) now() time.Time {
