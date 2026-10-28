@@ -1,0 +1,45 @@
+{
+  "name": "@to-nexus/bridge-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CROSS / ONE bridge integration SDK (TypeScript, ethers v6): BSC <-> ONE <-> HyperEVM, multihop, USDT->ONEUSD, HyperCore deposit, swap+bridge.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/to-nexus/bridge-sdk.git",
+    "directory": "js"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test dist-test/test/*.test.js",
+    "gen": "node ../tools/gen.mjs && node ../tools/gen-abi.mjs",
+    "examples:build": "tsc -p tsconfig.examples.json",
+    "prepack": "node -e \"const fs=require('fs');if(fs.existsSync('../LICENSE'))fs.copyFileSync('../LICENSE','LICENSE')\"",
+    "postpack": "node -e \"require('fs').rmSync('LICENSE',{force:true})\""
+  },
+  "dependencies": {
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.9.3"
+  }
+}

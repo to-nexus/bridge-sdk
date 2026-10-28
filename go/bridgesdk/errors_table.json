@@ -1,0 +1,1107 @@
+{
+  "0x6697b232": {
+    "name": "AccessControlBadConfirmation",
+    "signature": "AccessControlBadConfirmation()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xe2517d3f": {
+    "name": "AccessControlUnauthorizedAccount",
+    "signature": "AccessControlUnauthorizedAccount(address,bytes32)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "neededRole",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x9996b315": {
+    "name": "AddressEmptyCode",
+    "signature": "AddressEmptyCode(address)",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x9ac2f56d": {
+    "name": "BaseBridgeBurnFailed",
+    "signature": "BaseBridgeBurnFailed(address,address,uint256)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x8219abe3": {
+    "name": "BaseBridgeCanNotZeroAddress",
+    "signature": "BaseBridgeCanNotZeroAddress()",
+    "inputs": [],
+    "hint": "수령 주소가 비어 있습니다."
+  },
+  "0xe2153c44": {
+    "name": "BaseBridgeCanNotZeroValue",
+    "signature": "BaseBridgeCanNotZeroValue()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x72a7667e": {
+    "name": "BaseBridgeExtraDataTooLong",
+    "signature": "BaseBridgeExtraDataTooLong()",
+    "inputs": [],
+    "hint": "extraData 길이가 maxExtraDataLength 를 넘었습니다."
+  },
+  "0xab3a2836": {
+    "name": "BaseBridgeFailedCall",
+    "signature": "BaseBridgeFailedCall()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x290cd55f": {
+    "name": "BaseBridgeFailedRelease",
+    "signature": "BaseBridgeFailedRelease(uint8)",
+    "inputs": [
+      {
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "hint": null
+  },
+  "0x9df556d1": {
+    "name": "BaseBridgeForwardAmountMismatch",
+    "signature": "BaseBridgeForwardAmountMismatch(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "computed",
+        "type": "uint256"
+      },
+      {
+        "name": "ctxValue",
+        "type": "uint256"
+      }
+    ],
+    "hint": "멀티홉 등식(value+networkFee+exFee == hop1 도착액)이 맞지 않습니다. 뒤에서 앞으로 다시 계산하세요."
+  },
+  "0xdcd76b60": {
+    "name": "BaseBridgeForwardContextInactive",
+    "signature": "BaseBridgeForwardContextInactive()",
+    "inputs": [],
+    "hint": "bridgeTokenForwarded 는 extraData 안에서만 쓸 수 있습니다. 직접 호출하지 마세요."
+  },
+  "0x01503ac6": {
+    "name": "BaseBridgeForwardNotExecutor",
+    "signature": "BaseBridgeForwardNotExecutor()",
+    "inputs": [],
+    "hint": "bridgeTokenForwarded 는 허브 executor 만 호출할 수 있습니다. 직접 호출하지 마세요."
+  },
+  "0xbe75e8c7": {
+    "name": "BaseBridgeForwardNotOrigin",
+    "signature": "BaseBridgeForwardNotOrigin()",
+    "inputs": [],
+    "hint": "이 토큰은 멀티홉 경유가 불가합니다(ERC20 은 양쪽 origin 필요)."
+  },
+  "0x8399ac8d": {
+    "name": "BaseBridgeForwardStagedInsufficient",
+    "signature": "BaseBridgeForwardStagedInsufficient(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "required",
+        "type": "uint256"
+      },
+      {
+        "name": "staged",
+        "type": "uint256"
+      }
+    ],
+    "hint": "허브의 hop2 네트워크 수수료가 올라 견적 전달액을 지킬 수 없습니다. hop2FeeBuffer 를 두고 다시 견적하세요."
+  },
+  "0x58e88785": {
+    "name": "BaseBridgeInvalidAmount",
+    "signature": "BaseBridgeInvalidAmount()",
+    "inputs": [],
+    "hint": "최소액 미달이거나 견적이 만료됐습니다. 수수료를 다시 조회(quote)한 뒤 재시도하세요."
+  },
+  "0xad82cdbc": {
+    "name": "BaseBridgeInvalidBalance",
+    "signature": "BaseBridgeInvalidBalance()",
+    "inputs": [],
+    "hint": "브리지 컨트랙트 잔고 부족(운영 측 유동성 문제)입니다."
+  },
+  "0x141de7e4": {
+    "name": "BaseBridgeInvalidGasReserve",
+    "signature": "BaseBridgeInvalidGasReserve()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xa6ab65c5": {
+    "name": "BaseBridgeInvalidIndex",
+    "signature": "BaseBridgeInvalidIndex(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256"
+      },
+      {
+        "name": "actual",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x9fbe1958": {
+    "name": "BaseBridgeInvalidPermitToken",
+    "signature": "BaseBridgeInvalidPermitToken(address,address)",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "address"
+      },
+      {
+        "name": "actual",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x26410d68": {
+    "name": "BaseBridgeInvalidRecipient",
+    "signature": "BaseBridgeInvalidRecipient()",
+    "inputs": [],
+    "hint": "수령 주소가 브리지 컨트랙트 자신입니다."
+  },
+  "0x943892eb": {
+    "name": "BaseBridgeInvalidValue",
+    "signature": "BaseBridgeInvalidValue(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "expected",
+        "type": "uint256"
+      },
+      {
+        "name": "actual",
+        "type": "uint256"
+      }
+    ],
+    "hint": "msg.value(또는 전송액)가 기대값과 다릅니다. 첫 번째 인자가 기대값입니다. 견적을 다시 받으세요."
+  },
+  "0x0672aec1": {
+    "name": "BaseBridgeMismatchPermitAccount",
+    "signature": "BaseBridgeMismatchPermitAccount()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xe7427202": {
+    "name": "BaseBridgeNotExistIndex",
+    "signature": "BaseBridgeNotExistIndex(uint256)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x62859622": {
+    "name": "BaseBridgeNotExistToken",
+    "signature": "BaseBridgeNotExistToken(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0xf5101322": {
+    "name": "BaseBridgeNotExpired",
+    "signature": "BaseBridgeNotExpired(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "delayExpiration",
+        "type": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x29f517fd": {
+    "name": "BaseBridgeNotMatchLength",
+    "signature": "BaseBridgeNotMatchLength()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x30d45fb1": {
+    "name": "BaseBridgeVerifierNotSet",
+    "signature": "BaseBridgeVerifierNotSet()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x63a3d91e": {
+    "name": "CrossBridgeManualReleaseExceedsSupplyLimit",
+    "signature": "CrossBridgeManualReleaseExceedsSupplyLimit(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "crossSupplyAfter",
+        "type": "uint256"
+      },
+      {
+        "name": "crossSupplyLimit",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x75884cda": {
+    "name": "Disabled",
+    "signature": "Disabled()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xf645eedf": {
+    "name": "ECDSAInvalidSignature",
+    "signature": "ECDSAInvalidSignature()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xfce698f7": {
+    "name": "ECDSAInvalidSignatureLength",
+    "signature": "ECDSAInvalidSignatureLength(uint256)",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0xd78bce0c": {
+    "name": "ECDSAInvalidSignatureS",
+    "signature": "ECDSAInvalidSignatureS(bytes32)",
+    "inputs": [
+      {
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x4c9c8ce3": {
+    "name": "ERC1967InvalidImplementation",
+    "signature": "ERC1967InvalidImplementation(address)",
+    "inputs": [
+      {
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0xb398979f": {
+    "name": "ERC1967NonPayable",
+    "signature": "ERC1967NonPayable()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xd93c0665": {
+    "name": "EnforcedPause",
+    "signature": "EnforcedPause()",
+    "inputs": [],
+    "hint": "브리지가 점검(일시정지) 중입니다."
+  },
+  "0x8dfc202b": {
+    "name": "ExpectedPause",
+    "signature": "ExpectedPause()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xd6bda275": {
+    "name": "FailedCall",
+    "signature": "FailedCall()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xf92ee8a9": {
+    "name": "InvalidInitialization",
+    "signature": "InvalidInitialization()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xd7e6bcf8": {
+    "name": "NotInitializing",
+    "signature": "NotInitializing()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x3ee5aeb5": {
+    "name": "ReentrancyGuardReentrantCall",
+    "signature": "ReentrancyGuardReentrantCall()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x57f667a0": {
+    "name": "RegistryCanNotZeroValue",
+    "signature": "RegistryCanNotZeroValue()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xdf8496f2": {
+    "name": "RegistryChainPaused",
+    "signature": "RegistryChainPaused(uint256)",
+    "inputs": [
+      {
+        "name": "remoteChainID",
+        "type": "uint256"
+      }
+    ],
+    "hint": "해당 목적지 체인이 일시정지 상태입니다."
+  },
+  "0xf6c75f8f": {
+    "name": "RegistryExistERC20Code",
+    "signature": "RegistryExistERC20Code(address)",
+    "inputs": [
+      {
+        "name": "code",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x3d2e48e8": {
+    "name": "RegistryExistIndex",
+    "signature": "RegistryExistIndex(uint256)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x8ee82f98": {
+    "name": "RegistryExistToken",
+    "signature": "RegistryExistToken(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x2b5d941a": {
+    "name": "RegistryFactoryNotSet",
+    "signature": "RegistryFactoryNotSet()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xac7dbbfd": {
+    "name": "RegistryNotExistChain",
+    "signature": "RegistryNotExistChain(uint256)",
+    "inputs": [
+      {
+        "name": "remoteChainID",
+        "type": "uint256"
+      }
+    ],
+    "hint": "등록되지 않은 체인입니다."
+  },
+  "0x7f11bea9": {
+    "name": "RegistryNotExistIndex",
+    "signature": "RegistryNotExistIndex(uint256)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x2a612de6": {
+    "name": "RegistryNotExistToken",
+    "signature": "RegistryNotExistToken(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": "해당 목적지 체인에 등록되지 않은 토큰 페어입니다."
+  },
+  "0x70709ede": {
+    "name": "RegistryTokenPaused",
+    "signature": "RegistryTokenPaused(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": "해당 토큰 페어가 일시정지 상태입니다."
+  },
+  "0xd180cb31": {
+    "name": "RoleManagerAlreadyHasRole",
+    "signature": "RoleManagerAlreadyHasRole(address,bytes32)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x054af8d8": {
+    "name": "RoleManagerDoesNotHaveRole",
+    "signature": "RoleManagerDoesNotHaveRole(address,bytes32)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x6240daa0": {
+    "name": "RoleManagerMissmatchLength",
+    "signature": "RoleManagerMissmatchLength()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x5274afe7": {
+    "name": "SafeERC20FailedOperation",
+    "signature": "SafeERC20FailedOperation(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": "ERC20 전송 실패(잔액/allowance/토큰 특성)입니다."
+  },
+  "0xe07c8dba": {
+    "name": "UUPSUnauthorizedCallContext",
+    "signature": "UUPSUnauthorizedCallContext()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xaa1d49a4": {
+    "name": "UUPSUnsupportedProxiableUUID",
+    "signature": "UUPSUnsupportedProxiableUUID(bytes32)",
+    "inputs": [
+      {
+        "name": "slot",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x35d7a2f2": {
+    "name": "ValidatorInsufficientSignature",
+    "signature": "ValidatorInsufficientSignature(uint256)",
+    "inputs": [
+      {
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0xb3f07a39": {
+    "name": "ValidatorInvalidSignatures",
+    "signature": "ValidatorInvalidSignatures()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xf0f15b91": {
+    "name": "ValidatorThresholdCanNotZero",
+    "signature": "ValidatorThresholdCanNotZero()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x0b511696": {
+    "name": "BEAlreadyWhitelisted",
+    "signature": "BEAlreadyWhitelisted()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x5fa42d64": {
+    "name": "BEFailedToReturnNative",
+    "signature": "BEFailedToReturnNative()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x90960b3e": {
+    "name": "BEInvalidAddress",
+    "signature": "BEInvalidAddress()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x09b7a22f": {
+    "name": "BEInvalidExtraData",
+    "signature": "BEInvalidExtraData()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x2378c5dc": {
+    "name": "BEInvalidMaxReturnDataSize",
+    "signature": "BEInvalidMaxReturnDataSize()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xb56bf2e7": {
+    "name": "BEInvalidRecipient",
+    "signature": "BEInvalidRecipient()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x867deca7": {
+    "name": "BEInvalidValue",
+    "signature": "BEInvalidValue()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x428239e8": {
+    "name": "BEMethodNotWhitelisted",
+    "signature": "BEMethodNotWhitelisted()",
+    "inputs": [],
+    "hint": "executor 에 extraData 메서드가 등록돼 있지 않습니다(브리지 운영자에게 문의). 전송은 일반 수령(폴백)으로 처리됩니다."
+  },
+  "0xc70ebef5": {
+    "name": "BENotWhitelisted",
+    "signature": "BENotWhitelisted()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x7a4ce702": {
+    "name": "BEOverspent",
+    "signature": "BEOverspent(uint256,uint256)",
+    "inputs": [
+      {
+        "name": "consumed",
+        "type": "uint256"
+      },
+      {
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "hint": "extraCall 이 전달액보다 많이 소비했습니다. 폴백으로 일반 수령됩니다."
+  },
+  "0xe2ef9c2b": {
+    "name": "BETargetCallFailed",
+    "signature": "BETargetCallFailed()",
+    "inputs": [],
+    "hint": "extraCall 타깃 호출이 실패했습니다. 전송은 일반 수령(폴백)으로 처리됩니다."
+  },
+  "0xa6bec22b": {
+    "name": "BETargetNotWhitelisted",
+    "signature": "BETargetNotWhitelisted()",
+    "inputs": [],
+    "hint": "executor 에 extraData 타깃이 등록돼 있지 않습니다(브리지 운영자에게 문의). 전송은 일반 수령(폴백)으로 처리됩니다."
+  },
+  "0x22e81ea4": {
+    "name": "BEZeroValue",
+    "signature": "BEZeroValue()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x43270dfe": {
+    "name": "BaseBridgeDeadlineExpired",
+    "signature": "BaseBridgeDeadlineExpired()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xf50a98e6": {
+    "name": "BridgeVerifierAlreadyHasRole",
+    "signature": "BridgeVerifierAlreadyHasRole(address,bytes32)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0x23056b13": {
+    "name": "BridgeVerifierCanNotZeroValue",
+    "signature": "BridgeVerifierCanNotZeroValue(string)",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "hint": null
+  },
+  "0x9d98e841": {
+    "name": "BridgeVerifierDoesNotHaveRole",
+    "signature": "BridgeVerifierDoesNotHaveRole(address,bytes32)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "hint": null
+  },
+  "0xaa80145d": {
+    "name": "BridgeVerifierInvalidExFeeRate",
+    "signature": "BridgeVerifierInvalidExFeeRate()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x322473c3": {
+    "name": "BridgeVerifierInvalidLength",
+    "signature": "BridgeVerifierInvalidLength()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x137a18ec": {
+    "name": "BridgeVerifierInvalidPermit",
+    "signature": "BridgeVerifierInvalidPermit()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x9f9ffaa8": {
+    "name": "BridgeVerifierInvalidSignature",
+    "signature": "BridgeVerifierInvalidSignature()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xb53494c8": {
+    "name": "BridgeVerifierInvalidTimeWindow",
+    "signature": "BridgeVerifierInvalidTimeWindow()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x74ddb371": {
+    "name": "BridgeVerifierMissmatchLength",
+    "signature": "BridgeVerifierMissmatchLength()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xb7e2de52": {
+    "name": "BridgeVerifierWhitelistAlreadyAdded",
+    "signature": "BridgeVerifierWhitelistAlreadyAdded(address)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0xa60867e5": {
+    "name": "BridgeVerifierWhitelistNotFound",
+    "signature": "BridgeVerifierWhitelistNotFound(address)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x92ce39a2": {
+    "name": "CalcAmountLibCanNotZeroValue",
+    "signature": "CalcAmountLibCanNotZeroValue(string)",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "hint": null
+  },
+  "0x19ca5ebb": {
+    "name": "AccessControlEnforcedDefaultAdminDelay",
+    "signature": "AccessControlEnforcedDefaultAdminDelay(uint48)",
+    "inputs": [
+      {
+        "name": "schedule",
+        "type": "uint48"
+      }
+    ],
+    "hint": null
+  },
+  "0x3fc3c27a": {
+    "name": "AccessControlEnforcedDefaultAdminRules",
+    "signature": "AccessControlEnforcedDefaultAdminRules()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xc22c8022": {
+    "name": "AccessControlInvalidDefaultAdmin",
+    "signature": "AccessControlInvalidDefaultAdmin(address)",
+    "inputs": [
+      {
+        "name": "defaultAdmin",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0xe886ac9d": {
+    "name": "CoreAmountBelowOneCoreWei",
+    "signature": "CoreAmountBelowOneCoreWei()",
+    "inputs": [],
+    "hint": "HyperCore 입금액이 1 Core wei 미만입니다."
+  },
+  "0x38829705": {
+    "name": "CoreDecimalsMismatch",
+    "signature": "CoreDecimalsMismatch(uint8,uint8,int8)",
+    "inputs": [
+      {
+        "name": "decimals",
+        "type": "uint8"
+      },
+      {
+        "name": "weiDecimals",
+        "type": "uint8"
+      },
+      {
+        "name": "evmExtraWeiDecimals",
+        "type": "int8"
+      }
+    ],
+    "hint": null
+  },
+  "0xb3b7928e": {
+    "name": "CoreLinkNotFinalized",
+    "signature": "CoreLinkNotFinalized(uint64,address)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint64"
+      },
+      {
+        "name": "evmContract",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x8e844a3e": {
+    "name": "CoreRecipientIsSystemAddress",
+    "signature": "CoreRecipientIsSystemAddress()",
+    "inputs": [],
+    "hint": "coreRecipient 가 시스템 주소입니다."
+  },
+  "0xe61a02d6": {
+    "name": "CoreRecipientZero",
+    "signature": "CoreRecipientZero()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x01b29a9e": {
+    "name": "CoreTokenIndexAlreadySet",
+    "signature": "CoreTokenIndexAlreadySet()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xfc45e196": {
+    "name": "CoreTokenIndexOutOfRange",
+    "signature": "CoreTokenIndexOutOfRange(uint64)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint64"
+      }
+    ],
+    "hint": null
+  },
+  "0x72e49091": {
+    "name": "CoreTokenInfoUnavailable",
+    "signature": "CoreTokenInfoUnavailable(uint64)",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint64"
+      }
+    ],
+    "hint": null
+  },
+  "0xfb8f41b2": {
+    "name": "ERC20InsufficientAllowance",
+    "signature": "ERC20InsufficientAllowance(address,uint256,uint256)",
+    "inputs": [
+      {
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "name": "allowance",
+        "type": "uint256"
+      },
+      {
+        "name": "needed",
+        "type": "uint256"
+      }
+    ],
+    "hint": "approve 가 부족합니다. 금액은 value + networkFee + exFee 입니다."
+  },
+  "0xe450d38c": {
+    "name": "ERC20InsufficientBalance",
+    "signature": "ERC20InsufficientBalance(address,uint256,uint256)",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "name": "balance",
+        "type": "uint256"
+      },
+      {
+        "name": "needed",
+        "type": "uint256"
+      }
+    ],
+    "hint": "토큰 잔액이 부족합니다."
+  },
+  "0xe602df05": {
+    "name": "ERC20InvalidApprover",
+    "signature": "ERC20InvalidApprover(address)",
+    "inputs": [
+      {
+        "name": "approver",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0xec442f05": {
+    "name": "ERC20InvalidReceiver",
+    "signature": "ERC20InvalidReceiver(address)",
+    "inputs": [
+      {
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x96c6fd1e": {
+    "name": "ERC20InvalidSender",
+    "signature": "ERC20InvalidSender(address)",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x94280d62": {
+    "name": "ERC20InvalidSpender",
+    "signature": "ERC20InvalidSpender(address)",
+    "inputs": [
+      {
+        "name": "spender",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x62791302": {
+    "name": "ERC2612ExpiredSignature",
+    "signature": "ERC2612ExpiredSignature(uint256)",
+    "inputs": [
+      {
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x4b800e46": {
+    "name": "ERC2612InvalidSigner",
+    "signature": "ERC2612InvalidSigner(address,address)",
+    "inputs": [
+      {
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "hint": null
+  },
+  "0x886a16ed": {
+    "name": "HyperCoreLinkAlreadyFinalized",
+    "signature": "HyperCoreLinkAlreadyFinalized()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x935dcbfa": {
+    "name": "HyperMintableERC20CoreTokenIndexNotSet",
+    "signature": "HyperMintableERC20CoreTokenIndexNotSet()",
+    "inputs": [],
+    "hint": "해당 HyperEVM 토큰의 HyperCore 링크가 아직 설정되지 않았습니다(X2 불가)."
+  },
+  "0xc0938a38": {
+    "name": "HyperMintableERC20LinkerlessInitDisabled",
+    "signature": "HyperMintableERC20LinkerlessInitDisabled()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x752d88c0": {
+    "name": "InvalidAccountNonce",
+    "signature": "InvalidAccountNonce(address,uint256)",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "name": "currentNonce",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x6dfcc650": {
+    "name": "SafeCastOverflowedUintDowncast",
+    "signature": "SafeCastOverflowedUintDowncast(uint8,uint256)",
+    "inputs": [
+      {
+        "name": "bits",
+        "type": "uint8"
+      },
+      {
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "hint": null
+  },
+  "0x0edc5679": {
+    "name": "SBRCircularPath",
+    "signature": "SBRCircularPath(address)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      }
+    ],
+    "hint": "tokenIn 과 tokenOut 이 같습니다."
+  },
+  "0xd0a10ce3": {
+    "name": "SBRDeadlineExpired",
+    "signature": "SBRDeadlineExpired()",
+    "inputs": [],
+    "hint": "스왑 deadline 이 지났습니다. 다시 견적하세요."
+  },
+  "0x9eb43e51": {
+    "name": "SBRInvalidAddress",
+    "signature": "SBRInvalidAddress()",
+    "inputs": [],
+    "hint": "tokenIn 이 WCROSS 가 아니거나 주소가 잘못됐습니다."
+  },
+  "0x20b845f3": {
+    "name": "SBRInvalidPath",
+    "signature": "SBRInvalidPath()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x0eaf01fb": {
+    "name": "SBRInvalidValue",
+    "signature": "SBRInvalidValue()",
+    "inputs": [],
+    "hint": "msg.value 가 amountIn 과 다릅니다."
+  },
+  "0x390ae4de": {
+    "name": "SBRPartialFill",
+    "signature": "SBRPartialFill(address,uint256)",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "name": "leftover",
+        "type": "uint256"
+      }
+    ],
+    "hint": "멀티홉 스왑 부분체결 잔여물이 감지됐습니다."
+  },
+  "0xa45ece21": {
+    "name": "SBRQuoteFailed",
+    "signature": "SBRQuoteFailed(uint8)",
+    "inputs": [
+      {
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "hint": "SwapBridgeRouter 견적 실패(QuoteStatus 인자 참고): NoPair/InsufficientForFee/InsufficientValue/InvalidSwap."
+  },
+  "0xe2fe07f9": {
+    "name": "SBRRefundFailed",
+    "signature": "SBRRefundFailed()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xccd78ee7": {
+    "name": "ForwardReentrantCall",
+    "signature": "ForwardReentrantCall()",
+    "inputs": [],
+    "hint": null
+  },
+  "0xff5a2313": {
+    "name": "BSCBridgeCanNotZero",
+    "signature": "BSCBridgeCanNotZero()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x643b6745": {
+    "name": "BSCBridgeCanNotZeroAddress",
+    "signature": "BSCBridgeCanNotZeroAddress()",
+    "inputs": [],
+    "hint": null
+  },
+  "0x5e0c1f89": {
+    "name": "BSCBridgeInvalidDeadWallet",
+    "signature": "BSCBridgeInvalidDeadWallet()",
+    "inputs": [],
+    "hint": null
+  }
+}

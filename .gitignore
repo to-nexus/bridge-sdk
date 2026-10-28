@@ -31,3 +31,11 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# SDK kit
+node_modules/
+dist*/
+*.tgz
+_internal/
+tools/*.local.json
+.DS_Store

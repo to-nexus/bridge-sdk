@@ -1,0 +1,325 @@
+{
+  "v3Router": [
+    {
+      "type": "function",
+      "name": "exactInputSingle",
+      "inputs": [
+        {
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct ISwapRouter.ExactInputSingleParams",
+          "components": [
+            {
+              "name": "tokenIn",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "tokenOut",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "fee",
+              "type": "uint24",
+              "internalType": "uint24"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "deadline",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amountIn",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amountOutMinimum",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "sqrtPriceLimitX96",
+              "type": "uint160",
+              "internalType": "uint160"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "payable"
+    }
+  ],
+  "quoterV2": [
+    {
+      "type": "function",
+      "name": "quoteExactInputSingle",
+      "inputs": [
+        {
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct IQuoterV2.QuoteExactInputSingleParams",
+          "components": [
+            {
+              "name": "tokenIn",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "tokenOut",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "amountIn",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "fee",
+              "type": "uint24",
+              "internalType": "uint24"
+            },
+            {
+              "name": "sqrtPriceLimitX96",
+              "type": "uint160",
+              "internalType": "uint160"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "sqrtPriceX96After",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "initializedTicksCrossed",
+          "type": "uint32",
+          "internalType": "uint32"
+        },
+        {
+          "name": "gasEstimate",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    }
+  ],
+  "v3Factory": [
+    {
+      "type": "function",
+      "name": "getPool",
+      "stateMutability": "view",
+      "inputs": [
+        {
+          "name": "tokenA",
+          "type": "address"
+        },
+        {
+          "name": "tokenB",
+          "type": "address"
+        },
+        {
+          "name": "fee",
+          "type": "uint24"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pool",
+          "type": "address"
+        }
+      ]
+    }
+  ],
+  "v3Pool": [
+    {
+      "type": "function",
+      "name": "liquidity",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "fee",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint24"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "token0",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "token1",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ]
+    }
+  ],
+  "v3Periphery": [
+    {
+      "type": "function",
+      "name": "factory",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "WETH9",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ]
+    }
+  ],
+  "forwardLibEvents": [
+    {
+      "type": "event",
+      "name": "ForwardFailed",
+      "inputs": [
+        {
+          "name": "fromChainID",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "finalizeIndex",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "code",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "enum ForwardLib.ForwardFailureCode"
+        },
+        {
+          "name": "reasonHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "ForwardInitiated",
+      "inputs": [
+        {
+          "name": "fromChainID",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "finalizeIndex",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "toChainID",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "fromToken",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "to",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "networkFee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "exFee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "extraDataHash",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        }
+      ],
+      "anonymous": false
+    }
+  ]
+}
