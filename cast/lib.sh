@@ -123,7 +123,7 @@ send_tx() {
   for a in "$@"; do args+=("$a"); done
   if [ -n "${SEND_VALUE:-}" ] && [ "${SEND_VALUE}" != "0" ]; then value="--value $SEND_VALUE"; fi
   local out; # shellcheck disable=SC2086
-  out=$(cast send "$to" "$sig" "${args[@]}" --rpc-url "$rpc" $SIGNER_ARGS $(gas_args) $value --json) || die "cast send failed (NOT retried; see the recovery notes in GUIDE 에러 처리)"
+  out=$(cast send "$to" "$sig" "${args[@]}" --rpc-url "$rpc" $SIGNER_ARGS $(gas_args) $value --json) || die "cast send failed (NOT retried; see the recovery notes in GUIDE §8)"
   local hs; hs=$(echo "$out" | python3 -c 'import json,sys;r=json.load(sys.stdin);print(r["transactionHash"],int(r["status"],16))')
   local h=${hs% *} s=${hs#* }
   [ "$s" = "1" ] || die "transaction $h reverted (status 0)"

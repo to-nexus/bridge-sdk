@@ -111,8 +111,8 @@ export const networksData: NetworksData = {
           "coreInfoApi": "https://api.hyperliquid.xyz/info",
           "swap": null,
           "todo": {
-            "coreSystemAddress": "TODO(PENDING) 메인넷 ONE 토큰이 아직 HyperCore 에 링크되지 않음 (isCoreTokenIndexSet=false), X2 메인넷 비활성",
-            "explorer": "hyperevmscan.io 는 Hyperliquid 공식 문서의 explorer 목록(네트워크 구분 표기 없음)에 있음"
+            "coreSystemAddress": "TODO(PENDING) the mainnet ONE token is not linked to HyperCore yet (isCoreTokenIndexSet=false); X2 is unavailable on mainnet",
+            "explorer": "hyperevmscan.io is listed among the explorers in the official Hyperliquid docs (the list does not name a network)"
           }
         }
       }
@@ -159,9 +159,9 @@ export const networksData: NetworksData = {
             "x1Pool": null
           },
           "todo": {
-            "explorer": "TODO(UNCONFIRMED) ONE 체인 테스트넷 익스플로러 공식 URL 미확인",
-            "tokens.ONEUSD": "TODO(UNCONFIRMED) 테스트넷 ONEUSD 주소를 찾지 못함",
-            "swap.x1Pool": "TODO(UNCONFIRMED) 테스트넷 USDTx/ONEUSD 풀을 찾지 못함 (X1 테스트넷 비활성)"
+            "explorer": "TODO(UNCONFIRMED) no official ONE chain testnet explorer URL found",
+            "tokens.ONEUSD": "TODO(UNCONFIRMED) no testnet ONEUSD address found",
+            "swap.x1Pool": "TODO(UNCONFIRMED) no testnet USDTx/ONEUSD pool found (X1 unavailable on testnet)"
           }
         },
         "bsc": {
@@ -211,8 +211,8 @@ export const networksData: NetworksData = {
           "coreInfoApi": null,
           "swap": null,
           "todo": {
-            "explorer": "TODO(UNCONFIRMED) HyperEVM 테스트넷 익스플로러 공식 URL 미확인",
-            "coreInfoApi": "TODO(UNCONFIRMED) HyperCore 테스트넷 info API URL 은 공식 문서에서 확인하지 못함 (checkCoreBalance 테스트넷 비활성)"
+            "explorer": "TODO(UNCONFIRMED) no official HyperEVM testnet explorer URL found",
+            "coreInfoApi": "TODO(UNCONFIRMED) the official docs do not give a HyperCore testnet info API URL (checkCoreBalance unavailable on testnet)"
           }
         }
       }

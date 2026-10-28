@@ -193,7 +193,7 @@ inner      = 0x                                  (평범한 도착)
 | BSC | (참고) BridgeExecutor — SDK 는 라이브 조회 | — (리프 체인, 없음) |
 | HYPEREVM | 브리지 (프록시) — 직접 호출 | `0xd8A89e931E504Bdf7775640F800fe46528D097E5` |
 | HYPEREVM | 토큰 ONE (ONE, 18 dec) | `0xFaA92e0e9BF90102ff1F731e7DeBD89CD7D1Ebe5` |
-| HYPEREVM | HyperCore 시스템 주소 (ONE) | ⚠️ `null` — TODO(PENDING) 메인넷 ONE 토큰이 아직 HyperCore 에 링크되지 않음 (isCoreTokenIndexSet=false), X2 메인넷 비활성 |
+| HYPEREVM | HyperCore 시스템 주소 (ONE) | ⚠️ `null` — TODO(PENDING) the mainnet ONE token is not linked to HyperCore yet (isCoreTokenIndexSet=false); X2 is unavailable on mainnet |
 | HYPEREVM | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x75665acd4B5C94c0E865f6ba92FbA266338ADcFC` |
 | HYPEREVM | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x4c3bd7914F9d2bDA7C67233D320953a0976f707b` |
 
@@ -201,21 +201,21 @@ inner      = 0x                                  (평범한 도착)
 
 | 체인 | chainId | RPC (공개) | Explorer | 네이티브 |
 |---|---|---|---|---|
-| ONE Chain Testnet | `612044` | `https://testnet.onechain.nexus:22001` | ⚠️ `null` — TODO(UNCONFIRMED) ONE 체인 테스트넷 익스플로러 공식 URL 미확인 | `ONE` |
+| ONE Chain Testnet | `612044` | `https://testnet.onechain.nexus:22001` | ⚠️ `null` — TODO(UNCONFIRMED) no official ONE chain testnet explorer URL found | `ONE` |
 | BNB Smart Chain Testnet | `97` | `https://bsc-testnet-public.cross-api.in` | `https://testnet.bscscan.com` | `tBNB` |
-| HyperEVM Testnet | `998` | `https://rpc.hyperliquid-testnet.xyz/evm` | ⚠️ `null` — TODO(UNCONFIRMED) HyperEVM 테스트넷 익스플로러 공식 URL 미확인 | `HYPE` |
+| HyperEVM Testnet | `998` | `https://rpc.hyperliquid-testnet.xyz/evm` | ⚠️ `null` — TODO(UNCONFIRMED) no official HyperEVM testnet explorer URL found | `HYPE` |
 
 | 체인 | 역할 | 주소 |
 |---|---|---|
 | ONE | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
 | ONE | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
 | ONE | 토큰 USDTx (USDTx, 18 dec) | `0x9F85c7B5D7637E18f946cc8AF9C131318c6833d9` |
-| ONE | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 ONEUSD 주소를 찾지 못함 |
+| ONE | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) no testnet ONEUSD address found |
 | ONE | 토큰 WCROSS (WCROSS, 18 dec) | `0xda37a3B60E6b97E8CB44b460130d40331efc566b` |
 | ONE | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x61745D6Dc4342cF01bE2C145218CE1952260cd05` |
 | ONE | QuoterV2 | `0x19D62F16FbFc200F8a1eFc521f10b54A3801D10A` |
 | ONE | SwapBridgeRouter (X3) | `0xc9B23a5E14747Cc2Acc3Dca7237D3174CE1BCf5B` |
-| ONE | USDTx/ONEUSD 풀 (fee 0) | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 USDTx/ONEUSD 풀을 찾지 못함 (X1 테스트넷 비활성) |
+| ONE | USDTx/ONEUSD 풀 (fee 0) | ⚠️ `null` — TODO(UNCONFIRMED) no testnet USDTx/ONEUSD pool found (X1 unavailable on testnet) |
 | ONE | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x31104F827Ac2AE6C5a1A5315C7D7D8b8dFa61c37` |
 | ONE | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x6147FA2602699dE1eb0141959d93bFE06dEF2279` |
 | BSC | 브리지 (프록시) — 직접 호출 | `0x192FFaCAf26A53b439C33F3d2C166ceB0A26bf2d` |

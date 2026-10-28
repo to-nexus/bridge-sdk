@@ -29,7 +29,7 @@ export interface QuoteRequest {
   swap?: { slippageBps?: number; deadlineSec?: number };
   /** X3 only */
   x3?: { tokenIn: string | 'native'; tokenOut: string; poolFee: number; toChain: 'bsc' | 'hyperevm' };
-  /** multihop: wei added to the declared hop-2 exFee (see GUIDE 수수료). default 0 */
+  /** multihop: wei added to the declared hop-2 exFee (see GUIDE §6, fees). default 0 */
   hop2FeeBuffer?: bigint;
   /** explicit, tighter user limits (otherwise derived from the first quote) */
   limits?: { maxTotalSpend?: bigint; minDelivered?: bigint };

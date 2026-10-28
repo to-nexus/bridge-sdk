@@ -1,60 +1,62 @@
 # bridge-sdk
 
-BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 SDK** 입니다.
-브리지 컨트랙트 구조를 몰라도 견적부터 전송, 도착 확인까지 몇 줄로 처리할 수 있습니다.
+English | [한국어](README_ko.md)
 
-- **TypeScript SDK** (`js/`, ethers v6) — `@to-nexus/bridge-sdk`
-- **Go SDK** (`go/`) — `github.com/to-nexus/bridge-sdk/go`
-- **cast 예제** (`cast/`) — 셸에서 바로 실행하는 foundry `cast` 스크립트
+The **ONE Bridge SDK** moves ONE and USDT between BSC, the ONE chain and HyperEVM.
+It takes you from a fee quote to a confirmed delivery in a few lines, without needing to know how the bridge contracts work.
 
-네트워크 설정(chainId · RPC · 컨트랙트 주소)이 SDK 에 내장되어 있어 따로 넣을 값이 없습니다.
+- **TypeScript SDK** (`js/`, ethers v6): `@to-nexus/bridge-sdk`
+- **Go SDK** (`go/`): `github.com/to-nexus/bridge-sdk/go`
+- **cast examples** (`cast/`): shell scripts built on foundry `cast`
 
-## 지원 경로
+Network settings (chain IDs, RPC endpoints, contract addresses) are built into the SDKs, so there is nothing to configure.
 
-| ID | 경로 | 설명 | JS `Route` | Go | 메인넷 | 테스트넷 |
+## Supported routes
+
+| ID | Route | Description | JS `Route` | Go | Mainnet | Testnet |
 |---|---|---|---|---|:---:|:---:|
-| R1 | BSC → ONE | BSC 의 ONE 토큰 → ONE 체인 네이티브 ONE | `BSC_TO_ONE` | `RouteBSCToOne` | ✅ | ✅ |
-| R2 | ONE → BSC | 네이티브 ONE → BSC 의 ONE 토큰 | `ONE_TO_BSC` | `RouteOneToBSC` | ✅ | ✅ |
-| R3 | ONE → HyperEVM | 네이티브 ONE → HyperEVM 의 ONE 토큰 | `ONE_TO_HYPEREVM` | `RouteOneToHyperEVM` | ✅ | ✅ |
-| R4 | HyperEVM → ONE | HyperEVM 의 ONE 토큰 → 네이티브 ONE | `HYPEREVM_TO_ONE` | `RouteHyperEVMToOne` | ✅ | ✅ |
-| R5 | BSC → ONE → HyperEVM | 한 번의 요청으로 두 홉 이동 (멀티홉) | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | ✅ | ✅ |
-| R6 | HyperEVM → ONE → BSC | 한 번의 요청으로 두 홉 이동 (멀티홉) | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | ✅ | ✅ |
-| X1 | BSC USDT → ONEUSD | 도착 후 ONE 체인에서 ONEUSD 로 자동 스왑 | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
-| X2 | ONE → HyperCore | HyperEVM 도착 후 HyperCore 스팟 계정으로 입금 (R3 · R5 옵션) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | 준비 중 | ✅ |
-| X3 | 스왑 후 브리지 | ONE 체인에서 스왑한 토큰을 BSC / HyperEVM 으로 전송 | `SWAP_BRIDGE` | `RouteSwapBridge` | ✅ | ✅¹ |
+| R1 | BSC → ONE | ONE token on BSC → native ONE on the ONE chain | `BSC_TO_ONE` | `RouteBSCToOne` | ✅ | ✅ |
+| R2 | ONE → BSC | Native ONE → ONE token on BSC | `ONE_TO_BSC` | `RouteOneToBSC` | ✅ | ✅ |
+| R3 | ONE → HyperEVM | Native ONE → ONE token on HyperEVM | `ONE_TO_HYPEREVM` | `RouteOneToHyperEVM` | ✅ | ✅ |
+| R4 | HyperEVM → ONE | ONE token on HyperEVM → native ONE | `HYPEREVM_TO_ONE` | `RouteHyperEVMToOne` | ✅ | ✅ |
+| R5 | BSC → ONE → HyperEVM | Two hops in a single request (multihop) | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | ✅ | ✅ |
+| R6 | HyperEVM → ONE → BSC | Two hops in a single request (multihop) | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | ✅ | ✅ |
+| X1 | BSC USDT → ONEUSD | Swaps to ONEUSD automatically on arrival on the ONE chain | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
+| X2 | ONE → HyperCore | Deposits into a HyperCore spot account after arriving on HyperEVM (option of R3 and R5) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | Coming soon | ✅ |
+| X3 | Swap and bridge | Swaps on the ONE chain and bridges the result to BSC or HyperEVM | `SWAP_BRIDGE` | `RouteSwapBridge` | ✅ | ✅¹ |
 
-¹ 테스트넷에는 유동성 있는 스왑 풀이 거의 없어 견적이 실패할 수 있습니다.
+¹ Testnet has few swap pools with liquidity, so quotes may fail.
 
-아직 열리지 않은 경로는 SDK 가 서명 전에 거부합니다(`AddressNotConfiguredError` 또는 `PreflightError`).
+The SDK refuses a route that is not open yet before anything is signed (`AddressNotConfiguredError` or `PreflightError`).
 
-### 네트워크
+### Networks
 
-| 체인 | 메인넷 chainId | 테스트넷 chainId | 가스 토큰 |
+| Chain | Mainnet chain ID | Testnet chain ID | Gas token |
 |---|---|---|---|
-| ONE (허브) | 612055 | 612044 | ONE |
+| ONE (hub) | 612055 | 612044 | ONE |
 | BNB Smart Chain | 56 | 97 | BNB |
 | HyperEVM | 999 | 998 | HYPE |
 
-컨트랙트 주소와 RPC 는 [GUIDE.md §3](GUIDE.md#3-네트워크-정보) 와 [`networks.json`](networks.json) 에 있습니다.
+Contract addresses and RPC endpoints are listed in [GUIDE.md §3](GUIDE.md#3-네트워크-정보) (Korean) and in [`networks.json`](networks.json).
 
-## 설치
+## Installation
 
 ### TypeScript / JavaScript
 
-Node.js 18 이상이 필요합니다. 아직 npm 레지스트리에 배포하지 않았으므로 소스에서 패키지를 만들어 설치합니다.
+Requires Node.js 18 or later. The package is not published to the npm registry yet, so build it from source:
 
 ```bash
 git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
-npm ci && npm run build && npm pack     # to-nexus-bridge-sdk-<버전>.tgz 생성
+npm ci && npm run build && npm pack     # creates to-nexus-bridge-sdk-<version>.tgz
 
-# 내 프로젝트에서
-npm install /path/to/to-nexus-bridge-sdk-<버전>.tgz ethers
+# in your project
+npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
 ```
 
 ### Go
 
-Go 1.24 이상이 필요합니다.
+Requires Go 1.24 or later.
 
 ```bash
 go get github.com/to-nexus/bridge-sdk/go@v0.1.0
@@ -62,22 +64,22 @@ go get github.com/to-nexus/bridge-sdk/go@v0.1.0
 
 ### cast
 
-foundry 의 `cast` 와 `python3` 가 필요합니다. 따로 설치할 것 없이 저장소의 `cast/` 스크립트를 실행합니다.
+Requires foundry's `cast` and `python3`. Nothing to install: run the scripts in `cast/` directly.
 
-### 버전
+### Versioning
 
-릴리스는 git 태그로 냅니다. 같은 릴리스에 태그가 두 개 붙습니다.
+Releases are git tags. Each release carries two tags on the same commit:
 
-| 태그 | 대상 | 쓰는 곳 |
+| Tag | Covers | Used by |
 |---|---|---|
-| `vX.Y.Z` | 저장소 전체 · TypeScript SDK | `git clone --branch vX.Y.Z` |
-| `go/vX.Y.Z` | Go SDK (`go/` 모듈) | `go get github.com/to-nexus/bridge-sdk/go@vX.Y.Z` |
+| `vX.Y.Z` | The whole repository and the TypeScript SDK | `git clone --branch vX.Y.Z` |
+| `go/vX.Y.Z` | The Go SDK (the `go/` module) | `go get github.com/to-nexus/bridge-sdk/go@vX.Y.Z` |
 
-Go SDK 는 저장소의 `go/` 폴더에 있는 모듈이라, Go 는 `go/` 가 붙은 태그만 그 모듈의 버전으로 인식합니다. `go get` 에는 `go/` 없이 `@vX.Y.Z` 로 적습니다.
+The Go SDK is a module in the repository's `go/` directory, and Go only recognises `go/`-prefixed tags as versions of that module. With `go get`, write the version without the prefix (`@vX.Y.Z`).
 
-## 빠른 시작
+## Quick start
 
-모든 경로는 같은 흐름입니다: **견적(quote) → 전송(send) → 핸들 받기(wait) → 추적(track)**.
+Every route follows the same flow: **quote → send → wait for a handle → track**.
 
 ### TypeScript
 
@@ -88,23 +90,23 @@ import { Wallet } from 'ethers';
 const client = new BridgeClient({ network: 'testnet' });
 const wallet = new Wallet(process.env.PRIVATE_KEY!);
 
-// 1. 견적: 수수료를 조회하고 보낼 트랜잭션을 만든다
+// 1. Quote: read the fees and build the transaction to send
 const quote = await client.quote({
   route: Route.BSC_TO_ONE,
-  amount: parseUnits('10'),          // 도착 금액 (wei)
+  amount: parseUnits('10'),          // amount to deliver (wei)
   sender: wallet.address,
   recipient: wallet.address,
 });
 
-// 2. 전송: 필요하면 approve 하고, 다시 견적·사전 점검·시뮬레이션을 거쳐 보낸다
+// 2. Send: approve if needed, re-quote, run the safety checks and a simulation, then broadcast
 const sent = await client.send(wallet, quote);
 
-// 3. 핸들: 전송을 식별하는 JSON. 저장해 두면 재시작 후에도 추적할 수 있다
+// 3. Handle: a JSON document that identifies the transfer. Store it to resume tracking after a restart
 const handle = await sent.wait();
 
-// 4. 추적: 목적지 도착까지 상태를 따라간다
+// 4. Track: follow the transfer until it arrives at the destination
 const result = await client.track(handle);
-console.log(result.state);           // 'DELIVERED' 등
+console.log(result.state);           // e.g. 'DELIVERED'
 ```
 
 ### Go
@@ -161,36 +163,36 @@ func main() {
 
 ```bash
 cd cast
-FROM=0xYourAddress AMOUNT=10 NETWORK=testnet ./r1.sh                          # 견적·잔고·시뮬레이션만 (전송 안 함)
-FROM=0xYourAddress AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./r1.sh   # 실제 전송
+FROM=0xYourAddress AMOUNT=10 NETWORK=testnet ./r1.sh                          # quote, balance checks and simulation only (nothing is sent)
+FROM=0xYourAddress AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./r1.sh   # actually send
 ```
 
-## 알아두면 좋은 것
+## Good to know
 
-- **`amount` 의 의미**: 단일 홉(R1–R4)은 도착 금액, 멀티홉(R5/R6)은 최종 도착 **최소** 금액, X1 은 보낼 USDT 금액, X3 는 스왑 입력 금액입니다. 수수료는 견적이 따로 계산해 더합니다.
-- **경로마다 최소 전송액이 있습니다.** 운영 중에 바뀔 수 있으므로 화면에 고정하지 말고 견적으로 확인하세요.
-- **견적은 바꿀 수 없습니다.** 금액이나 수령인을 바꾸려면 `quote()` 를 다시 호출하세요. 견적 객체를 고치면 `send()` 가 거부합니다.
-- **`send()` 는 안전 점검을 강제합니다.** approve 전후로 브리지 정지·페어 등록·잔고·allowance 등을 확인하고, 문제가 있으면 아무것도 서명하지 않고 `PreflightError` 를 던집니다. 사유를 미리 보려면 `preflight()` 를 호출하세요.
-- **자동 재전송을 하지 않습니다.** 전송 결과를 알 수 없으면 `BroadcastOutcomeUnknownError` 가 나옵니다. 다시 보내기 전에 `findSourceTransfer()` 로 이미 나갔는지 확인하세요. 같은 전송이 두 번 나가는 것을 막기 위해서입니다.
-- **핸들을 저장하세요.** `TransferHandle` 은 순수 JSON 입니다. 트랜잭션 해시만 있어도 `handleFromTx()` 로 다시 만들 수 있습니다.
-- ONE 체인에는 reorg 가 없어 컨펌 대기가 필요 없습니다. BSC · HyperEVM 에서 출발하면 출발 트랜잭션의 영수증만 기다립니다.
+- **What `amount` means**: the delivered amount for single-hop routes (R1–R4), the **minimum** final delivered amount for multihop routes (R5/R6), the USDT amount to send for X1, and the swap input for X3. The quote computes and adds the fees.
+- **Each route has a minimum transfer amount.** It can change during operation, so read it from a quote instead of hard-coding it.
+- **Quotes are immutable.** To change the amount or the recipient, call `quote()` again. `send()` refuses a quote object that was modified.
+- **`send()` enforces safety checks.** Before and after the approve it checks bridge pauses, pair registration, balances, allowances and more. If anything fails it signs nothing and throws `PreflightError`. Call `preflight()` to see the reasons in advance.
+- **Nothing is ever re-sent automatically.** If the outcome of a broadcast is unknown you get `BroadcastOutcomeUnknownError`. Before sending again, use `findSourceTransfer()` to check whether the first transfer went out; this prevents sending the same transfer twice.
+- **Store the handle.** `TransferHandle` is plain JSON. You can also rebuild it from a transaction hash with `handleFromTx()`.
+- The ONE chain has no reorgs, so there is no confirmation wait. When the source chain is BSC or HyperEVM, only the source transaction receipt is awaited.
 
-## 전송 상태
+## Transfer states
 
-`track()` 이 돌려주는 주요 상태입니다. 전체 목록과 처리 방법은 [GUIDE.md §7](GUIDE.md#7-이벤트--상태-추적) 에 있습니다.
+The main states returned by `track()`. The full list and how to handle each state are in [GUIDE.md §7](GUIDE.md#7-이벤트--상태-추적) (Korean).
 
-| 상태 | 의미 |
+| State | Meaning |
 |---|---|
-| `IN_FLIGHT` | 출발 체인에서 처리됨, 목적지 도착 대기 중 |
-| `DELIVERED` | 목적지에 도착 |
-| `DELIVERED_FALLBACK` | 요청한 후속 동작(스왑·HyperCore 입금)이 실패해 원래 토큰으로 도착 |
-| `PENDING_ON_DEST` | 목적지에서 보류됨 (자동 또는 운영자 처리 후 지급) |
-| `CORE_DEPOSIT_SUBMITTED` | X2: HyperCore 입금 요청까지 완료 |
-| `SOURCE_FAILED` | 출발 트랜잭션 실패 (자금 이동 없음) |
+| `IN_FLIGHT` | Processed on the source chain, waiting for delivery at the destination |
+| `DELIVERED` | Delivered at the destination |
+| `DELIVERED_FALLBACK` | The requested follow-up action (swap or HyperCore deposit) failed, so the original token was delivered instead |
+| `PENDING_ON_DEST` | Held at the destination; paid out automatically or after operator review |
+| `CORE_DEPOSIT_SUBMITTED` | X2: the HyperCore deposit request has been submitted |
+| `SOURCE_FAILED` | The source transaction failed (no funds moved) |
 
-## 예제
+## Examples
 
-`js/examples/`, `go/examples/` 에 경로마다 예제가 있습니다. 기본은 **dry-run**(견적·사전 점검·시뮬레이션만)이고 `--send` / `-send` 를 줄 때만 실제로 전송합니다.
+`js/examples/` and `go/examples/` have one example per route. They run as a **dry run** by default (quote, safety checks and simulation only) and send only with `--send` / `-send`.
 
 ```bash
 # TypeScript
@@ -201,22 +203,22 @@ node dist-examples/examples/r1-bsc-to-one.js --network testnet --sender 0xYourAd
 cd go && go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
 ```
 
-| 예제 | 경로 |
+| Example | Route |
 |---|---|
 | `r1-bsc-to-one` · `r2-one-to-bsc` | R1 · R2 |
 | `r3-one-to-hyperevm` · `r4-hyperevm-to-one` | R3 · R4 |
-| `r5-bsc-to-hyperevm` · `r6-hyperevm-to-bsc` | R5 · R6 (멀티홉) |
+| `r5-bsc-to-hyperevm` · `r6-hyperevm-to-bsc` | R5 · R6 (multihop) |
 | `x1-usdt-to-oneusd` · `x2-one-to-hypercore` · `x3-swap-bridge` | X1 · X2 · X3 |
 
-## 문서
+## Documentation
 
-- [GUIDE.md](GUIDE.md) — 연동 가이드: 경로별 상세, 동작 원리, 수수료, 상태 추적, 에러 처리와 복구
-- [js/README.md](js/README.md) — TypeScript API
-- [go/README.md](go/README.md) — Go API
-- [cast/README.md](cast/README.md) — 셸 스크립트와 환경변수
-- [SOURCES.md](SOURCES.md) — 주소와 설정값의 출처, 직접 확인하는 방법
+- [js/README.md](js/README.md): TypeScript API
+- [go/README.md](go/README.md): Go API
+- [GUIDE.md](GUIDE.md) (Korean): integration guide covering each route in detail, how the bridge works, fees, status tracking, error handling and recovery
+- [cast/README.md](cast/README.md) (Korean): shell scripts and environment variables
+- [SOURCES.md](SOURCES.md) (Korean): where each address and setting comes from, and how to verify it yourself
 
-## 개발
+## Development
 
 ```bash
 # TypeScript
@@ -226,9 +228,9 @@ cd js && npm ci && npm run typecheck && npm test
 cd go && go vet ./... && go test ./...
 ```
 
-### 릴리스
+### Releasing
 
-같은 커밋에 `vX.Y.Z` 와 `go/vX.Y.Z` 태그를 함께 만들고 push 합니다. `js/package.json` 의 `version` 도 같은 값으로 맞춥니다.
+Create the `vX.Y.Z` and `go/vX.Y.Z` tags on the same commit and push both. Keep `version` in `js/package.json` at the same value.
 
 ```bash
 git tag -a vX.Y.Z -m vX.Y.Z
@@ -236,14 +238,14 @@ git tag -a go/vX.Y.Z -m go/vX.Y.Z
 git push origin vX.Y.Z go/vX.Y.Z
 ```
 
-### 네트워크 설정
+### Network settings
 
-네트워크 설정은 루트의 `networks.json` 에서만 바꿉니다. 바꾼 뒤 `node tools/gen.mjs` 로 SDK 와 문서에 반영하고 `node tools/check-consistency.mjs` 로 확인합니다. 도구 설명은 [tools/README.md](tools/README.md) 에 있습니다.
+Change network settings only in the root `networks.json`. Then run `node tools/gen.mjs` to propagate them to the SDKs and docs, and `node tools/check-consistency.mjs` to verify. The tools are described in [tools/README.md](tools/README.md) (Korean).
 
-## 보안
+## Security
 
-- 개인 키는 환경변수로만 넘기고 코드나 저장소에 넣지 마세요.
-- 메인넷에서는 작은 금액으로 먼저 확인하세요.
+- Pass private keys only through environment variables. Never put them in code or in a repository.
+- On mainnet, try a small amount first.
 
 ## License
 

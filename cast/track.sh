@@ -2,7 +2,7 @@
 # track.sh <srcChainId> <txhash>   (NETWORK=mainnet|testnet)   -- read-only
 # Reads the source receipt, prints the hop-1 transfer(s) and, for each, what the destination bridge says:
 #   IN_FLIGHT / PENDING_ON_DEST / FINALIZED(+ the keyed events). It is the shell view of the SDK's tracker; the SDKs additionally
-#   resolve extraCall outcomes, hub forwards (hop 2), releases and fallbacks (GUIDE 이벤트 & 상태 추적).
+#   resolve extraCall outcomes, hub forwards (hop 2), releases and fallbacks (GUIDE §7, events and status tracking).
 source "$(dirname "$0")/lib.sh"
 SRC_ID=${1:?usage: track.sh <srcChainId> <txhash>}; TX=${2:?usage: track.sh <srcChainId> <txhash>}
 pfx=""; for p in ONE BSC HYPEREVM; do v="${p}_CHAIN_ID"; [ "${!v}" = "$SRC_ID" ] && pfx=$p; done

@@ -56,7 +56,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "BaseBridgeCanNotZeroAddress",
     "signature": "BaseBridgeCanNotZeroAddress()",
     "inputs": [],
-    "hint": "수령 주소가 비어 있습니다."
+    "hint": "The recipient address is empty."
   },
   "0xe2153c44": {
     "name": "BaseBridgeCanNotZeroValue",
@@ -68,7 +68,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "BaseBridgeExtraDataTooLong",
     "signature": "BaseBridgeExtraDataTooLong()",
     "inputs": [],
-    "hint": "extraData 길이가 maxExtraDataLength 를 넘었습니다."
+    "hint": "extraData is longer than maxExtraDataLength."
   },
   "0xab3a2836": {
     "name": "BaseBridgeFailedCall",
@@ -100,25 +100,25 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "멀티홉 등식(value+networkFee+exFee == hop1 도착액)이 맞지 않습니다. 뒤에서 앞으로 다시 계산하세요."
+    "hint": "The multihop equation (value + networkFee + exFee == hop-1 delivered amount) does not hold. Recompute from the last hop backwards."
   },
   "0xdcd76b60": {
     "name": "BaseBridgeForwardContextInactive",
     "signature": "BaseBridgeForwardContextInactive()",
     "inputs": [],
-    "hint": "bridgeTokenForwarded 는 extraData 안에서만 쓸 수 있습니다. 직접 호출하지 마세요."
+    "hint": "bridgeTokenForwarded can only be used inside extraData. Do not call it directly."
   },
   "0x01503ac6": {
     "name": "BaseBridgeForwardNotExecutor",
     "signature": "BaseBridgeForwardNotExecutor()",
     "inputs": [],
-    "hint": "bridgeTokenForwarded 는 허브 executor 만 호출할 수 있습니다. 직접 호출하지 마세요."
+    "hint": "bridgeTokenForwarded can only be called by the hub executor. Do not call it directly."
   },
   "0xbe75e8c7": {
     "name": "BaseBridgeForwardNotOrigin",
     "signature": "BaseBridgeForwardNotOrigin()",
     "inputs": [],
-    "hint": "이 토큰은 멀티홉 경유가 불가합니다(ERC20 은 양쪽 origin 필요)."
+    "hint": "This token cannot be routed through the hub (an ERC20 must be the origin on both sides)."
   },
   "0x8399ac8d": {
     "name": "BaseBridgeForwardStagedInsufficient",
@@ -133,19 +133,19 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "허브의 hop2 네트워크 수수료가 올라 견적 전달액을 지킬 수 없습니다. hop2FeeBuffer 를 두고 다시 견적하세요."
+    "hint": "The hub's hop-2 network fee rose, so the quoted forward amount can no longer be met. Quote again with a hop2FeeBuffer."
   },
   "0x58e88785": {
     "name": "BaseBridgeInvalidAmount",
     "signature": "BaseBridgeInvalidAmount()",
     "inputs": [],
-    "hint": "최소액 미달이거나 견적이 만료됐습니다. 수수료를 다시 조회(quote)한 뒤 재시도하세요."
+    "hint": "Below the minimum amount, or the quote has expired. Quote again and retry."
   },
   "0xad82cdbc": {
     "name": "BaseBridgeInvalidBalance",
     "signature": "BaseBridgeInvalidBalance()",
     "inputs": [],
-    "hint": "브리지 컨트랙트 잔고 부족(운영 측 유동성 문제)입니다."
+    "hint": "The bridge contract has insufficient balance (an operator-side liquidity issue)."
   },
   "0x141de7e4": {
     "name": "BaseBridgeInvalidGasReserve",
@@ -187,7 +187,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "BaseBridgeInvalidRecipient",
     "signature": "BaseBridgeInvalidRecipient()",
     "inputs": [],
-    "hint": "수령 주소가 브리지 컨트랙트 자신입니다."
+    "hint": "The recipient is the bridge contract itself."
   },
   "0x943892eb": {
     "name": "BaseBridgeInvalidValue",
@@ -202,7 +202,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "msg.value(또는 전송액)가 기대값과 다릅니다. 첫 번째 인자가 기대값입니다. 견적을 다시 받으세요."
+    "hint": "msg.value (or the transfer amount) differs from the expected value; the first argument is the expected value. Get a new quote."
   },
   "0x0672aec1": {
     "name": "BaseBridgeMismatchPermitAccount",
@@ -329,7 +329,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "EnforcedPause",
     "signature": "EnforcedPause()",
     "inputs": [],
-    "hint": "브리지가 점검(일시정지) 중입니다."
+    "hint": "The bridge is paused for maintenance."
   },
   "0x8dfc202b": {
     "name": "ExpectedPause",
@@ -376,7 +376,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "해당 목적지 체인이 일시정지 상태입니다."
+    "hint": "The destination chain is paused."
   },
   "0xf6c75f8f": {
     "name": "RegistryExistERC20Code",
@@ -426,7 +426,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "등록되지 않은 체인입니다."
+    "hint": "The chain is not registered."
   },
   "0x7f11bea9": {
     "name": "RegistryNotExistIndex",
@@ -448,7 +448,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "address"
       }
     ],
-    "hint": "해당 목적지 체인에 등록되지 않은 토큰 페어입니다."
+    "hint": "This token pair is not registered for the destination chain."
   },
   "0x70709ede": {
     "name": "RegistryTokenPaused",
@@ -459,7 +459,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "address"
       }
     ],
-    "hint": "해당 토큰 페어가 일시정지 상태입니다."
+    "hint": "This token pair is paused."
   },
   "0xd180cb31": {
     "name": "RoleManagerAlreadyHasRole",
@@ -506,7 +506,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "address"
       }
     ],
-    "hint": "ERC20 전송 실패(잔액/allowance/토큰 특성)입니다."
+    "hint": "ERC20 transfer failed (balance, allowance or token behaviour)."
   },
   "0xe07c8dba": {
     "name": "UUPSUnauthorizedCallContext",
@@ -594,7 +594,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "BEMethodNotWhitelisted",
     "signature": "BEMethodNotWhitelisted()",
     "inputs": [],
-    "hint": "executor 에 extraData 메서드가 등록돼 있지 않습니다(브리지 운영자에게 문의). 전송은 일반 수령(폴백)으로 처리됩니다."
+    "hint": "The extraData method is not whitelisted on the executor (contact the bridge operator). The transfer is delivered as a plain transfer (fallback)."
   },
   "0xc70ebef5": {
     "name": "BENotWhitelisted",
@@ -615,19 +615,19 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "extraCall 이 전달액보다 많이 소비했습니다. 폴백으로 일반 수령됩니다."
+    "hint": "The extraCall spent more than the delivered amount. The transfer is delivered as a plain transfer (fallback)."
   },
   "0xe2ef9c2b": {
     "name": "BETargetCallFailed",
     "signature": "BETargetCallFailed()",
     "inputs": [],
-    "hint": "extraCall 타깃 호출이 실패했습니다. 전송은 일반 수령(폴백)으로 처리됩니다."
+    "hint": "The extraCall to the target failed. The transfer is delivered as a plain transfer (fallback)."
   },
   "0xa6bec22b": {
     "name": "BETargetNotWhitelisted",
     "signature": "BETargetNotWhitelisted()",
     "inputs": [],
-    "hint": "executor 에 extraData 타깃이 등록돼 있지 않습니다(브리지 운영자에게 문의). 전송은 일반 수령(폴백)으로 처리됩니다."
+    "hint": "The extraData target is not whitelisted on the executor (contact the bridge operator). The transfer is delivered as a plain transfer (fallback)."
   },
   "0x22e81ea4": {
     "name": "BEZeroValue",
@@ -783,7 +783,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "CoreAmountBelowOneCoreWei",
     "signature": "CoreAmountBelowOneCoreWei()",
     "inputs": [],
-    "hint": "HyperCore 입금액이 1 Core wei 미만입니다."
+    "hint": "The HyperCore deposit amount is below 1 Core wei."
   },
   "0x38829705": {
     "name": "CoreDecimalsMismatch",
@@ -823,7 +823,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "CoreRecipientIsSystemAddress",
     "signature": "CoreRecipientIsSystemAddress()",
     "inputs": [],
-    "hint": "coreRecipient 가 시스템 주소입니다."
+    "hint": "coreRecipient is a system address."
   },
   "0xe61a02d6": {
     "name": "CoreRecipientZero",
@@ -876,7 +876,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "approve 가 부족합니다. 금액은 value + networkFee + exFee 입니다."
+    "hint": "Insufficient allowance. The amount to approve is value + networkFee + exFee."
   },
   "0xe450d38c": {
     "name": "ERC20InsufficientBalance",
@@ -895,7 +895,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "토큰 잔액이 부족합니다."
+    "hint": "Insufficient token balance."
   },
   "0xe602df05": {
     "name": "ERC20InvalidApprover",
@@ -977,7 +977,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "HyperMintableERC20CoreTokenIndexNotSet",
     "signature": "HyperMintableERC20CoreTokenIndexNotSet()",
     "inputs": [],
-    "hint": "해당 HyperEVM 토큰의 HyperCore 링크가 아직 설정되지 않았습니다(X2 불가)."
+    "hint": "This HyperEVM token is not linked to HyperCore yet (X2 unavailable)."
   },
   "0xc0938a38": {
     "name": "HyperMintableERC20LinkerlessInitDisabled",
@@ -1024,19 +1024,19 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "address"
       }
     ],
-    "hint": "tokenIn 과 tokenOut 이 같습니다."
+    "hint": "tokenIn and tokenOut are the same."
   },
   "0xd0a10ce3": {
     "name": "SBRDeadlineExpired",
     "signature": "SBRDeadlineExpired()",
     "inputs": [],
-    "hint": "스왑 deadline 이 지났습니다. 다시 견적하세요."
+    "hint": "The swap deadline has passed. Quote again."
   },
   "0x9eb43e51": {
     "name": "SBRInvalidAddress",
     "signature": "SBRInvalidAddress()",
     "inputs": [],
-    "hint": "tokenIn 이 WCROSS 가 아니거나 주소가 잘못됐습니다."
+    "hint": "tokenIn is not WCROSS, or an address is invalid."
   },
   "0x20b845f3": {
     "name": "SBRInvalidPath",
@@ -1048,7 +1048,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
     "name": "SBRInvalidValue",
     "signature": "SBRInvalidValue()",
     "inputs": [],
-    "hint": "msg.value 가 amountIn 과 다릅니다."
+    "hint": "msg.value differs from amountIn."
   },
   "0x390ae4de": {
     "name": "SBRPartialFill",
@@ -1063,7 +1063,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint256"
       }
     ],
-    "hint": "멀티홉 스왑 부분체결 잔여물이 감지됐습니다."
+    "hint": "A partial-fill remainder of a multihop swap was detected."
   },
   "0xa45ece21": {
     "name": "SBRQuoteFailed",
@@ -1074,7 +1074,7 @@ export const errorTable: Record<string, ErrorTableEntry> = {
         "type": "uint8"
       }
     ],
-    "hint": "SwapBridgeRouter 견적 실패(QuoteStatus 인자 참고): NoPair/InsufficientForFee/InsufficientValue/InvalidSwap."
+    "hint": "SwapBridgeRouter quote failed (see the QuoteStatus argument): NoPair / InsufficientForFee / InsufficientValue / InvalidSwap."
   },
   "0xe2fe07f9": {
     "name": "SBRRefundFailed",
