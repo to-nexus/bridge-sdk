@@ -49,7 +49,7 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
   if (spec.src !== q.sourceChainKey) cfgMismatch('sourceChainKey', spec.src, q.sourceChainKey);
   if (spec.kind !== q.kind) tamper('kind');
   const wantBridge = requireCfg<string>(`chains.${srcKey}.bridge`, q.sourceBridge);
-  const wantContract = q.kind === 'x3' ? requireCfg<string>('chains.cross.swap.swapBridgeRouter', q.sourceContract) : wantBridge;
+  const wantContract = q.kind === 'x3' ? requireCfg<string>('chains.one.swap.swapBridgeRouter', q.sourceContract) : wantBridge;
   if (!same(q.sourceBridge, wantBridge)) cfgMismatch('sourceBridge', wantBridge, q.sourceBridge);
   if (!same(q.sourceContract, wantContract)) cfgMismatch('sourceContract', wantContract, q.sourceContract);
   if (!same(q.tx.to, wantContract)) cfgMismatch('tx.to', wantContract, q.tx.to);
@@ -59,7 +59,7 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
   const recDest = getAddress(req.recipients?.dest ?? req.recipient);
   const recHub = getAddress(req.recipients?.onHub ?? req.recipient);
   const destChainId = requireCfg<number>(`chains.${spec.dest}.chainId`, q.details.destChainId);
-  const hubId = requireCfg<number>('chains.cross.chainId', q.details.destChainId);
+  const hubId = requireCfg<number>('chains.one.chainId', q.details.destChainId);
   // the chain ids the payload carries must be the CLIENT's chain ids for this route (structural validation only checks them against the calldata)
   if (q.details.destChainId !== (spec.kind === 'x1' ? hubId : destChainId)) cfgMismatch('details.destChainId', spec.kind === 'x1' ? hubId : destChainId, q.details.destChainId);
 
@@ -73,7 +73,7 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
     } catch { return tamper('calldata is not a SwapBridgeRouter call'); }
     if (!d || d.name !== (native ? 'swapBridgeExactInputSingleETH' : 'swapBridgeExactInputSingle')) return tamper('swap function');
     const p = d.args[0];
-    if (native) { const wcross = requireCfg<string>('chains.cross.tokens.WCROSS.address', p[0]); if (!same(p[0], wcross)) cfgMismatch('tokenIn(WCROSS)', wcross, p[0]); }
+    if (native) { const wcross = requireCfg<string>('chains.one.tokens.WCROSS.address', p[0]); if (!same(p[0], wcross)) cfgMismatch('tokenIn(WCROSS)', wcross, p[0]); }
     if (!native && !same(p[0], x3.tokenIn)) return tamper('tokenIn');
     if (!same(p[1], x3.tokenOut)) return tamper('tokenOut');
     if (Number(p[2]) !== x3.poolFee) return tamper('poolFee');
@@ -100,7 +100,7 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
   const target = ed.length >= 42 ? getAddress('0x' + ed.slice(2, 42)) : '';
   const sel = ed.length >= 50 ? ('0x' + ed.slice(42, 50)).toLowerCase() : '';
   if (spec.kind === 'multihop') {
-    const hub = requireCfg<string>('chains.cross.bridge', target || '(empty)');
+    const hub = requireCfg<string>('chains.one.bridge', target || '(empty)');
     if (!same(target, hub) || sel !== FORWARD_SELECTOR) return cfgMismatch('extraData.target(hub bridge)', hub, target || '(empty)');
     const f = decodeForward(ed);
     if (Number(f.toChainID) !== destChainId) cfgMismatch('hop2 toChainID', destChainId, Number(f.toChainID));
@@ -111,15 +111,15 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
       if (!same(innerTarget, he) || ('0x' + f.inner.slice(42, 50)).toLowerCase() !== CORE_SELECTOR) cfgMismatch('extraData.inner.target(HyperEVM ONE)', he, innerTarget);
     }
   } else if (spec.kind === 'x1') {
-    const v3 = requireCfg<string>('chains.cross.swap.v3SwapRouter', target || '(empty)');
+    const v3 = requireCfg<string>('chains.one.swap.v3SwapRouter', target || '(empty)');
     if (!same(target, v3) || sel !== EXACT_INPUT_SINGLE_SELECTOR) return cfgMismatch('extraData.target(V3 router)', v3, target || '(empty)');
     const sw = v3RouterIface.decodeFunctionData('exactInputSingle', '0x' + ed.slice(42))[0];
-    const usdtx = requireCfg<string>('chains.cross.tokens.USDTx.address', sw[0]);
+    const usdtx = requireCfg<string>('chains.one.tokens.USDTx.address', sw[0]);
     if (!same(sw[0], usdtx)) cfgMismatch('x1.tokenIn(USDTx)', usdtx, sw[0]);
     if (!same(q.details.hop1ToToken, usdtx)) cfgMismatch('details.hop1ToToken(USDTx)', usdtx, q.details.hop1ToToken);
-    const oneusd = requireCfg<string>('chains.cross.tokens.ONEUSD.address', sw[1]);
+    const oneusd = requireCfg<string>('chains.one.tokens.ONEUSD.address', sw[1]);
     if (!same(sw[1], oneusd)) cfgMismatch('x1.tokenOut(ONEUSD)', oneusd, sw[1]);
-    const poolFee = requireCfg<number>('chains.cross.swap.x1Pool.fee', Number(sw[2]));
+    const poolFee = requireCfg<number>('chains.one.swap.x1Pool.fee', Number(sw[2]));
     if (Number(sw[2]) !== poolFee) cfgMismatch('x1.fee', poolFee, Number(sw[2]));
     if (!same(sw[3], recDest)) return tamper('x1 swap recipient');
   } else if (spec.core) {

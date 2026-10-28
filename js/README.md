@@ -1,6 +1,6 @@
 # @to-nexus/bridge-sdk
 
-CROSS / ONE 브리지 TypeScript SDK 입니다. BSC · CROSS(ONE) · HyperEVM 사이의 전송을 견적부터 도착 확인까지 처리합니다.
+ONE 브리지 TypeScript SDK 입니다. BSC · ONE · HyperEVM 사이의 전송을 견적부터 도착 확인까지 처리합니다.
 
 - ethers v6 기반, ESM, Node.js 18 이상
 - 메인넷 · 테스트넷 설정 내장
@@ -55,7 +55,7 @@ console.log(result.state, result.hops);
 ```ts
 new BridgeClient({
   network: 'mainnet',                 // 'mainnet' | 'testnet'
-  rpcUrls: { bsc: 'https://...' },    // 체인별 RPC 교체 (cross | bsc | hyperevm)
+  rpcUrls: { bsc: 'https://...' },    // 체인별 RPC 교체 (one | bsc | hyperevm)
   callTimeoutMs: 15_000,              // RPC 호출 하나당 제한 시간
   quoteTtlMs: 30_000,                 // 견적 유효 시간
 });
@@ -151,7 +151,7 @@ PRIVATE_KEY=... node dist-examples/examples/r1-bsc-to-one.js --network testnet -
 | `--tokenIn` · `--tokenOut` · `--fee` · `--to` | X3 옵션 |
 | `--send` | 실제 전송 (`PRIVATE_KEY` 환경변수 필요) |
 
-RPC 는 `RPC_CROSS` · `RPC_BSC` · `RPC_HYPEREVM` 환경변수로 바꿀 수 있습니다.
+RPC 는 `RPC_ONE` · `RPC_BSC` · `RPC_HYPEREVM` 환경변수로 바꿀 수 있습니다.
 
 ## 개발
 

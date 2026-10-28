@@ -2,11 +2,11 @@
 # R3  ONE -> HyperEVM: native ONE becomes the ONE ERC20 on HyperEVM.
 # X2  add CORE_RECIPIENT=0x.. to deposit straight to that HyperCore account (token || transferToCoreFor).
 source "$(dirname "$0")/lib.sh"
-ROUTE=R3; SRC_PREFIX=CROSS
-need CROSS_BRIDGE; need HYPEREVM_BRIDGE; need HYPEREVM_ONE_TOKEN
+ROUTE=R3; SRC_PREFIX=ONE
+need ONE_BRIDGE; need HYPEREVM_BRIDGE; need HYPEREVM_ONE_TOKEN
 [ -n "${CORE_RECIPIENT:-}" ] && ROUTE=X2
 quote_route() {
-  chain_vars CROSS
+  chain_vars ONE
   SRC_TOKEN=$NATIVE; TO_CHAIN_ID=$HYPEREVM_CHAIN_ID; TO1=$(rec_dest); VALUE=$(amount_wei)
   pair_ok "$C_RPC" "$C_BRIDGE" "$TO_CHAIN_ID" "$SRC_TOKEN"
   fee_of "$C_RPC" "$C_BRIDGE" "$TO_CHAIN_ID" "$SRC_TOKEN" "$VALUE"
@@ -21,7 +21,7 @@ quote_route() {
     say "X2: coreUnit=$unit -> HyperCore credit $(python3 -c "import sys;print(int(sys.argv[1])//int(sys.argv[2]))" "$VALUE" "$unit") core-wei, dust $(python3 -c "import sys;print(int(sys.argv[1])%int(sys.argv[2]))" "$VALUE" "$unit") wei returns to the recipient"
     EXTRA=$(core_extra "$HYPEREVM_ONE_TOKEN" "$(rec_core)" "$VALUE")
     CORE_AMOUNT=$VALUE
-    chain_vars CROSS
+    chain_vars ONE
   fi
   TOTAL=$(add_wei "$VALUE" "$NF" "$EF"); MIN_DELIVERED=$VALUE; MSG_VALUE=$TOTAL
 }

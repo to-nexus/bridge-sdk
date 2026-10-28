@@ -335,12 +335,12 @@ func finalizeOnHub(t *testing.T, w *world, logs ...types.Log) {
 	if perr != nil {
 		t.Fatal(perr)
 	}
-	w.chains[ChainCross].mineLogs(hubAddr, data, logs)
+	w.chains[ChainOne].mineLogs(hubAddr, data, logs)
 }
 
 func TestTrackerInFlightPendingPrecedenceThenDelivered(t *testing.T) {
 	w, c, h := sentR1(t)
-	if h.ScanFrom[ChainCross] == 0 {
+	if h.ScanFrom[ChainOne] == 0 {
 		t.Fatal("destination block must be recorded at send time")
 	}
 	bscID := w.net.Chains[ChainBSC].ChainID
@@ -348,13 +348,13 @@ func TestTrackerInFlightPendingPrecedenceThenDelivered(t *testing.T) {
 	if err != nil || r.State != StateInFlight {
 		t.Fatalf("%+v %v", r, err)
 	}
-	w.pending[key(ChainCross, big.NewInt(int64(bscID)))] = []*big.Int{big.NewInt(0)}
+	w.pending[key(ChainOne, big.NewInt(int64(bscID)))] = []*big.Int{big.NewInt(0)}
 	r, _ = c.TrackOnce(ctx, h)
 	if r.State != StatePendingOnDest || r.Hops[0].Reason != "VerificationAmountThresholdExceeded" {
 		t.Fatalf("%+v", r)
 	}
-	delete(w.pending, key(ChainCross, big.NewInt(int64(bscID))))
-	w.finNext[key(ChainCross, big.NewInt(int64(bscID)))] = big.NewInt(1)
+	delete(w.pending, key(ChainOne, big.NewInt(int64(bscID))))
+	w.finNext[key(ChainOne, big.NewInt(int64(bscID)))] = big.NewInt(1)
 	if r, _ = c.TrackOnce(ctx, h); r.State != StateProcessedUnverified {
 		t.Fatalf("no evidence must never be success: %+v", r)
 	}
@@ -368,10 +368,10 @@ func TestTrackerInFlightPendingPrecedenceThenDelivered(t *testing.T) {
 func TestTrackerChunkedScanBackoffResumeAndUnknown(t *testing.T) {
 	w, c, h := sentR1(t)
 	bscID := int64(w.net.Chains[ChainBSC].ChainID)
-	w.finNext[key(ChainCross, big.NewInt(bscID))] = big.NewInt(1)
+	w.finNext[key(ChainOne, big.NewInt(bscID))] = big.NewInt(1)
 	finalizeOnHub(t, w, logOf(t, "BridgeFinalized", big.NewInt(bscID), big.NewInt(0), nativeAdr, recipient, n18(10), big.NewInt(1)))
-	hub := w.chains[ChainCross]
-	hub.block = h.ScanFrom[ChainCross] + 2600 // several 500-block chunks
+	hub := w.chains[ChainOne]
+	hub.block = h.ScanFrom[ChainOne] + 2600 // several 500-block chunks
 	hub.getLogsCalls = nil
 	hub.failLogs = 2
 	t0 := w.clock
@@ -407,8 +407,8 @@ func TestTrackerChunkedScanBackoffResumeAndUnknown(t *testing.T) {
 	}
 	// backoff exhaustion -> UNKNOWN with manual recovery
 	w2, c3, h2 := sentR1(t)
-	w2.finNext[key(ChainCross, big.NewInt(bscID))] = big.NewInt(1)
-	w2.chains[ChainCross].unavailableLogs = true
+	w2.finNext[key(ChainOne, big.NewInt(bscID))] = big.NewInt(1)
+	w2.chains[ChainOne].unavailableLogs = true
 	r3, _ := c3.TrackOnce(ctx, h2)
 	if r3.State != StateUnknown || !strings.Contains(r3.Hops[0].Reason, "manually") {
 		t.Fatalf("%+v", r3)
@@ -440,8 +440,8 @@ func TestTrackerR5EndToEnd(t *testing.T) {
 	if err != nil || h.Hop1.Kind != HopHubForward || h.Hop2 == nil || h.Hop2.DestChainID != w.net.Chains[ChainHyperEVM].ChainID {
 		t.Fatalf("%+v %v", h, err)
 	}
-	bscID, cross, heID := int64(w.net.Chains[ChainBSC].ChainID), int64(w.net.Chains[ChainCross].ChainID), int64(w.net.Chains[ChainHyperEVM].ChainID)
-	w.finNext[key(ChainCross, big.NewInt(bscID))] = big.NewInt(1)
+	bscID, oneChain, heID := int64(w.net.Chains[ChainBSC].ChainID), int64(w.net.Chains[ChainOne].ChainID), int64(w.net.Chains[ChainHyperEVM].ChainID)
+	w.finNext[key(ChainOne, big.NewInt(bscID))] = big.NewInt(1)
 	z := new(big.Int)
 	finalizeOnHub(t, w,
 		logOf(t, "BridgeInitiated", big.NewInt(heID), big.NewInt(0), nativeAdr, nativeAdr, hubAddr, recipient, n18(10), nf, z, []byte{}, big.NewInt(1)),
@@ -452,9 +452,9 @@ func TestTrackerR5EndToEnd(t *testing.T) {
 	if err != nil || r.State != StateForwarded || r.Handle.Hop2.Index != "0" {
 		t.Fatalf("%+v %v", r, err)
 	}
-	w.finNext[key(ChainHyperEVM, big.NewInt(cross))] = big.NewInt(1)
+	w.finNext[key(ChainHyperEVM, big.NewInt(oneChain))] = big.NewInt(1)
 	heBridge := common.HexToAddress(*w.net.Chains[ChainHyperEVM].Bridge)
-	fl := encodeEventT(t, bridgeABI, "BridgeFinalized", heBridge, big.NewInt(cross), big.NewInt(0), common.HexToAddress(w.net.Chains[ChainHyperEVM].Tokens["ONE"].Address), recipient, add(n18(10), big.NewInt(5)), big.NewInt(1))
+	fl := encodeEventT(t, bridgeABI, "BridgeFinalized", heBridge, big.NewInt(oneChain), big.NewInt(0), common.HexToAddress(w.net.Chains[ChainHyperEVM].Tokens["ONE"].Address), recipient, add(n18(10), big.NewInt(5)), big.NewInt(1))
 	data, perr := bridgeABI.Pack("finalizeBridgeBatch", []binding.IBridgeRegistryFinalizeArguments{}, [][]uint8{}, [][][32]byte{}, [][][32]byte{})
 	if perr != nil {
 		t.Fatal(perr)

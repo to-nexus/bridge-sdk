@@ -9,7 +9,7 @@
 #   SEND=1                    really send (default: diagnose = read-only)
 #   PRIVATE_KEY=<hex>  or  CAST_SIGNER_ARGS="--account <name>" | "--ledger"   (signer for SEND=1; never printed)
 #   GAS_PRICE=<wei or 3gwei>  used for --legacy sends on BSC testnet (chain 97) (default 3gwei)
-#   RPC_CROSS / RPC_BSC / RPC_HYPEREVM   optional RPC overrides (same names as the SDKs; used to point the scripts at local forks)
+#   RPC_ONE / RPC_BSC / RPC_HYPEREVM   optional RPC overrides (same names as the SDKs; used to point the scripts at local forks)
 # Nothing in this kit sends a transaction unless SEND=1.
 # Exit codes: 0 ok | 1 error | 2 usage | 3 value not configured (unconfirmed) | 4 PREFLIGHT REFUSED (nothing approved or sent)
 #             | 5 known testnet limitation (x3.sh with QUOTE_ONLY=1 only: the testnet router has no V3 pool for the pair)
@@ -24,7 +24,7 @@ case "$NETWORK" in mainnet|testnet) ;; *) echo "NETWORK must be mainnet or testn
 # shellcheck source=/dev/null
 source "$KIT_DIR/env.$NETWORK.sh"
 # RPC overrides (the generated env file sets <CHAIN>_RPC unconditionally, so the override is applied AFTER it)
-for _p in CROSS BSC HYPEREVM; do _o="RPC_$_p"; if [ -n "${!_o:-}" ]; then export "${_p}_RPC=${!_o}"; fi; done
+for _p in ONE BSC HYPEREVM; do _o="RPC_$_p"; if [ -n "${!_o:-}" ]; then export "${_p}_RPC=${!_o}"; fi; done
 
 command -v cast >/dev/null || { echo "cast (foundry) is required" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 is required (wei arithmetic exceeds bash 64-bit)" >&2; exit 2; }
@@ -57,14 +57,14 @@ first() { awk '{print $1}'; }
 line() { sed -n "${1}p" | awk '{print $1}'; }
 
 # ---- chain selection ------------------------------------------------------------------------------------------------------
-# chain_vars <CROSS|BSC|HYPEREVM> sets C_ID C_RPC C_BRIDGE
+# chain_vars <ONE|BSC|HYPEREVM> sets C_ID C_RPC C_BRIDGE
 chain_vars() {
   local p=$1 v
   v="${p}_CHAIN_ID"; C_ID="${!v}"
   v="${p}_RPC"; C_RPC="${!v}"
   v="${p}_BRIDGE"; C_BRIDGE="${!v:-}"
 }
-check_chain() { # <CROSS|BSC|HYPEREVM>
+check_chain() { # <ONE|BSC|HYPEREVM>
   chain_vars "$1"
   local got; got=$(cast chain-id --rpc-url "$C_RPC") || die "cannot reach $C_RPC"
   [ "$got" = "$C_ID" ] || die "network mismatch on $1: RPC reports chainId $got, expected $C_ID ($NETWORK). Nothing was sent."
@@ -217,30 +217,30 @@ pf_whitelist() {
   if [ "$wl" = true ] && [ "$wm" = true ]; then pf_note "executor $2 whitelists $5 (target=$wl methodCheck=$mc method=$wm)"
   else pf_issue EXECUTOR_NOT_WHITELISTED "executor $2 does not whitelist $5 (target=$wl methodCheck=$mc method=$wm): BETargetNotWhitelisted / BEMethodNotWhitelisted"; fi
 }
-prefix_of_chain_id() { case "$1" in "$CROSS_CHAIN_ID") echo CROSS;; "$BSC_CHAIN_ID") echo BSC;; "$HYPEREVM_CHAIN_ID") echo HYPEREVM;; esac; }
+prefix_of_chain_id() { case "$1" in "$ONE_CHAIN_ID") echo ONE;; "$BSC_CHAIN_ID") echo BSC;; "$HYPEREVM_CHAIN_ID") echo HYPEREVM;; esac; }
 
 preflight_route() { # <route> [pre-approve|post-approve]
-  local route=$1 stage=${2:-pre-approve} kind=single core=0 src=${SRC_PREFIX:-CROSS} dest="" hub=$CROSS_BRIDGE
-  PF_CODES=(); PF_CHK_CROSS=""; PF_CHK_BSC=""; PF_CHK_HYPEREVM=""; PF_FROM=""
-  case "$route" in R5|R6) kind=multihop;; R5+X2) kind=multihop; core=1;; X2) core=1;; X1) kind=x1;; X3) kind=x3; src=CROSS;; esac
+  local route=$1 stage=${2:-pre-approve} kind=single core=0 src=${SRC_PREFIX:-ONE} dest="" hub=$ONE_BRIDGE
+  PF_CODES=(); PF_CHK_ONE=""; PF_CHK_BSC=""; PF_CHK_HYPEREVM=""; PF_FROM=""
+  case "$route" in R5|R6) kind=multihop;; R5+X2) kind=multihop; core=1;; X2) core=1;; X1) kind=x1;; X3) kind=x3; src=ONE;; esac
   case $kind in
     single) dest=$(prefix_of_chain_id "$TO_CHAIN_ID");;
     multihop) dest=$DEST_PREFIX;;
-    x1) dest=CROSS;;
+    x1) dest=ONE;;
     x3) dest=$(prefix_of_chain_id "$TO_ID");;
   esac
   say "preflight ($stage) $route on $NETWORK:"
   # 1. chain ids (source, hub, HyperEVM for X2); the destination RPC is asserted by its own check below
   pf_chain "$src" || true
-  if [ "$kind" = multihop ] || [ "$kind" = x1 ]; then pf_chain CROSS || true; fi
+  if [ "$kind" = multihop ] || [ "$kind" = x1 ]; then pf_chain ONE || true; fi
   if [ "$core" = 1 ]; then pf_chain HYPEREVM || true; fi
   # 2. source bridge paused (X3: the hub bridge the router calls)
   pf_paused "$src" BRIDGE_PAUSED "source bridge"
   # 3. source pair, extraData length (X3: the tokenOut pair on the hub)
   if [ "$kind" = x3 ]; then
-    pf_pair CROSS "$TO_ID" "$TOKEN_OUT" "" 0 0
-    pf_cv CROSS
-    if pf_chain CROSS; then
+    pf_pair ONE "$TO_ID" "$TOKEN_OUT" "" 0 0
+    pf_cv ONE
+    if pf_chain ONE; then
       pf_read "x3 router.bridge()" "$PF_RPC" "$ROUTER" "bridge()(address)" && {
         if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$hub" | tr 'A-F' 'a-f')" ]; then pf_note "router.bridge() == hub"; else pf_issue ROUTER_BRIDGE_MISMATCH "SwapBridgeRouter.bridge() is $PF_OUT, expected the hub $hub"; fi; }
       PF_FROM=$FROM
@@ -255,10 +255,10 @@ preflight_route() { # <route> [pre-approve|post-approve]
   fi
   # 4. hub: multihop / X1
   if [ "$kind" = multihop ] || [ "$kind" = x1 ]; then
-    pf_paused CROSS HUB_PAUSED "hub bridge"
+    pf_paused ONE HUB_PAUSED "hub bridge"
     local hexec=""
-    if pf_chain CROSS; then
-      pf_cv CROSS
+    if pf_chain ONE; then
+      pf_cv ONE
       if pf_read "hub bridgeExecutor()" "$PF_RPC" "$hub" "bridgeExecutor()(address)"; then
         hexec=$PF_OUT
         if [ "$hexec" = 0x0000000000000000000000000000000000000000 ]; then pf_issue HUB_EXECUTOR_UNSET "hub bridgeExecutor() is not set: extraData cannot be executed on the hub"; hexec=""; else pf_note "hub bridgeExecutor() = $hexec"; fi
@@ -266,17 +266,17 @@ preflight_route() { # <route> [pre-approve|post-approve]
     fi
     if [ "$kind" = multihop ]; then
       local dv="${DEST_PREFIX}_CHAIN_ID"
-      pf_pair CROSS "${!dv}" "$NATIVE" HUB_ 0 0
-      pf_maxlen CROSS "$(( (${#HOP2_INNER} - 2) / 2 ))" EXTRADATA_TOO_LONG_HUB "hub inner extraData"
-      [ -z "$hexec" ] || pf_whitelist CROSS "$hexec" "$hub" 0x55fd0776 "hub + bridgeTokenForwarded"
+      pf_pair ONE "${!dv}" "$NATIVE" HUB_ 0 0
+      pf_maxlen ONE "$(( (${#HOP2_INNER} - 2) / 2 ))" EXTRADATA_TOO_LONG_HUB "hub inner extraData"
+      [ -z "$hexec" ] || pf_whitelist ONE "$hexec" "$hub" 0x55fd0776 "hub + bridgeTokenForwarded"
     else
-      if [ -n "$hexec" ]; then pf_whitelist CROSS "$hexec" "$CROSS_V3_ROUTER" 0x414bf389 "V3 SwapRouter + exactInputSingle"; fi
-      if pf_chain CROSS; then
-        pf_cv CROSS
-        if [ -n "${CROSS_V3_FACTORY:-}" ] && pf_read "x1 factory.getPool" "$PF_RPC" "$CROSS_V3_FACTORY" "getPool(address,address,uint24)(address)" "$CROSS_USDTX" "$CROSS_ONEUSD" "$CROSS_X1_POOL_FEE"; then
-          if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$CROSS_X1_POOL" | tr 'A-F' 'a-f')" ]; then pf_note "factory.getPool(USDTx, ONEUSD, fee) == configured pool"; else pf_issue POOL_NOT_FOUND "factory has no pool $CROSS_X1_POOL for (USDTx, ONEUSD, fee $CROSS_X1_POOL_FEE): got $PF_OUT"; fi
+      if [ -n "$hexec" ]; then pf_whitelist ONE "$hexec" "$ONE_V3_ROUTER" 0x414bf389 "V3 SwapRouter + exactInputSingle"; fi
+      if pf_chain ONE; then
+        pf_cv ONE
+        if [ -n "${ONE_V3_FACTORY:-}" ] && pf_read "x1 factory.getPool" "$PF_RPC" "$ONE_V3_FACTORY" "getPool(address,address,uint24)(address)" "$ONE_USDTX" "$ONE_ONEUSD" "$ONE_X1_POOL_FEE"; then
+          if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$ONE_X1_POOL" | tr 'A-F' 'a-f')" ]; then pf_note "factory.getPool(USDTx, ONEUSD, fee) == configured pool"; else pf_issue POOL_NOT_FOUND "factory has no pool $ONE_X1_POOL for (USDTx, ONEUSD, fee $ONE_X1_POOL_FEE): got $PF_OUT"; fi
         fi
-        if pf_read "x1 pool liquidity" "$PF_RPC" "$CROSS_X1_POOL" "liquidity()(uint128)"; then
+        if pf_read "x1 pool liquidity" "$PF_RPC" "$ONE_X1_POOL" "liquidity()(uint128)"; then
           if gt_wei "$(echo "$PF_OUT" | first)" 0; then pf_note "pool liquidity > 0"; else pf_issue POOL_NO_LIQUIDITY "the swap pool has no liquidity"; fi
         fi
       fi

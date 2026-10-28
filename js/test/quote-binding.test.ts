@@ -17,13 +17,13 @@ const A = (n: string) => getAddress('0x' + n.padStart(40, '0')); // fake (dummy-
 function overrideNetworks(): NetworksData {
   const nd: NetworksData = structuredClone(getNetworksData());
   const t = nd.networks.testnet.chains;
-  t.cross.bridge = A('a1000000001');
-  t.cross.swap!.swapBridgeRouter = A('a1000000002');
-  t.cross.swap!.v3SwapRouter = A('a1000000003');
-  t.cross.swap!.quoterV2 = A('a1000000004');
-  t.cross.swap!.v3Factory = A('a1000000005');
-  t.cross.tokens.ONEUSD = { address: A('a1000000006'), symbol: 'ONEUSD', decimals: 18, kind: 'erc20' };
-  t.cross.swap!.x1Pool = { tokenIn: t.cross.tokens.USDTx!.address, tokenOut: A('a1000000006'), fee: 500, pool: A('a1000000007') };
+  t.one.bridge = A('a1000000001');
+  t.one.swap!.swapBridgeRouter = A('a1000000002');
+  t.one.swap!.v3SwapRouter = A('a1000000003');
+  t.one.swap!.quoterV2 = A('a1000000004');
+  t.one.swap!.v3Factory = A('a1000000005');
+  t.one.tokens.ONEUSD = { address: A('a1000000006'), symbol: 'ONEUSD', decimals: 18, kind: 'erc20' };
+  t.one.swap!.x1Pool = { tokenIn: t.one.tokens.USDTx!.address, tokenOut: A('a1000000006'), fee: 500, pool: A('a1000000007') };
   t.hyperevm.tokens.ONE!.address = A('a1000000008');
   return nd;
 }
@@ -32,14 +32,14 @@ function overrideWorld(nd: NetworksData = overrideNetworks()) {
   const w = World.testnet(nd);
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
-  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.cross.tokens.USDTx!.address;
-  w.setPair('bsc', c.cross.chainId, usdt, usdtx, true);
-  w.setFee('bsc', c.cross.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${c.cross.swap!.v3SwapRouter!.toLowerCase()}`);
+  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.one.tokens.USDTx!.address;
+  w.setPair('bsc', c.one.chainId, usdt, usdtx, true);
+  w.setFee('bsc', c.one.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
+  w.execWhitelist.add(`one:${c.one.swap!.v3SwapRouter!.toLowerCase()}`);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  w.setFee('cross', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  w.setFee('one', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   w.x1Out = 100n * E18 + 3_511_957n;
   return { nd, w, c, wallet, usdtx, client: new BridgeClient(w.options({ quoteTtlMs: 60_000 })), defaultClient: new BridgeClient(w.options({ networksData: undefined, quoteTtlMs: 60_000 })) };
@@ -63,15 +63,15 @@ test('a quote of another network / config is rejected before any approve, signat
   const mainClient = new BridgeClient(m.w.options());
   // mainnet quote into the testnet client
   m.w.setBal('bsc', m.c.bsc.tokens.ONE!.address, t.wallet.address, 1000n * E18);
-  m.w.setFee('bsc', m.c.cross.chainId, m.c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 0n, rate: 0n });
-  m.w.setPair('bsc', m.c.cross.chainId, m.c.bsc.tokens.ONE!.address, NATIVE, true);
+  m.w.setFee('bsc', m.c.one.chainId, m.c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 0n, rate: 0n });
+  m.w.setPair('bsc', m.c.one.chainId, m.c.bsc.tokens.ONE!.address, NATIVE, true);
   const qMain = await mainClient.quote(r1(t.wallet.address));
   assert.equal(qMain.network, 'mainnet');
   await assert.rejects(() => t.client.send(t.wallet, qMain), (e: any) => e instanceof NetworkMismatchError && /network/.test(e.message));
   // testnet quote into the mainnet client
   const qTest = await t.client.quote(r1(t.wallet.address));
   await assert.rejects(() => mainClient.send(t.wallet, qTest), (e: any) => e instanceof NetworkMismatchError);
-  for (const w of [t.w, m.w]) { assert.equal(w.approveCalls.length, 0); assert.equal(w.chains.bsc.rawSent.length, 0); assert.equal(w.chains.cross.rawSent.length, 0); }
+  for (const w of [t.w, m.w]) { assert.equal(w.approveCalls.length, 0); assert.equal(w.chains.bsc.rawSent.length, 0); assert.equal(w.chains.one.rawSent.length, 0); }
 });
 
 test('tampered quotes: a config-owned address => NetworkMismatchError; a calldata that no longer encodes the request => LimitViolationError; nothing is sent', async () => {
@@ -84,14 +84,14 @@ test('tampered quotes: a config-owned address => NetworkMismatchError; a calldat
   const bad3 = sealForTest({ ...q, sourceChainId: 1 });
   await assert.rejects(() => client.send(wallet, bad3), (e: any) => e instanceof NetworkMismatchError);
   // user-supplied recipient swapped inside the calldata only
-  const data = bridgeI.encodeFunctionData('bridgeToken', [c.cross.chainId, c.bsc.tokens.ONE!.address, OTHER, q.value, 0n, 0n, '0x']);
+  const data = bridgeI.encodeFunctionData('bridgeToken', [c.one.chainId, c.bsc.tokens.ONE!.address, OTHER, q.value, 0n, 0n, '0x']);
   await assert.rejects(() => client.send(wallet, sealForTest({ ...q, tx: { ...q.tx, data } })), (e: any) => e instanceof LimitViolationError);
   assert.equal(w.approveCalls.length, 0); assert.equal(w.chains.bsc.rawSent.length, 0);
 });
 
 test('X3 with a tokenIn that is NOT in config passes the binding check, and the broadcast calldata equals the quote calldata', async () => {
   const { w, c, wallet, client } = setup();
-  const usdtx = c.cross.tokens.USDTx!.address;
+  const usdtx = c.one.tokens.USDTx!.address;
   const q = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: wallet.address, recipient: RECIPIENT, x3: { tokenIn: TOKEN_A, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } });
   const sent = await client.send(wallet, q);
   assert.equal(sent.intent.data, q.tx.data);
@@ -125,7 +125,7 @@ test('network binding: wrong RPC chainId, wrong signer network, wrong sender - a
 test('override client: its own X1 / X2 / R5 / R5+core / X3 quotes pass openQuote (structural validation needs no config) and that client\'s buildTx / preflight / simulate binding (the client binding check uses ITS config); the built-in networks data is untouched', async () => {
   const before = JSON.stringify(getNetworksData());
   const o = overrideWorld();
-  assert.notEqual(o.nd.networks.testnet.chains.cross.bridge, getNetworksData().networks.testnet.chains.cross.bridge, 'the override really differs');
+  assert.notEqual(o.nd.networks.testnet.chains.one.bridge, getNetworksData().networks.testnet.chains.one.bridge, 'the override really differs');
   const quotes = await overrideQuotes(o);
   for (const [name, q] of Object.entries(quotes)) {
     assert.ok(openQuote(q), `${name}: openQuote`);
@@ -152,15 +152,15 @@ test('cross-client: an override-config quote given to a DEFAULT-config client is
   const d = World.testnet();
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   d.setBal('bsc', d.net.chains.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
-  d.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  d.setFee('cross', d.net.chains.bsc.chainId, d.net.chains.cross.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
+  d.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  d.setFee('one', d.net.chains.bsc.chainId, d.net.chains.one.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
   d.swapOut = 100n * E18;
   const dc = new BridgeClient(d.options());
   const base = { sender: wallet.address, recipient: RECIPIENT };
   const defaults: Quote[] = [
     await dc.quote({ ...base, route: Route.ONE_TO_HYPERCORE, amount }),
     await dc.quote({ ...base, route: Route.BSC_TO_ONE_TO_HYPEREVM, amount }),
-    await dc.quote({ ...base, route: Route.SWAP_BRIDGE, amount: 50n * E18, x3: { tokenIn: TOKEN_A, tokenOut: d.net.chains.cross.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } }),
+    await dc.quote({ ...base, route: Route.SWAP_BRIDGE, amount: 50n * E18, x3: { tokenIn: TOKEN_A, tokenOut: d.net.chains.one.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } }),
   ];
   for (const q of defaults) {
     assert.ok(openQuote(q));
@@ -172,7 +172,7 @@ test('cross-client: an override-config quote given to a DEFAULT-config client is
 test('Layer split: a well-formed X1 tokenOut / fee that is not the client\'s ONEUSD / pool fee passes structural validation but fails the client binding check (NetworkMismatchError); a zero tokenOut or an out-of-range fee fails structural validation (invalid-payload)', async () => {
   const o = overrideWorld();
   const q = (await overrideQuotes(o)).X1;
-  const sw = o.c.cross.swap!;
+  const sw = o.c.one.swap!;
   const x1 = (tokenOut: string, fee: number) => encodeX1ExtraData({ router: sw.v3SwapRouter!, tokenIn: o.usdtx, tokenOut, fee, recipient: RECIPIENT, deadline: q.deadline!, amountIn: q.value, amountOutMinimum: q.limits.amountOutMinimum! });
   const withExtra = (extraData: string): Quote => {
     const a = bridgeIface.decodeFunctionData('bridgeToken', q.tx.data);
@@ -182,13 +182,13 @@ test('Layer split: a well-formed X1 tokenOut / fee that is not the client\'s ONE
   const badOut = withExtra(x1(OTHER, 500));
   assert.ok(openQuote(badOut), 'structural validation accepts a well-formed tokenOut');
   assert.throws(() => o.client.buildTx(badOut), (e: any) => e instanceof NetworkMismatchError && /tokenOut/.test(e.scope));
-  const badFee = withExtra(x1(o.c.cross.tokens.ONEUSD!.address, 3000));
+  const badFee = withExtra(x1(o.c.one.tokens.ONEUSD!.address, 3000));
   assert.ok(openQuote(badFee), 'structural validation accepts a valid uint24 fee');
   assert.throws(() => o.client.buildTx(badFee), (e: any) => e instanceof NetworkMismatchError && /fee/.test(e.scope));
   const zeroOut = withExtra(x1('0x0000000000000000000000000000000000000000', 500));
   assert.throws(() => openQuote(zeroOut), (e: any) => e instanceof LimitViolationError && e.reason === 'invalid-payload' && e.path === 'details.extraData');
   // the exact wire paths of the structural X1 checks: tokenIn == details.hop1ToToken, amountIn == value
-  const badIn = sealForTest({ ...withExtra(encodeX1ExtraData({ router: sw.v3SwapRouter!, tokenIn: OTHER, tokenOut: o.c.cross.tokens.ONEUSD!.address, fee: 500, recipient: RECIPIENT, deadline: q.deadline!, amountIn: q.value, amountOutMinimum: q.limits.amountOutMinimum! })) });
+  const badIn = sealForTest({ ...withExtra(encodeX1ExtraData({ router: sw.v3SwapRouter!, tokenIn: OTHER, tokenOut: o.c.one.tokens.ONEUSD!.address, fee: 500, recipient: RECIPIENT, deadline: q.deadline!, amountIn: q.value, amountOutMinimum: q.limits.amountOutMinimum! })) });
   assert.throws(() => openQuote(badIn), (e: any) => e instanceof LimitViolationError && e.reason === 'invalid-payload' && e.path === 'details.extraData');
 });
 
@@ -196,11 +196,11 @@ const mismatchAt = (re: RegExp) => (e: any) => e instanceof NetworkMismatchError
 test('an X1 quote from a client that kept the testnet router and filled in only ONEUSD + the X1 pool, given to a default testnet client (no ONEUSD, no pool), is NetworkMismatchError naming ONEUSD - not a TypeError', async () => {
   const nd: NetworksData = structuredClone(getNetworksData());
   const t = nd.networks.testnet.chains;
-  t.cross.tokens.ONEUSD = { address: A('a1000000006'), symbol: 'ONEUSD', decimals: 18, kind: 'erc20' };
-  t.cross.swap!.x1Pool = { tokenIn: t.cross.tokens.USDTx!.address, tokenOut: A('a1000000006'), fee: 500, pool: A('a1000000007') };
+  t.one.tokens.ONEUSD = { address: A('a1000000006'), symbol: 'ONEUSD', decimals: 18, kind: 'erc20' };
+  t.one.swap!.x1Pool = { tokenIn: t.one.tokens.USDTx!.address, tokenOut: A('a1000000006'), fee: 500, pool: A('a1000000007') };
   const o = overrideWorld(nd);
   const q = (await overrideQuotes(o)).X1;
-  assert.equal(o.c.cross.swap!.v3SwapRouter, getNetworksData().networks.testnet.chains.cross.swap!.v3SwapRouter, 'the existing router was kept');
+  assert.equal(o.c.one.swap!.v3SwapRouter, getNetworksData().networks.testnet.chains.one.swap!.v3SwapRouter, 'the existing router was kept');
   assert.ok(openQuote(q));
   assert.equal(o.client.buildTx(q).data, q.tx.data, 'the issuing client accepts it');
   assert.throws(() => o.defaultClient.buildTx(q), mismatchAt(/ONEUSD/));
@@ -215,15 +215,15 @@ test('one variant per missing component: ONEUSD / X1 pool / USDTx / X2 dest toke
   const quotes = await overrideQuotes(o);
   const nat = await o.client.quote({ sender: o.wallet.address, recipient: RECIPIENT, route: Route.SWAP_BRIDGE, amount: 50n * E18, x3: { tokenIn: 'native', tokenOut: o.usdtx, poolFee: 0, toChain: 'bsc' } });
   const variants: [string, Quote, (c: any) => void, RegExp][] = [
-    ['ONEUSD missing', quotes.X1, (c) => { c.cross.tokens.ONEUSD = null; }, /chains\.cross\.tokens\.ONEUSD/],
-    ['X1 pool missing', quotes.X1, (c) => { c.cross.swap.x1Pool = null; }, /chains\.cross\.swap\.x1Pool/],
-    ['USDTx missing', quotes.X1, (c) => { c.cross.tokens.USDTx = null; }, /chains\.cross\.tokens\.USDTx/],
-    ['X1 router missing', quotes.X1, (c) => { c.cross.swap.v3SwapRouter = null; }, /chains\.cross\.swap\.v3SwapRouter/],
+    ['ONEUSD missing', quotes.X1, (c) => { c.one.tokens.ONEUSD = null; }, /chains\.one\.tokens\.ONEUSD/],
+    ['X1 pool missing', quotes.X1, (c) => { c.one.swap.x1Pool = null; }, /chains\.one\.swap\.x1Pool/],
+    ['USDTx missing', quotes.X1, (c) => { c.one.tokens.USDTx = null; }, /chains\.one\.tokens\.USDTx/],
+    ['X1 router missing', quotes.X1, (c) => { c.one.swap.v3SwapRouter = null; }, /chains\.one\.swap\.v3SwapRouter/],
     ['X2 dest token missing', quotes.X2, (c) => { c.hyperevm.tokens.ONE = null; }, /chains\.hyperevm\.tokens\.ONE/],
     ['R5+core inner dest token missing', quotes['R5+core'], (c) => { c.hyperevm.tokens.ONE = null; }, /chains\.hyperevm\.tokens\.ONE/],
-    ['X3 router missing', quotes.X3, (c) => { c.cross.swap.swapBridgeRouter = null; }, /chains\.cross\.swap\.swapBridgeRouter/],
-    ['X3 native WCROSS missing', nat, (c) => { c.cross.tokens.WCROSS = null; }, /chains\.cross\.tokens\.WCROSS/],
-    ['multihop hub missing', quotes.R5, (c) => { c.cross.bridge = null; }, /chains\.cross\.bridge/],
+    ['X3 router missing', quotes.X3, (c) => { c.one.swap.swapBridgeRouter = null; }, /chains\.one\.swap\.swapBridgeRouter/],
+    ['X3 native WCROSS missing', nat, (c) => { c.one.tokens.WCROSS = null; }, /chains\.one\.tokens\.WCROSS/],
+    ['multihop hub missing', quotes.R5, (c) => { c.one.bridge = null; }, /chains\.one\.bridge/],
     ['whole chain missing', quotes.X2, (c) => { delete c.hyperevm; }, /chains\.hyperevm/],
   ];
   for (const [name, q, edit, re] of variants) {

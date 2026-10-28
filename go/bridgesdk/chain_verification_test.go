@@ -133,7 +133,7 @@ func TestOtherEntryPointsOnAWrongChainRPC(t *testing.T) {
 
 func TestTrackOnceTrackAndEvalHopOnAnUnverifiableChain(t *testing.T) {
 	for _, mode := range []string{"error", "hang"} {
-		for _, chain := range []ChainKey{ChainBSC, ChainCross} { // SOURCE (receipt) and DESTINATION (evalHop)
+		for _, chain := range []ChainKey{ChainBSC, ChainOne} { // SOURCE (receipt) and DESTINATION (evalHop)
 			e := q1Setup(t)
 			e.break_(chain, mode)
 			ch := e.w.chains[chain]
@@ -146,10 +146,10 @@ func TestTrackOnceTrackAndEvalHopOnAnUnverifiableChain(t *testing.T) {
 			if err != nil || tr.State != StateUnknown || !strings.HasPrefix(tr.Hops[len(tr.Hops)-1].Reason, wantReason(mode)) || tr.TimedOut != (mode == "hang") {
 				t.Fatalf("%s/%s Track: want UNKNOWN{%s}: %+v %v", mode, chain, wantReason(mode), tr, err)
 			}
-			if got := ch.evidenceCount() - base; got != 0 && chain == ChainCross {
+			if got := ch.evidenceCount() - base; got != 0 && chain == ChainOne {
 				t.Fatalf("%s/%s: %d evidence reads reached the unverified chain", mode, chain, got)
 			}
-			if chain == ChainCross { // evalHop called directly: the same result and no read on the destination chain
+			if chain == ChainOne { // evalHop called directly: the same result and no read on the destination chain
 				hs, _, err := e.fresh().evalHop(ctx, e.handle, 1)
 				if err != nil || hs.State != StateUnknown || !strings.HasPrefix(hs.Reason, wantReason(mode)) {
 					t.Fatalf("%s evalHop: %+v %v", mode, hs, err)

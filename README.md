@@ -1,6 +1,6 @@
 # bridge-sdk
 
-BSC · CROSS(ONE) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **CROSS / ONE 브리지 SDK** 입니다.
+BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 SDK** 입니다.
 브리지 컨트랙트 구조를 몰라도 견적부터 전송, 도착 확인까지 몇 줄로 처리할 수 있습니다.
 
 - **TypeScript SDK** (`js/`, ethers v6) — `@to-nexus/bridge-sdk`
@@ -13,15 +13,15 @@ BSC · CROSS(ONE) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **CROSS / 
 
 | ID | 경로 | 설명 | JS `Route` | Go | 메인넷 | 테스트넷 |
 |---|---|---|---|---|:---:|:---:|
-| R1 | BSC → ONE | BSC 의 CROSS 토큰 → CROSS 체인 네이티브 ONE | `BSC_TO_ONE` | `RouteBSCToOne` | ✅ | ✅ |
-| R2 | ONE → BSC | 네이티브 ONE → BSC 의 CROSS 토큰 | `ONE_TO_BSC` | `RouteOneToBSC` | ✅ | ✅ |
+| R1 | BSC → ONE | BSC 의 ONE 토큰 → ONE 체인 네이티브 ONE | `BSC_TO_ONE` | `RouteBSCToOne` | ✅ | ✅ |
+| R2 | ONE → BSC | 네이티브 ONE → BSC 의 ONE 토큰 | `ONE_TO_BSC` | `RouteOneToBSC` | ✅ | ✅ |
 | R3 | ONE → HyperEVM | 네이티브 ONE → HyperEVM 의 ONE 토큰 | `ONE_TO_HYPEREVM` | `RouteOneToHyperEVM` | ✅ | ✅ |
 | R4 | HyperEVM → ONE | HyperEVM 의 ONE 토큰 → 네이티브 ONE | `HYPEREVM_TO_ONE` | `RouteHyperEVMToOne` | ✅ | ✅ |
 | R5 | BSC → ONE → HyperEVM | 한 번의 요청으로 두 홉 이동 (멀티홉) | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | ✅ | ✅ |
 | R6 | HyperEVM → ONE → BSC | 한 번의 요청으로 두 홉 이동 (멀티홉) | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | ✅ | ✅ |
-| X1 | BSC USDT → ONEUSD | 도착 후 CROSS 체인에서 ONEUSD 로 자동 스왑 | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
+| X1 | BSC USDT → ONEUSD | 도착 후 ONE 체인에서 ONEUSD 로 자동 스왑 | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
 | X2 | ONE → HyperCore | HyperEVM 도착 후 HyperCore 스팟 계정으로 입금 (R3 · R5 옵션) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | 준비 중 | ✅ |
-| X3 | 스왑 후 브리지 | CROSS 체인에서 스왑한 토큰을 BSC / HyperEVM 으로 전송 | `SWAP_BRIDGE` | `RouteSwapBridge` | 준비 중 | ✅¹ |
+| X3 | 스왑 후 브리지 | ONE 체인에서 스왑한 토큰을 BSC / HyperEVM 으로 전송 | `SWAP_BRIDGE` | `RouteSwapBridge` | ✅ | ✅¹ |
 
 ¹ 테스트넷에는 유동성 있는 스왑 풀이 거의 없어 견적이 실패할 수 있습니다.
 
@@ -31,7 +31,7 @@ BSC · CROSS(ONE) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **CROSS / 
 
 | 체인 | 메인넷 chainId | 테스트넷 chainId | 가스 토큰 |
 |---|---|---|---|
-| CROSS (ONE 허브) | 612055 | 612044 | ONE |
+| ONE (허브) | 612055 | 612044 | ONE |
 | BNB Smart Chain | 56 | 97 | BNB |
 | HyperEVM | 999 | 998 | HYPE |
 
@@ -162,7 +162,7 @@ FROM=0xYourAddress AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./r1.sh   # 
 - **`send()` 는 안전 점검을 강제합니다.** approve 전후로 브리지 정지·페어 등록·잔고·allowance 등을 확인하고, 문제가 있으면 아무것도 서명하지 않고 `PreflightError` 를 던집니다. 사유를 미리 보려면 `preflight()` 를 호출하세요.
 - **자동 재전송을 하지 않습니다.** 전송 결과를 알 수 없으면 `BroadcastOutcomeUnknownError` 가 나옵니다. 다시 보내기 전에 `findSourceTransfer()` 로 이미 나갔는지 확인하세요. 같은 전송이 두 번 나가는 것을 막기 위해서입니다.
 - **핸들을 저장하세요.** `TransferHandle` 은 순수 JSON 입니다. 트랜잭션 해시만 있어도 `handleFromTx()` 로 다시 만들 수 있습니다.
-- CROSS 체인에는 reorg 가 없어 컨펌 대기가 필요 없습니다. BSC · HyperEVM 에서 출발하면 출발 트랜잭션의 영수증만 기다립니다.
+- ONE 체인에는 reorg 가 없어 컨펌 대기가 필요 없습니다. BSC · HyperEVM 에서 출발하면 출발 트랜잭션의 영수증만 기다립니다.
 
 ## 전송 상태
 

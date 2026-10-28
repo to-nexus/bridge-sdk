@@ -208,21 +208,21 @@ async function sentR1() {
 }
 const finalizeOnHub = (w: World, logsFn: (tx: string) => RawLog[]) => {
   const t = '0x' + 'ab'.repeat(32);
-  const hubChain = w.chains.cross;
+  const hubChain = w.chains.one;
   const mined = hubChain.mineLogs(SENDER, HUB, bridgeI.encodeFunctionData('finalizeBridgeBatch', [[], [], [], []]), logsFn(t).map((l) => ({ address: l.address, topics: l.topics, data: l.data })));
   return mined;
 };
 
 test('tracker (RPC-backed): SOURCE ok -> IN_FLIGHT -> DELIVERED; PENDING_ON_DEST has precedence over a (stale) success log', async () => {
   const { w, c, client, handle } = await sentR1();
-  assert.equal(handle.scanFrom.cross !== undefined, true, 'destination block recorded at send time');
+  assert.equal(handle.scanFrom.one !== undefined, true, 'destination block recorded at send time');
   let r = await client.trackOnce(handle);
   assert.equal(r.state, 'IN_FLIGHT');
-  w.pending.set(`cross:${c.bsc.chainId}`, [0n]);
+  w.pending.set(`one:${c.bsc.chainId}`, [0n]);
   r = await client.trackOnce(handle);
   assert.equal(r.state, 'PENDING_ON_DEST'); assert.equal(r.hops[0].reason, 'VerificationAmountThresholdExceeded');
   w.pending.clear();
-  w.finalizeNext.set(`cross:${c.bsc.chainId}`, 1n);
+  w.finalizeNext.set(`one:${c.bsc.chainId}`, 1n);
   // not finalized yet in logs: processed but no evidence -> never success
   r = await client.trackOnce(handle);
   assert.equal(r.state, 'PROCESSED_UNVERIFIED');
@@ -233,10 +233,10 @@ test('tracker (RPC-backed): SOURCE ok -> IN_FLIGHT -> DELIVERED; PENDING_ON_DEST
 
 test('tracker: chunked scan, dedupe, backoff, UNKNOWN on exhaustion, and resume from a SERIALIZED handle', async () => {
   const { w, c, client, handle } = await sentR1();
-  w.finalizeNext.set(`cross:${c.bsc.chainId}`, 1n);
+  w.finalizeNext.set(`one:${c.bsc.chainId}`, 1n);
   finalizeOnHub(w, (t) => [finalized(c.bsc.chainId, 0, t, 0, 10n * E18)]);
-  const hub = w.chains.cross;
-  hub.block = handle.scanFrom.cross! + 2600; // forces several 500-block chunks
+  const hub = w.chains.one;
+  hub.block = handle.scanFrom.one! + 2600; // forces several 500-block chunks
   hub.calls.length = 0;
   hub.failLogs = 2; // two failed attempts are retried with backoff
   const t0 = w.clock;
@@ -260,8 +260,8 @@ test('tracker: chunked scan, dedupe, backoff, UNKNOWN on exhaustion, and resume 
 
   // backoff exhaustion -> UNKNOWN with recovery instructions (not an on-chain failure, not success)
   const f = await sentR1();
-  f.w.finalizeNext.set(`cross:${f.c.bsc.chainId}`, 1n);
-  f.w.chains.cross.unavailableLogs = true;
+  f.w.finalizeNext.set(`one:${f.c.bsc.chainId}`, 1n);
+  f.w.chains.one.unavailableLogs = true;
   const u = await f.client.trackOnce(f.handle);
   assert.equal(u.state, 'UNKNOWN');
   assert.match(u.hops[0].reason!, /manually/);
@@ -288,10 +288,10 @@ test('tracker: R5 end to end - hub forward found, hop 2 delivered on the final d
   assert.equal(handle.hop1.kind, 'hubForward');
   assert.equal(handle.hop2!.destChainId, c.hyperevm.chainId);
   // hub finalizes hop 1 and forwards: BridgeInitiated(hop2) -> ForwardInitiated -> ExtraCallExecuted -> BridgeFinalized
-  w.finalizeNext.set(`cross:${c.bsc.chainId}`, 1n);
+  w.finalizeNext.set(`one:${c.bsc.chainId}`, 1n);
   const ed = '0x';
   const nf = 18n * 10n ** 16n;
-  w.chains.cross.mineLogs(SENDER, HUB, bridgeI.encodeFunctionData('finalizeBridgeBatch', [[], [], [], []]), [
+  w.chains.one.mineLogs(SENDER, HUB, bridgeI.encodeFunctionData('finalizeBridgeBatch', [[], [], [], []]), [
     initiated(c.hyperevm.chainId, 0, 10n * E18, nf, 0n, ed, '0x0', 0), fwdInit(c.bsc.chainId, 0, c.hyperevm.chainId, 10n * E18, nf, 0n, ed, '0x0', 1),
     extra(c.bsc.chainId, 0, true, 10n * E18, '0x', '0x0', 2), finalized(c.bsc.chainId, 0, '0x0', 3, 10n * E18 + nf),
   ].map((l) => ({ address: l.address, topics: l.topics, data: l.data })));
@@ -299,9 +299,9 @@ test('tracker: R5 end to end - hub forward found, hop 2 delivered on the final d
   assert.equal(r.state, 'FORWARDED');
   assert.equal(r.handle.hop2!.index, '0');
   // hop 2 on HyperEVM
-  w.finalizeNext.set(`hyperevm:${c.cross.chainId}`, 1n);
+  w.finalizeNext.set(`hyperevm:${c.one.chainId}`, 1n);
   w.chains.hyperevm.mineLogs(SENDER, c.hyperevm.bridge!, bridgeI.encodeFunctionData('finalizeBridgeBatch', [[], [], [], []]), [
-    finalized(c.cross.chainId, 0, '0x0', 0, 10n * E18 + 5n, c.hyperevm.tokens.ONE!.address),
+    finalized(c.one.chainId, 0, '0x0', 0, 10n * E18 + 5n, c.hyperevm.tokens.ONE!.address),
   ].map((l) => ({ address: c.hyperevm.bridge!, topics: l.topics, data: l.data })));
   r = await client.trackOnce(r.handle);
   assert.equal(r.state, 'DELIVERED');

@@ -17,11 +17,11 @@ const amount = 10n * E18;
 async function x1WorldAsync() {
   const w = new World('mainnet');
   const c = w.net.chains;
-  const hubId = c.cross.chainId;
-  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.cross.tokens.USDTx!.address, router = c.cross.swap!.v3SwapRouter!;
+  const hubId = c.one.chainId;
+  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.one.tokens.USDTx!.address, router = c.one.swap!.v3SwapRouter!;
   w.setPair('bsc', hubId, usdt, usdtx, true);
   w.setFee('bsc', hubId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${router.toLowerCase()}`);
+  w.execWhitelist.add(`one:${router.toLowerCase()}`);
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.x1Out = 100n * E18 + 3_511_957n;
@@ -32,9 +32,9 @@ async function x3WorldAsync() {
   const w = World.testnet();
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  const usdtx = c.cross.tokens.USDTx!.address;
-  w.setFee('cross', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  const usdtx = c.one.tokens.USDTx!.address;
+  w.setFee('one', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   return { w, c, wallet, usdtx, client: new BridgeClient(w.options()) };
 }
@@ -46,10 +46,10 @@ test('R1..R4: single hop amounts, msg.value and approve target', async () => {
   const r1 = await client.quote({ route: Route.BSC_TO_ONE, amount: v, sender: SENDER, recipient: RECIPIENT });
   assert.equal(r1.tx.to, c.bsc.bridge); assert.equal(r1.tx.value, 0n);
   assert.deepEqual(r1.approval, { token: c.bsc.tokens.ONE!.address, spender: c.bsc.bridge, amount: v });
-  assert.equal(dec(r1.tx.data)[0], BigInt(c.cross.chainId));
+  assert.equal(dec(r1.tx.data)[0], BigInt(c.one.chainId));
 
   const r2 = await client.quote({ route: Route.ONE_TO_BSC, amount: v, sender: SENDER, recipient: RECIPIENT });
-  assert.equal(r2.tx.to, c.cross.bridge); assert.equal(r2.approval, null);
+  assert.equal(r2.tx.to, c.one.bridge); assert.equal(r2.approval, null);
   assert.equal(r2.tx.value, v + nf, 'msg.value = value + networkFee + exFee, exactly');
   assert.equal(dec(r2.tx.data)[1], NATIVE);
 
@@ -71,10 +71,10 @@ test('native source (R2/R3/X2/X3-native): send() needs no approve, msg.value = v
   assert.equal(sent.nonce, 0);
   const h = await sent.wait();
   assert.equal(h.hop1.destChainId, c.bsc.chainId);
-  const raw = w.chains.cross.rawSent;
+  const raw = w.chains.one.rawSent;
   assert.equal(raw.length, 1);
   const { FakeWalletSigner } = await import('./fake.js');
-  const wl = new FakeWalletSigner(wallet.address, w.chains.cross);
+  const wl = new FakeWalletSigner(wallet.address, w.chains.one);
   const q2 = await client.quote({ route: Route.ONE_TO_HYPEREVM, amount: 10n * E18, sender: wallet.address, recipient: RECIPIENT });
   const s2 = await client.send(wl, q2);
   assert.equal(s2.mode, 'W');
@@ -99,7 +99,7 @@ test('R5/R6: backward computation, buffer in the declared exFee, per-hop recipie
   const args = dec(q.tx.data);
   assert.equal(args[2], R2, 'hop-1 `to` = toOnHub'); assert.equal(args[3], q.value);
   const ed: string = args[6];
-  assert.equal(ed.slice(0, 42).toLowerCase(), c.cross.bridge!.toLowerCase());
+  assert.equal(ed.slice(0, 42).toLowerCase(), c.one.bridge!.toLowerCase());
   assert.equal('0x' + ed.slice(42, 50), '0x55fd0776');
   const fwd = bridgeI.decodeFunctionData('bridgeTokenForwarded', '0x' + ed.slice(42));
   assert.deepEqual([fwd[0], fwd[1], fwd[2], fwd[3], fwd[4], fwd[5]], [BigInt(c.hyperevm.chainId), R3, v2, nf, buffer, '0x']);
@@ -128,7 +128,7 @@ test('X2: HyperCore deposit on R3 and on R5 (innermost extraData = token || tran
 
 test('X3 quote: both floors (swap floor enforced on chain, delivery floor shown), native vs ERC20 input', async () => {
   const w = World.testnet(); const c = w.net.chains; const client = new BridgeClient(w.options());
-  const usdtx = c.cross.tokens.USDTx!.address;
+  const usdtx = c.one.tokens.USDTx!.address;
   w.swapOut = 100n * E18;
   const q = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: SENDER, recipient: RECIPIENT, swap: { slippageBps: 100 }, x3: { tokenIn: 'native', tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } });
   assert.equal(q.tx.value, 50n * E18); assert.equal(q.approval, null);
@@ -136,18 +136,18 @@ test('X3 quote: both floors (swap floor enforced on chain, delivery floor shown)
   assert.equal(q.limits.minBridgeValue, 99n * E18 - nf);
   const sb = new Interface(swapBridgeRouterAbi as any).parseTransaction({ data: q.tx.data, value: q.tx.value })!;
   assert.equal(sb.name, 'swapBridgeExactInputSingleETH');
-  assert.equal(sb.args[0][0], c.cross.tokens.WCROSS!.address);
+  assert.equal(sb.args[0][0], c.one.tokens.WCROSS!.address);
   const erc = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: SENDER, recipient: RECIPIENT, x3: { tokenIn: usdtx, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } }).catch((e) => e);
   assert.ok(erc instanceof Error || erc.approval); // tokenIn == tokenOut is a contract-level revert; SDK surfaces via preflight/simulation
 });
 
 test('X1 on mainnet: quote via QuoterV2, floors, deadline, whitelist preflight; requote price drop refused / price rise keeps the ORIGINAL floor', async () => {
-  const w = new World('mainnet'); const c = w.net.chains; const hubId = c.cross.chainId;
-  const usdt = c.bsc.tokens.USDT!.address; const usdtx = c.cross.tokens.USDTx!.address; const router = c.cross.swap!.v3SwapRouter!;
+  const w = new World('mainnet'); const c = w.net.chains; const hubId = c.one.chainId;
+  const usdt = c.bsc.tokens.USDT!.address; const usdtx = c.one.tokens.USDTx!.address; const router = c.one.swap!.v3SwapRouter!;
   w.setPair('bsc', hubId, usdt, usdtx, true);
   w.setFee('bsc', hubId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${router.toLowerCase()}`);
-  w.execWhitelist.add(`cross:${c.cross.bridge!.toLowerCase()}`);
+  w.execWhitelist.add(`one:${router.toLowerCase()}`);
+  w.execWhitelist.add(`one:${c.one.bridge!.toLowerCase()}`);
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.x1Out = 100n * E18 + 3_511_957n; // quoter result for 100 USDTx
@@ -161,12 +161,12 @@ test('X1 on mainnet: quote via QuoterV2, floors, deadline, whitelist preflight; 
   assert.equal(ed.slice(0, 42).toLowerCase(), router.toLowerCase());
   assert.equal('0x' + ed.slice(42, 50), '0x414bf389');
   const swap = new Interface(v3RouterAbi as any).decodeFunctionData('exactInputSingle', '0x' + ed.slice(42))[0];
-  assert.deepEqual([swap[0], swap[1], swap[2], swap[3], swap[5], swap[6]], [usdtx, c.cross.tokens.ONEUSD!.address, 0n, RECIPIENT, 100n * E18, expectedFloor]);
+  assert.deepEqual([swap[0], swap[1], swap[2], swap[3], swap[5], swap[6]], [usdtx, c.one.tokens.ONEUSD!.address, 0n, RECIPIENT, 100n * E18, expectedFloor]);
   const pf = await client.preflight(q);
   assert.equal(pf.ok, true, JSON.stringify(pf.issues));
-  w.execWhitelist.delete(`cross:${router.toLowerCase()}`);
+  w.execWhitelist.delete(`one:${router.toLowerCase()}`);
   assert.ok((await client.preflight(q)).issues.some((i) => i.code === 'EXECUTOR_NOT_WHITELISTED'));
-  w.execWhitelist.add(`cross:${router.toLowerCase()}`);
+  w.execWhitelist.add(`one:${router.toLowerCase()}`);
 
   // price drop between quote and send: refused
   w.onApprove = () => { w.x1Out = (expectedFloor * 99n) / 100n; };
@@ -175,7 +175,7 @@ test('X1 on mainnet: quote via QuoterV2, floors, deadline, whitelist preflight; 
 
   // price rise: adopted, floor and deadline stay as originally approved
   const w2 = new World('mainnet'); w2.setPair('bsc', hubId, usdt, usdtx, true); w2.setFee('bsc', hubId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w2.execWhitelist.add(`cross:${router.toLowerCase()}`);
+  w2.execWhitelist.add(`one:${router.toLowerCase()}`);
   const wallet2 = new Wallet(Wallet.createRandom().privateKey); w2.setBal('bsc', usdt, wallet2.address, 1000n * E18);
   w2.x1Out = 100n * E18;
   const c2 = new BridgeClient(w2.options({ quoteTtlMs: 60_000 }));

@@ -19,8 +19,8 @@ export function setup() {
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
   w.setBal('hyperevm', c.hyperevm.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  w.setFee('cross', c.bsc.chainId, c.cross.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  w.setFee('one', c.bsc.chainId, c.one.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   return { w, c, wallet, client: new BridgeClient(w.options()) };
 }
@@ -29,11 +29,11 @@ export function setup() {
 export function x1World() {
   const w = new World('mainnet');
   const c = w.net.chains;
-  const hubId = c.cross.chainId;
-  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.cross.tokens.USDTx!.address, router = c.cross.swap!.v3SwapRouter!;
+  const hubId = c.one.chainId;
+  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.one.tokens.USDTx!.address, router = c.one.swap!.v3SwapRouter!;
   w.setPair('bsc', hubId, usdt, usdtx, true);
   w.setFee('bsc', hubId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${router.toLowerCase()}`);
+  w.execWhitelist.add(`one:${router.toLowerCase()}`);
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.x1Out = 100n * E18 + 3_511_957n;
@@ -45,8 +45,8 @@ export const r5core = (sender: string) => ({ route: Route.BSC_TO_ONE_TO_HYPEREVM
 export const x3req = (sender: string, usdtx: string, tokenIn: string = TOKEN_A) => ({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender, recipient: RECIPIENT, x3: { tokenIn, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' as const } });
 
 /** counters that must all stay 0 when a send is refused before anything is signed */
-export const noMoney = (w: World) => ({ approves: w.approveCalls.length, bsc: w.chains.bsc.rawSent.length, cross: w.chains.cross.rawSent.length, hyper: w.chains.hyperevm.rawSent.length, bridgeLogs: w.chains.bsc.logs.length });
-export const nothingSent = (w: World) => assert.deepEqual([w.approveCalls.length, w.chains.bsc.rawSent.length, w.chains.cross.rawSent.length, w.chains.hyperevm.rawSent.length], [0, 0, 0, 0]);
+export const noMoney = (w: World) => ({ approves: w.approveCalls.length, bsc: w.chains.bsc.rawSent.length, one: w.chains.one.rawSent.length, hyper: w.chains.hyperevm.rawSent.length, bridgeLogs: w.chains.bsc.logs.length });
+export const nothingSent = (w: World) => assert.deepEqual([w.approveCalls.length, w.chains.bsc.rawSent.length, w.chains.one.rawSent.length, w.chains.hyperevm.rawSent.length], [0, 0, 0, 0]);
 export const rpcCalls = (w: World) => Object.values(w.chains).reduce((n, ch) => n + ch.calls.length, 0);
 export const codes = (e: PreflightError) => e.issues.map((i: PreflightIssue) => i.code);
 

@@ -47,7 +47,7 @@ const o = (fields: Record<string, Field>): Node & { t: 'obj' } => ({ t: 'obj', f
 const big = (opt?: boolean): Field => ({ t: 'dec', as: 'big', opt });
 const num = (opt?: boolean, wire?: string): Field => ({ t: 'dec', as: 'num', opt, wire });
 const addr = (opt?: boolean): Field => ({ t: 'addr', opt });
-const CHAINS = ['cross', 'bsc', 'hyperevm'] as const;
+const CHAINS = ['one', 'bsc', 'hyperevm'] as const;
 const HOPKIND = ['plain', 'hubForward', 'x1', 'x2'] as const;
 const ROUTES = Object.values(Route) as string[];
 const fee: Field = o({ minimumValue: big(), networkFee: big(), exFee: big() });

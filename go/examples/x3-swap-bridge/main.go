@@ -13,9 +13,9 @@ import (
 
 func main() {
 	runner.Run("X3", func(a runner.Args, net *bridgesdk.NetworkData) (bridgesdk.QuoteRequest, error) {
-		cross := net.Chain(bridgesdk.ChainCross)
+		oneChain := net.Chain(bridgesdk.ChainOne)
 		def := func(name string) common.Address {
-			if t := cross.Tokens[name]; t != nil {
+			if t := oneChain.Tokens[name]; t != nil {
 				return common.HexToAddress(t.Address)
 			}
 			return common.Address{}

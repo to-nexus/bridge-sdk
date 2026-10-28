@@ -18,13 +18,13 @@ test('blocked BEFORE approve: CORE_NOT_LINKED (R5+X2), X1 router not whitelisted
     const q = await client.quote(r5core(wallet.address));
     w.hyperCoreSet = false;
     await assert.rejects(() => client.send(wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'pre-approve' && codes(e).includes('CORE_NOT_LINKED'));
-    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, cross: 0, hyper: 0, bridgeLogs: 0 }); }
+    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, one: 0, hyper: 0, bridgeLogs: 0 }); }
   // (2) X1: the hub executor does not whitelist the V3 router
   { const x = x1World();
     const q = await x.client.quote({ route: Route.BSC_USDT_TO_ONEUSD, amount: 100n * E18, sender: x.wallet.address, recipient: RECIPIENT });
-    x.w.execWhitelist.delete(`cross:${x.router.toLowerCase()}`);
+    x.w.execWhitelist.delete(`one:${x.router.toLowerCase()}`);
     await assert.rejects(() => x.client.send(x.wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'pre-approve' && codes(e).includes('EXECUTOR_NOT_WHITELISTED'));
-    assert.deepEqual(noMoney(x.w), { approves: 0, bsc: 0, cross: 0, hyper: 0, bridgeLogs: 0 }); }
+    assert.deepEqual(noMoney(x.w), { approves: 0, bsc: 0, one: 0, hyper: 0, bridgeLogs: 0 }); }
   // (3) the hyperevm RPC fails: an unverified destination check is itself blocking
   { const { w, c, wallet, client } = setup();
     const q = await client.quote(r5core(wallet.address));
@@ -34,13 +34,13 @@ test('blocked BEFORE approve: CORE_NOT_LINKED (R5+X2), X1 router not whitelisted
       const inc = e.issues.find((i: PreflightIssue) => i.code === 'PREFLIGHT_INCOMPLETE');
       return !!inc && !!inc.check && /503/.test(inc.error ?? '');
     });
-    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, cross: 0, hyper: 0, bridgeLogs: 0 }); }
+    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, one: 0, hyper: 0, bridgeLogs: 0 }); }
   // (4) insufficient balance
   { const { w, c, wallet, client } = setup();
     const q = await client.quote(r1(wallet.address));
     w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1n);
     await assert.rejects(() => client.send(wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'pre-approve' && codes(e).includes('INSUFFICIENT_BALANCE'));
-    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, cross: 0, hyper: 0, bridgeLogs: 0 }); }
+    assert.deepEqual(noMoney(w), { approves: 0, bsc: 0, one: 0, hyper: 0, bridgeLogs: 0 }); }
 });
 
 test('blocked AFTER approve (post-approve): a bridge pause / a pair pause injected while the approve is pending - exactly 1 approve, 0 bridge signatures, 0 bridge broadcasts', async () => {
@@ -49,7 +49,7 @@ test('blocked AFTER approve (post-approve): a bridge pause / a pair pause inject
     const q = await client.quote(r1(wallet.address));
     w.onApprove = () => {
       if (inject === 'bridge') w.paused.add('bsc');
-      else w.pairs.get(`bsc:${c.cross.chainId}:${c.bsc.tokens.ONE!.address.toLowerCase()}`)!.paused = true;
+      else w.pairs.get(`bsc:${c.one.chainId}:${c.bsc.tokens.ONE!.address.toLowerCase()}`)!.paused = true;
     };
     await assert.rejects(() => client.send(wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'post-approve' && codes(e).includes(inject === 'bridge' ? 'BRIDGE_PAUSED' : 'PAIR_PAUSED'), inject);
     assert.equal(w.approveCalls.length, 1, `${inject}: exactly one approve`);
@@ -71,9 +71,9 @@ test('allowance is NOT blocking before approve (send approves) but IS blocking a
 test('a paused DESTINATION bridge blocks at pre-approve for every route (R1-R6, X2, X3): 0 approve, 0 sign, 0 broadcast', async () => {
   const { c } = setup();
   const cases: [string, any, string][] = [
-    ['R1', { route: Route.BSC_TO_ONE }, 'cross'], ['R2', { route: Route.ONE_TO_BSC }, 'bsc'], ['R3', { route: Route.ONE_TO_HYPEREVM }, 'hyperevm'], ['R4', { route: Route.HYPEREVM_TO_ONE }, 'cross'],
+    ['R1', { route: Route.BSC_TO_ONE }, 'one'], ['R2', { route: Route.ONE_TO_BSC }, 'bsc'], ['R3', { route: Route.ONE_TO_HYPEREVM }, 'hyperevm'], ['R4', { route: Route.HYPEREVM_TO_ONE }, 'one'],
     ['R5', { route: Route.BSC_TO_ONE_TO_HYPEREVM }, 'hyperevm'], ['R5+core', { route: Route.BSC_TO_ONE_TO_HYPEREVM, hypercore: true }, 'hyperevm'], ['R6', { route: Route.HYPEREVM_TO_ONE_TO_BSC }, 'bsc'],
-    ['X2', { route: Route.ONE_TO_HYPERCORE }, 'hyperevm'], ['X3', { route: Route.SWAP_BRIDGE, amount: 50n * E18, x3: { tokenIn: TOKEN_A, tokenOut: c.cross.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } }, 'bsc'],
+    ['X2', { route: Route.ONE_TO_HYPERCORE }, 'hyperevm'], ['X3', { route: Route.SWAP_BRIDGE, amount: 50n * E18, x3: { tokenIn: TOKEN_A, tokenOut: c.one.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } }, 'bsc'],
   ];
   for (const [name, req, dest] of cases) {
     const t = setup();
@@ -122,7 +122,7 @@ test('preflight: structured issues for paused bridge / unwhitelisted executor / 
   const q = await client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount, sender: wallet.address, recipient: RECIPIENT, hypercore: true });
   let pf = await client.preflight(q);
   assert.equal(pf.ok, true, JSON.stringify(pf.issues));
-  w.paused.add('cross');
+  w.paused.add('one');
   w.execWhitelist.delete(`hyperevm:${c.hyperevm.tokens.ONE!.address.toLowerCase()}`);
   w.hyperCoreSet = false;
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1n);
@@ -137,13 +137,13 @@ test('hub extraData limit applies to the INNER payload, the source limit to the 
   const { w, wallet, client } = setup();
   const q = await client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount, sender: wallet.address, recipient: RECIPIENT, hypercore: true });
   assert.equal((q.details.extraData.length - 2) / 2, 344, 'outer 344 B');
-  w.maxExtra.set('cross', 128n);
+  w.maxExtra.set('one', 128n);
   let rep = await client.preflight(q);
   assert.ok(!rep.issues.some((i) => i.code.startsWith('EXTRADATA')), 'outer 344 B, inner 88 B, hub limit 128 -> passes');
-  w.maxExtra.set('cross', 64n); // a canonical X2 inner payload is exactly 88 B (a padded inner is refused by the route rules, so the limit is lowered instead)
+  w.maxExtra.set('one', 64n); // a canonical X2 inner payload is exactly 88 B (a padded inner is refused by the route rules, so the limit is lowered instead)
   rep = await client.preflight(q);
   assert.ok(rep.issues.some((i) => i.code === 'EXTRADATA_TOO_LONG_HUB'), 'inner 88 B, hub limit 64');
-  w.maxExtra.set('cross', 1024n);
+  w.maxExtra.set('one', 1024n);
   w.maxExtra.set('bsc', 100n);
   rep = await client.preflight(q);
   assert.ok(rep.issues.some((i) => i.code === 'EXTRADATA_TOO_LONG_SOURCE'), 'outer 344 B > source limit 100');
@@ -152,7 +152,7 @@ test('hub extraData limit applies to the INNER payload, the source limit to the 
 
 test('X3: the router quote status is re-checked before any approve (status 5 InvalidSwap => PreflightError stage pre-approve, 0 approve / sign / broadcast)', async () => {
   const { w, c, wallet, client } = setup();
-  const q = await client.quote(x3req(wallet.address, c.cross.tokens.USDTx!.address));
+  const q = await client.quote(x3req(wallet.address, c.one.tokens.USDTx!.address));
   w.swapStatus = 5;
   await assert.rejects(() => client.send(wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'pre-approve' && e.issues.some((i: any) => i.code === 'X3_QUOTE_InvalidSwap'));
   nothingSent(w);
@@ -160,9 +160,9 @@ test('X3: the router quote status is re-checked before any approve (status 5 Inv
 
 test('X3: a status that flips while the approve is pending is reported with stage "requote" (error while building the adopted quote); no bridge tx', async () => {
   const { w, c, wallet, client } = setup();
-  const q = await client.quote(x3req(wallet.address, c.cross.tokens.USDTx!.address));
+  const q = await client.quote(x3req(wallet.address, c.one.tokens.USDTx!.address));
   w.onApprove = () => { w.swapStatus = 5; };
   await assert.rejects(() => client.send(wallet, q), (e: any) => e instanceof PreflightError && e.stage === 'requote' && e.issues.some((i: any) => i.code === 'X3_QUOTE_InvalidSwap'));
   assert.equal(w.approveCalls.length, 1);
-  assert.equal(w.chains.cross.logs.length, 0);
+  assert.equal(w.chains.one.logs.length, 0);
 });

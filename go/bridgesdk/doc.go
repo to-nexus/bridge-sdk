@@ -1,4 +1,4 @@
-// Package bridgesdk is the Go SDK for the CROSS / ONE bridge (BSC <-> ONE hub <-> HyperEVM).
+// Package bridgesdk is the Go SDK for the ONE bridge (BSC <-> ONE hub <-> HyperEVM).
 package bridgesdk
 
 import (

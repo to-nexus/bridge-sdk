@@ -67,11 +67,11 @@ func (c *Client) checkX1(extra []byte, committed *big.Int) (*X1Expect, error) {
 
 // checkX1Net is the same on an explicit network configuration (the issuing client's, never a built-in one chosen by the seal code).
 func checkX1Net(net *NetworkData, extra []byte, committed *big.Int) (*X1Expect, error) {
-	cross := net.Chains[ChainCross]
-	if cross.Swap == nil || cross.Swap.V3SwapRouter == nil || cross.Swap.X1Pool == nil || cross.Tokens["USDTx"] == nil || cross.Tokens["ONEUSD"] == nil {
+	oneChain := net.Chains[ChainOne]
+	if oneChain.Swap == nil || oneChain.Swap.V3SwapRouter == nil || oneChain.Swap.X1Pool == nil || oneChain.Tokens["USDTx"] == nil || oneChain.Tokens["ONEUSD"] == nil {
 		return nil, badExtra("X1", "the X1 router / pool / tokens are not configured")
 	}
-	router, usdtx, oneusd := addr(cross.Swap.V3SwapRouter), common.HexToAddress(cross.Tokens["USDTx"].Address), common.HexToAddress(cross.Tokens["ONEUSD"].Address)
+	router, usdtx, oneusd := addr(oneChain.Swap.V3SwapRouter), common.HexToAddress(oneChain.Tokens["USDTx"].Address), common.HexToAddress(oneChain.Tokens["ONEUSD"].Address)
 	x, p, err := decodeX1Struct(extra)
 	if err != nil {
 		return nil, err
@@ -83,8 +83,8 @@ func checkX1Net(net *NetworkData, extra []byte, committed *big.Int) (*X1Expect, 
 		return nil, badExtra("X1", fmt.Sprintf("tokenIn %s is not the hub USDTx %s", p.TokenIn, usdtx))
 	case p.TokenOut != oneusd:
 		return nil, badExtra("X1", fmt.Sprintf("tokenOut %s is not the configured ONEUSD %s", p.TokenOut, oneusd))
-	case x.Fee != cross.Swap.X1Pool.Fee:
-		return nil, badExtra("X1", fmt.Sprintf("fee %d != configured pool fee %d", x.Fee, cross.Swap.X1Pool.Fee))
+	case x.Fee != oneChain.Swap.X1Pool.Fee:
+		return nil, badExtra("X1", fmt.Sprintf("fee %d != configured pool fee %d", x.Fee, oneChain.Swap.X1Pool.Fee))
 	case p.AmountIn.Cmp(committed) != 0:
 		return nil, badExtra("X1", fmt.Sprintf("amountIn %s != the committed value %s", p.AmountIn, committed))
 	}

@@ -23,7 +23,7 @@ func TestPositiveControls(t *testing.T) {
 func positiveEveryRoute(t *testing.T) {
 	t.Helper()
 	w, _, a, c := r3World(t)
-	usdtx := tok(w, ChainCross, "USDTx")
+	usdtx := tok(w, ChainOne, "USDTx")
 	base := QuoteRequest{Amount: n18(10), Sender: a, Recipient: recipient}
 	with := func(f func(r *QuoteRequest)) QuoteRequest { r := base; f(&r); return r }
 	reqs := map[string]QuoteRequest{
@@ -103,9 +103,9 @@ func TestX1MissingFloorAndDeadline(t *testing.T) {
 
 func TestX1DecodedRecipientMustBeTheResolvedDestination(t *testing.T) {
 	_, _, a, c := x1WorldFor(t)
-	cross := c.net.Chains[ChainCross]
+	oneChain := c.net.Chains[ChainOne]
 	newX1 := func(q *Quote, rcpt common.Address) []byte {
-		ed, err := EncodeX1ExtraData(X1Input{Router: addr(cross.Swap.V3SwapRouter), TokenIn: tok2(c, "USDTx"), TokenOut: tok2(c, "ONEUSD"), Fee: cross.Swap.X1Pool.Fee, Recipient: rcpt, Deadline: q.Deadline, AmountIn: q.Value, AmountOutMinimum: q.Limits.AmountOutMinimum})
+		ed, err := EncodeX1ExtraData(X1Input{Router: addr(oneChain.Swap.V3SwapRouter), TokenIn: tok2(c, "USDTx"), TokenOut: tok2(c, "ONEUSD"), Fee: oneChain.Swap.X1Pool.Fee, Recipient: rcpt, Deadline: q.Deadline, AmountIn: q.Value, AmountOutMinimum: q.Limits.AmountOutMinimum})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -126,7 +126,7 @@ func TestX1DecodedRecipientMustBeTheResolvedDestination(t *testing.T) {
 
 func TestX3MissingFieldsAndCalldataContradiction(t *testing.T) {
 	w, k, a, c := r3World(t)
-	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainCross, "USDTx"), ToChain: ChainBSC}})
+	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainOne, "USDTx"), ToChain: ChainBSC}})
 	noMin := cloneQuote(q)
 	noMin.Limits.MinBridgeValue = nil
 	mustSeal(t, noMin)
@@ -145,7 +145,7 @@ func TestX3MissingFieldsAndCalldataContradiction(t *testing.T) {
 	for _, cs := range cases {
 		_, err := openQuote(cs.q)
 		invalidPayload(t, err, cs.path)
-		_, err = c.Send(ctx, w.signer(k, ChainCross), cs.q, SendOptions{})
+		_, err = c.Send(ctx, w.signer(k, ChainOne), cs.q, SendOptions{})
 		invalidPayload(t, err, cs.path)
 	}
 	if rpcCalls(w) != before {
@@ -210,7 +210,7 @@ func TestX2ZeroRecipientWrongAmountAndResolvedCore(t *testing.T) {
 	r5 := mustQuote(t, c, QuoteRequest{Route: RouteBSCToOneToHyperEVM, Amount: n18(10), Sender: a, Recipient: recipient, Hypercore: true, Recipients: Recipients{Core: coreAdr}})
 	fwd, _ := decodeForward(r5.Details.ExtraData)
 	mk := func(rcpt common.Address, v *big.Int) []byte {
-		ed, err := EncodeForwardExtraData(ForwardInput{Hub: addr(w.net.Chains[ChainCross].Bridge), DestChainID: fwd.ToChainID.Uint64(), ToDest: fwd.To, Value2: fwd.Value, NetworkFee2: fwd.NetworkFee, ExFee2Declared: fwd.ExFee, Inner: enc(rcpt, v)})
+		ed, err := EncodeForwardExtraData(ForwardInput{Hub: addr(w.net.Chains[ChainOne].Bridge), DestChainID: fwd.ToChainID.Uint64(), ToDest: fwd.To, Value2: fwd.Value, NetworkFee2: fwd.NetworkFee, ExFee2Declared: fwd.ExFee, Inner: enc(rcpt, v)})
 		if err != nil {
 			t.Fatal(err)
 		}

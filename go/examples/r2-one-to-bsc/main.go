@@ -1,4 +1,4 @@
-// R2  ONE -> BSC: native ONE becomes the CROSS ERC20 on BSC.
+// R2  ONE -> BSC: native ONE becomes the ONE token on BSC (contract symbol CROSS).
 package main
 
 import (

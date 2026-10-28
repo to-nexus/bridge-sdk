@@ -1,5 +1,5 @@
 export type NetworkName = 'mainnet' | 'testnet';
-export type ChainKey = 'cross' | 'bsc' | 'hyperevm';
+export type ChainKey = 'one' | 'bsc' | 'hyperevm';
 
 export interface TokenInfo {
   address: string;

@@ -7,7 +7,7 @@ foundry `cast` 로 브리지 전송을 실행하는 셸 스크립트입니다. S
 ## 준비
 
 - `cast`(foundry), `python3`
-- 출발 체인의 가스 토큰 (BSC: BNB, HyperEVM: HYPE, CROSS: ONE)
+- 출발 체인의 가스 토큰 (BSC: BNB, HyperEVM: HYPE, ONE 체인: ONE)
 
 ## 빠른 시작
 
@@ -39,7 +39,7 @@ FROM=0xYourAddress AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./r1.sh
 | `r5.sh` | R5 BSC → ONE → HyperEVM (`CORE_RECIPIENT` 를 주면 X2) |
 | `r6.sh` | R6 HyperEVM → ONE → BSC |
 | `x1.sh` | X1 BSC USDT → ONEUSD |
-| `x3.sh` | X3 CROSS 체인에서 스왑 후 브리지 |
+| `x3.sh` | X3 ONE 체인에서 스왑 후 브리지 |
 | `track.sh <chainId> <txhash>` | 전송 상태 조회 (읽기 전용) |
 
 X2(HyperCore 입금)는 별도 스크립트 없이 `r3.sh` · `r5.sh` 의 옵션으로 씁니다. 자세한 내용은 [x2.md](x2.md) 에 있습니다.
@@ -61,7 +61,7 @@ X2(HyperCore 입금)는 별도 스크립트 없이 `r3.sh` · `r5.sh` 의 옵션
 | `TOKEN_IN` · `TOKEN_OUT` · `POOL_FEE` · `TO_CHAIN` | X3 옵션 (`TOKEN_IN=native` 가능) |
 | `SEND=1` | 실제 전송 |
 | `PRIVATE_KEY` 또는 `CAST_SIGNER_ARGS` | 전송 서명자. `CAST_SIGNER_ARGS="--account <이름>"` 이나 `--ledger` 도 쓸 수 있다 |
-| `RPC_CROSS` · `RPC_BSC` · `RPC_HYPEREVM` | RPC 교체 |
+| `RPC_ONE` · `RPC_BSC` · `RPC_HYPEREVM` | RPC 교체 |
 | `GAS_PRICE` | BSC 테스트넷 가스 가격 (기본 `3gwei`) |
 
 ## `SEND=1` 일 때 하는 일

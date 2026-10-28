@@ -66,7 +66,7 @@ func TestQuoteMultihopBackwardComputationAndRecipients(t *testing.T) {
 		t.Fatal("hop-1 `to` must be toOnHub and value v1")
 	}
 	ed := args[6].([]byte)
-	if !bytes.Equal(ed[:20], common.HexToAddress(*ch[ChainCross].Bridge).Bytes()) || !bytes.Equal(ed[20:24], ForwardSelector[:]) {
+	if !bytes.Equal(ed[:20], common.HexToAddress(*ch[ChainOne].Bridge).Bytes()) || !bytes.Equal(ed[20:24], ForwardSelector[:]) {
 		t.Fatal("hop-1 extraData must start with hub || 0x55fd0776")
 	}
 	fwd, err := decodeForward(ed)
@@ -107,7 +107,7 @@ func TestQuoteX3Floors(t *testing.T) {
 	w := testnetWorld(t)
 	c := w.client()
 	ch := w.net.Chains
-	usdtx := tok(w, ChainCross, "USDTx")
+	usdtx := tok(w, ChainOne, "USDTx")
 	w.swapOut = n18(100)
 	req := QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: senderAdr, Recipient: recipient, Swap: SwapOptions{SlippageBps: Bps(100)}, X3: &X3Request{NativeIn: true, TokenOut: usdtx, ToChain: ChainBSC}}
 	q := mustQuote(t, c, req)
@@ -120,7 +120,7 @@ func TestQuoteX3Floors(t *testing.T) {
 	}
 	args, _ := m.Inputs.Unpack(q.Tx.Data[4:])
 	p := *abi.ConvertType(args[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
-	if p.TokenIn != common.HexToAddress(ch[ChainCross].Tokens["WCROSS"].Address) {
+	if p.TokenIn != common.HexToAddress(ch[ChainOne].Tokens["WCROSS"].Address) {
 		t.Fatalf("tokenIn must be WCROSS for native input, got %s", p.TokenIn)
 	}
 }
@@ -128,13 +128,13 @@ func TestQuoteX3Floors(t *testing.T) {
 func TestQuoteX1Mainnet(t *testing.T) {
 	w := newWorld(t, Mainnet)
 	ch := w.net.Chains
-	hubID := ch[ChainCross].ChainID
-	usdt, usdtx := tok(w, ChainBSC, "USDT"), tok(w, ChainCross, "USDTx")
-	router := common.HexToAddress(*ch[ChainCross].Swap.V3SwapRouter)
+	hubID := ch[ChainOne].ChainID
+	usdt, usdtx := tok(w, ChainBSC, "USDT"), tok(w, ChainOne, "USDTx")
+	router := common.HexToAddress(*ch[ChainOne].Swap.V3SwapRouter)
 	w.setPair(ChainBSC, hubID, usdt, usdtx, true)
 	w.setFee(ChainBSC, hubID, usdt, n18(5), new(big.Int), new(big.Int))
-	w.whitelist[key(ChainCross, router)] = true
-	w.whitelist[key(ChainCross, *ch[ChainCross].Bridge)] = true
+	w.whitelist[key(ChainOne, router)] = true
+	w.whitelist[key(ChainOne, *ch[ChainOne].Bridge)] = true
 	w.x1Out = add(n18(100), big.NewInt(3_511_957))
 	w.setBal(ChainBSC, usdt, senderAdr, n18(1000))
 	w.setAllow(ChainBSC, usdt, senderAdr, common.HexToAddress(*ch[ChainBSC].Bridge), n18(1000))
@@ -152,7 +152,7 @@ func TestQuoteX1Mainnet(t *testing.T) {
 	if err != nil || !pf.OK {
 		t.Fatalf("preflight: %+v %v", pf, err)
 	}
-	delete(w.whitelist, key(ChainCross, router))
+	delete(w.whitelist, key(ChainOne, router))
 	pf, _ = c.Preflight(ctx, q)
 	found := false
 	for _, i := range pf.Issues {
@@ -162,7 +162,7 @@ func TestQuoteX1Mainnet(t *testing.T) {
 		t.Fatal("missing whitelist issue")
 	}
 	// price drop between quote and send -> refused, floor never loosened
-	w.whitelist[key(ChainCross, router)] = true
+	w.whitelist[key(ChainOne, router)] = true
 	k, a := w.fundedWallet()
 	w.setBal(ChainBSC, usdt, a, n18(1000))
 	q = mustQuote(t, c, QuoteRequest{Route: RouteBSCUSDTToONEUSD, Amount: n18(100), Sender: a, Recipient: recipient, QuoteTTL: 60e9})
@@ -233,8 +233,8 @@ func TestSwapOptionsPointerSemantics_X1(t *testing.T) {
 func TestSwapOptionsPointerSemantics_X3(t *testing.T) {
 	w := testnetWorld(t)
 	k, a := w.fundedWallet()
-	usdtx := tok(w, ChainCross, "USDTx")
-	w.setFee(ChainCross, w.net.Chains[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	usdtx := tok(w, ChainOne, "USDTx")
+	w.setFee(ChainOne, w.net.Chains[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w.swapOut = n18(100)
 	c := w.client()
 	req := func(s SwapOptions) QuoteRequest {
@@ -255,7 +255,7 @@ func TestSwapOptionsPointerSemantics_X3(t *testing.T) {
 			t.Fatalf("want InvalidOptionError for %+v, got %v", bad, err)
 		}
 	}
-	sent, err := c.Send(ctx, w.signer(k, ChainCross), q0, SendOptions{})
+	sent, err := c.Send(ctx, w.signer(k, ChainOne), q0, SendOptions{})
 	if err != nil || sent.Quote.Limits.AmountOutMinimum.Cmp(w.swapOut) != 0 {
 		t.Fatalf("send keeps the explicit-0 floor: %v", err)
 	}

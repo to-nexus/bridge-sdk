@@ -45,9 +45,9 @@ func (c *Client) cfgToken(key ChainKey, name, quoteValue string) (string, error)
 	return "", cfgMissing("chains."+string(key)+".tokens."+name+".address", quoteValue)
 }
 
-// cfgSwap returns cross.swap.<field> ("v3SwapRouter" | "swapBridgeRouter").
+// cfgSwap returns one.swap.<field> ("v3SwapRouter" | "swapBridgeRouter").
 func (c *Client) cfgSwap(field, quoteValue string) (string, error) {
-	ch, err := c.cfgChain(ChainCross, quoteValue)
+	ch, err := c.cfgChain(ChainOne, quoteValue)
 	if err != nil {
 		return "", err
 	}
@@ -61,18 +61,18 @@ func (c *Client) cfgSwap(field, quoteValue string) (string, error) {
 		}
 	}
 	if v == nil || *v == "" {
-		return "", cfgMissing("chains.cross.swap."+field, quoteValue)
+		return "", cfgMissing("chains.one.swap."+field, quoteValue)
 	}
 	return *v, nil
 }
 
 func (c *Client) cfgPoolFee(quoteValue string) (uint32, error) {
-	ch, err := c.cfgChain(ChainCross, quoteValue)
+	ch, err := c.cfgChain(ChainOne, quoteValue)
 	if err != nil {
 		return 0, err
 	}
 	if ch.Swap == nil || ch.Swap.X1Pool == nil {
-		return 0, cfgMissing("chains.cross.swap.x1Pool.fee", quoteValue)
+		return 0, cfgMissing("chains.one.swap.x1Pool.fee", quoteValue)
 	}
 	return ch.Swap.X1Pool.Fee, nil
 }
@@ -113,7 +113,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 	if spec.kind != q.Kind {
 		return tamper("kind")
 	}
-	cross, err := c.cfgChain(ChainCross, q.SourceBridge.Hex())
+	oneChain, err := c.cfgChain(ChainOne, q.SourceBridge.Hex())
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		return err
 	}
 	destChainID := destChain.ChainID
-	hubID := cross.ChainID
+	hubID := oneChain.ChainID
 	// the chain id the payload carries must be the CLIENT's chain id for this route (structural validation only checks it against the calldata)
 	wantDestID := destChainID
 	if spec.kind == KindX1 {
@@ -174,7 +174,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		}
 		p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 		if x3.NativeIn {
-			wcross, err := c.cfgToken(ChainCross, "WCROSS", p.TokenIn.Hex())
+			wcross, err := c.cfgToken(ChainOne, "WCROSS", p.TokenIn.Hex())
 			if err != nil {
 				return err
 			}
@@ -263,7 +263,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 	}
 	switch {
 	case spec.kind == KindMultihop:
-		hub, err := c.cfgBridge(ChainCross, target.Hex())
+		hub, err := c.cfgBridge(ChainOne, target.Hex())
 		if err != nil {
 			return err
 		}
@@ -302,7 +302,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if err != nil {
 			return tamper("x1 extraData")
 		}
-		usdtx, err := c.cfgToken(ChainCross, "USDTx", p.TokenIn.Hex())
+		usdtx, err := c.cfgToken(ChainOne, "USDTx", p.TokenIn.Hex())
 		if err != nil {
 			return err
 		}
@@ -312,7 +312,7 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if !same(q.Details.Hop1ToToken, usdtx) {
 			return mism("details.hop1ToToken(USDTx)", usdtx, q.Details.Hop1ToToken.Hex())
 		}
-		oneusd, err := c.cfgToken(ChainCross, "ONEUSD", p.TokenOut.Hex())
+		oneusd, err := c.cfgToken(ChainOne, "ONEUSD", p.TokenOut.Hex())
 		if err != nil {
 			return err
 		}

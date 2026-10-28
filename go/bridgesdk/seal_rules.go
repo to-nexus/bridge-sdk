@@ -149,7 +149,7 @@ func routeRules(w *quoteWireV1, q *Quote) *wireError {
 			return bad("hop2ExFeeDeclared", "required for a multihop quote")
 		case w.HubVerifier == nil:
 			return bad("hubVerifier", "required for a multihop quote")
-		case q.Details.HubChain != ChainCross:
+		case q.Details.HubChain != ChainOne:
 			return bad("details.hubChain", "a multihop quote goes through the hub chain")
 		case w.Details.Hop2Kind == nil:
 			return bad("details.hop2Kind", "required for a multihop quote")
@@ -201,7 +201,7 @@ func routeRules(w *quoteWireV1, q *Quote) *wireError {
 			return bad("deadlineSec", "required for an X1 quote")
 		case new(big.Int).Mul(u(q.Deadline), big.NewInt(1000)).Cmp(big.NewInt(q.CreatedAt.UnixMilli())) <= 0:
 			return bad("deadlineSec", "must be after createdAtMs / 1000")
-		case q.Details.HubChain != ChainCross:
+		case q.Details.HubChain != ChainOne:
 			return bad("details.hubChain", "an X1 quote goes through the hub chain")
 		case q.Details.Hop1Kind != HopX1:
 			return bad("details.hop1Kind", "X1 needs hop1Kind x1")

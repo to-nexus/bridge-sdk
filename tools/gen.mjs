@@ -27,8 +27,8 @@ outputs.set(
 outputs.set('go/bridgesdk/networks.json', raw);
 
 // ---- cast env -----------------------------------------------------------------------------------------------------
-const CH = { cross: 'CROSS', bsc: 'BSC', hyperevm: 'HYPEREVM' };
-const tokenVar = { cross: { ONE: null, USDTx: 'USDTX', ONEUSD: 'ONEUSD', WCROSS: 'WCROSS' }, bsc: { ONE: 'ONE_TOKEN', USDT: 'USDT' }, hyperevm: { ONE: 'ONE_TOKEN' } };
+const CH = { one: 'ONE', bsc: 'BSC', hyperevm: 'HYPEREVM' };
+const tokenVar = { one: { ONE: null, USDTx: 'USDTX', ONEUSD: 'ONEUSD', WCROSS: 'WCROSS' }, bsc: { ONE: 'ONE_TOKEN', USDT: 'USDT' }, hyperevm: { ONE: 'ONE_TOKEN' } };
 
 function envFile(netKey) {
   const net = data.networks[netKey];

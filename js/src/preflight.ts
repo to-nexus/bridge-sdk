@@ -91,17 +91,17 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
     const m = q.match;
     // fresh quote status through the timed RPC: a status other than Success (1) blocks at every stage, before any approve
     await guard('x3 quote status', async () => {
-      const r: any = await readContract(ctx.rpc('cross'), sbrI, q.sourceContract, 'getAmountSwapBridgeOut', [m.toChainID, m.tokenIn, m.tokenOut, q.request.x3!.poolFee, m.amountIn], { from: q.sender });
+      const r: any = await readContract(ctx.rpc('one'), sbrI, q.sourceContract, 'getAmountSwapBridgeOut', [m.toChainID, m.tokenIn, m.tokenOut, q.request.x3!.poolFee, m.amountIn], { from: q.sender });
       const status = Number(r[0]);
       const name = QUOTE_STATUS[status] ?? String(status);
       add('router quote status == Success', status === 1, name, { level: 'error', code: `X3_QUOTE_${name}`, message: `SwapBridgeRouter quote status ${name}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' });
     });
     await guard('x3 router.bridge()', async () => {
-      const b = await readContract<string>(ctx.rpc('cross'), sbrI, q.sourceContract, 'bridge', []);
+      const b = await readContract<string>(ctx.rpc('one'), sbrI, q.sourceContract, 'bridge', []);
       add('router.bridge() == hub', b.toLowerCase() === q.sourceBridge.toLowerCase(), b, { level: 'error', code: 'ROUTER_BRIDGE_MISMATCH', message: `SwapBridgeRouter.bridge() is ${b}, expected the hub ${q.sourceBridge}` });
     });
     await guard('x3 tokenOut pair', async () => {
-      const p = await readContract<any>(ctx.rpc('cross'), bridgeI, q.sourceBridge, 'getTokenPair', [m.toChainID, m.tokenOut]);
+      const p = await readContract<any>(ctx.rpc('one'), bridgeI, q.sourceBridge, 'getTokenPair', [m.toChainID, m.tokenOut]);
       const reg = String(p[0]).toLowerCase() === m.tokenOut.toLowerCase();
       add('pair registered (tokenOut)', reg, undefined, { level: 'error', code: 'PAIR_NOT_REGISTERED', message: `tokenOut ${m.tokenOut} has no hub pair to chain ${m.toChainID}`, hint: 'RegistryNotExistToken' });
       if (reg) add('pair not paused (tokenOut)', !p[3], String(p[3]), { level: 'error', code: 'PAIR_PAUSED', message: 'the tokenOut pair is paused', hint: 'RegistryTokenPaused' });
@@ -110,26 +110,26 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
 
   // 4. multihop / X1: hub
   if (q.kind === 'multihop' || q.kind === 'x1') {
-    const hub = getAddress(chains.cross.bridge!);
+    const hub = getAddress(chains.one.bridge!);
     let executor = '';
     await guard('hub paused()', async () => {
-      const p = await readContract<boolean>(ctx.rpc('cross'), bridgeI, hub, 'paused', []);
+      const p = await readContract<boolean>(ctx.rpc('one'), bridgeI, hub, 'paused', []);
       add('hub paused()', !p, String(p), { level: 'error', code: 'HUB_PAUSED', message: 'the hub bridge is paused' });
     });
     await guard('hub executor', async () => {
-      executor = await readContract<string>(ctx.rpc('cross'), bridgeI, hub, 'bridgeExecutor', []);
+      executor = await readContract<string>(ctx.rpc('one'), bridgeI, hub, 'bridgeExecutor', []);
       add('hub bridgeExecutor() != 0', executor !== '0x0000000000000000000000000000000000000000', executor, { level: 'error', code: 'HUB_EXECUTOR_UNSET', message: 'hub executor is not set', hint: 'extraData cannot be executed on the hub.' });
     });
     if (q.kind === 'multihop') {
       await guard('hub pair(dest, NATIVE)', async () => {
-        const p = await readContract<any>(ctx.rpc('cross'), bridgeI, hub, 'getTokenPair', [q.details.destChainId, NATIVE_TOKEN]);
+        const p = await readContract<any>(ctx.rpc('one'), bridgeI, hub, 'getTokenPair', [q.details.destChainId, NATIVE_TOKEN]);
         const reg = String(p[0]).toLowerCase() === NATIVE_TOKEN;
         add('hub pair (dest, NATIVE) registered', reg, undefined, { level: 'error', code: 'HUB_PAIR_NOT_REGISTERED', message: `hub has no NATIVE pair to chain ${q.details.destChainId}` });
         if (reg) add('hub pair not paused', !p[3], String(p[3]), { level: 'error', code: 'HUB_PAIR_PAUSED', message: 'hub pair is paused' });
       });
       await guard('hub inner extraData length', async () => {
         // the HUB limit applies to the decoded INNER extraData (what the hub forwards in hop 2: 88 B X2 payload, 0 B without core), not to the outer payload
-        const max = await maxExtraData(ctx, 'cross', hub);
+        const max = await maxExtraData(ctx, 'one', hub);
         const inner = decodeForward(q.details.extraData).inner;
         const len = BigInt((inner.length - 2) / 2);
         add('inner extraData length (hub)', max === 0n || len <= max, `${len}/${max}`, { level: 'error', code: 'EXTRADATA_TOO_LONG_HUB', message: `inner extraData ${len} B > hub max ${max} B` });
@@ -137,26 +137,26 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
     }
     if (executor && executor !== '0x0000000000000000000000000000000000000000') {
       const whitelist = async (label: string, target: string, selector: string) => {
-        const wl = await readContract<boolean>(ctx.rpc('cross'), executorI, executor, 'isWhitelistedTarget', [target]);
-        const mc = await readContract<boolean>(ctx.rpc('cross'), executorI, executor, 'isMethodCheckEnabled', [target]);
-        const wm = mc ? await readContract<boolean>(ctx.rpc('cross'), executorI, executor, 'isWhitelistedMethod', [target, selector]) : true;
+        const wl = await readContract<boolean>(ctx.rpc('one'), executorI, executor, 'isWhitelistedTarget', [target]);
+        const mc = await readContract<boolean>(ctx.rpc('one'), executorI, executor, 'isMethodCheckEnabled', [target]);
+        const wm = mc ? await readContract<boolean>(ctx.rpc('one'), executorI, executor, 'isWhitelistedMethod', [target, selector]) : true;
         add(`executor whitelists ${label}`, wl && wm, `target=${wl} methodCheck=${mc} method=${wm}`, { level: 'error', code: 'EXECUTOR_NOT_WHITELISTED', message: `hub executor does not whitelist ${label}`, hint: 'BETargetNotWhitelisted / BEMethodNotWhitelisted - contact the operator; the transfer would fall back to a plain payout.' });
       };
       if (q.kind === 'multihop') await guard('executor whitelist (hub forward)', () => whitelist('hub + bridgeTokenForwarded', hub, FORWARD_SELECTOR));
       if (q.kind === 'x1') {
-        const router = getAddress(chains.cross.swap!.v3SwapRouter!);
+        const router = getAddress(chains.one.swap!.v3SwapRouter!);
         await guard('executor whitelist (V3 router)', () => whitelist('V3 SwapRouter + exactInputSingle', router, EXACT_INPUT_SINGLE_SELECTOR));
         await guard('x1 pool exists', async () => {
-          const cfgPool = chains.cross.swap!.x1Pool!;
-          const factory = chains.cross.swap!.v3Factory;
+          const cfgPool = chains.one.swap!.x1Pool!;
+          const factory = chains.one.swap!.v3Factory;
           if (factory) {
-            const got = await readContract<string>(ctx.rpc('cross'), v3FactoryI, getAddress(factory), 'getPool', [chains.cross.tokens.USDTx!.address, chains.cross.tokens.ONEUSD!.address, cfgPool.fee]);
+            const got = await readContract<string>(ctx.rpc('one'), v3FactoryI, getAddress(factory), 'getPool', [chains.one.tokens.USDTx!.address, chains.one.tokens.ONEUSD!.address, cfgPool.fee]);
             add('factory.getPool(USDTx, ONEUSD, fee) == configured pool', got.toLowerCase() === cfgPool.pool.toLowerCase(), got, { level: 'error', code: 'POOL_NOT_FOUND', message: `factory has no pool ${cfgPool.pool} for (USDTx, ONEUSD, fee ${cfgPool.fee})` });
           }
         });
         await guard('x1 pool liquidity', async () => {
-          const pool = getAddress(chains.cross.swap!.x1Pool!.pool);
-          const liq = await readContract<bigint>(ctx.rpc('cross'), poolI, pool, 'liquidity', []);
+          const pool = getAddress(chains.one.swap!.x1Pool!.pool);
+          const liq = await readContract<bigint>(ctx.rpc('one'), poolI, pool, 'liquidity', []);
           add('USDTx/ONEUSD pool liquidity > 0', liq > 0n, String(liq), { level: 'error', code: 'POOL_NO_LIQUIDITY', message: 'the swap pool has no liquidity' });
         });
       }

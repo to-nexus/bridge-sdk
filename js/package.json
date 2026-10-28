@@ -2,7 +2,7 @@
   "name": "@to-nexus/bridge-sdk",
   "version": "0.1.0",
   "private": true,
-  "description": "CROSS / ONE bridge integration SDK (TypeScript, ethers v6): BSC <-> ONE <-> HyperEVM, multihop, USDT->ONEUSD, HyperCore deposit, swap+bridge.",
+  "description": "ONE bridge integration SDK (TypeScript, ethers v6): BSC <-> ONE <-> HyperEVM, multihop, USDT->ONEUSD, HyperCore deposit, swap+bridge.",
   "license": "MIT",
   "repository": {
     "type": "git",

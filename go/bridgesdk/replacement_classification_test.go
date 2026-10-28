@@ -29,7 +29,7 @@ func TestUnattributedTransferEvidenceIsNeverANewTx(t *testing.T) {
 	e := newS1(t, true)
 	other := common.HexToAddress("0x00000000000000000000000000000000dead0001")
 	// a BridgeInitiated from an UNKNOWN emitter
-	bi := e.w.initiatedLog(ChainCross, other, uint64(e.bscID), nativeAdr, e.bsc, e.a, recipient, n18(10), new(big.Int), new(big.Int), nil)
+	bi := e.w.initiatedLog(ChainOne, other, uint64(e.bscID), nativeAdr, e.bsc, e.a, recipient, n18(10), new(big.Int), new(big.Int), nil)
 	v, err := e.verdict(t, bi)
 	wantVerdict(t, "BridgeInitiated from an unknown emitter", v, err, VerdictReplacedUnverified)
 	if len(v.Unattributed) != 1 {
@@ -49,7 +49,7 @@ func TestReplacementCombinationFixtures(t *testing.T) {
 	// one match + one unattributed log -> REPLACED_UNVERIFIED
 	e := newS1(t, true)
 	other := common.HexToAddress("0x00000000000000000000000000000000dead0002")
-	stray := e.w.initiatedLog(ChainCross, other, uint64(e.bscID), nativeAdr, e.bsc, e.a, recipient, n18(1), new(big.Int), new(big.Int), nil)
+	stray := e.w.initiatedLog(ChainOne, other, uint64(e.bscID), nativeAdr, e.bsc, e.a, recipient, n18(1), new(big.Int), new(big.Int), nil)
 	v, err := e.verdict(t, append(e.x3Logs(x3o{}), stray)...)
 	wantVerdict(t, "match + unattributed", v, err, VerdictReplacedUnverified)
 	if len(v.Matched) != 1 || len(v.Unattributed) != 1 {
@@ -98,15 +98,15 @@ func TestRecipientAndExtraDataAreIntentFields(t *testing.T) {
 			t.Fatalf("%s / find: %+v %v", name, f, err)
 		}
 		// quote-based buildHandle
-		rec := e.w.chains[ChainCross].receipts[v.ReplacementHash]
+		rec := e.w.chains[ChainOne].receipts[v.ReplacementHash]
 		if _, err := e.c.buildHandle(e.c.handleInputFromQuote(e.sent.Quote, rec, nil)); err == nil {
 			t.Fatalf("%s: quote-based buildHandle must not match", name)
 		}
 	}
 	// handleFromTx has NO intent: the same receipt (other recipient) is restored from the actual events
 	e := newS1(t, true)
-	h := e.w.chains[ChainCross].mineLogs(e.router, nil, e.x3Logs(x3o{recipient: otherAdr}))
-	if hd, err := e.c.HandleFromTx(ctx, e.w.net.Chains[ChainCross].ChainID, h, nil); err != nil || hd.Route != RouteSwapBridge {
+	h := e.w.chains[ChainOne].mineLogs(e.router, nil, e.x3Logs(x3o{recipient: otherAdr}))
+	if hd, err := e.c.HandleFromTx(ctx, e.w.net.Chains[ChainOne].ChainID, h, nil); err != nil || hd.Route != RouteSwapBridge {
 		t.Fatalf("handleFromTx: %+v %v", hd, err)
 	}
 }
@@ -119,8 +119,8 @@ func TestBrokenLinkIsUnattributedAndHandleFromTxErrors(t *testing.T) {
 	v, err = e.verdict(t, e.x3Logs(x3o{noBI: true})...)
 	wantVerdict(t, "missing BridgeInitiated", v, err, VerdictReplacedUnverified)
 	e = newS1(t, true)
-	h := e.w.chains[ChainCross].mineLogs(e.router, nil, e.x3Logs(x3o{badIndex: true}))
-	if _, err := e.c.HandleFromTx(ctx, e.w.net.Chains[ChainCross].ChainID, h, nil); err == nil {
+	h := e.w.chains[ChainOne].mineLogs(e.router, nil, e.x3Logs(x3o{badIndex: true}))
+	if _, err := e.c.HandleFromTx(ctx, e.w.net.Chains[ChainOne].ChainID, h, nil); err == nil {
 		t.Fatal("handleFromTx must error on an inconsistent link")
 	}
 }

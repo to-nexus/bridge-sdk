@@ -32,7 +32,7 @@ var otherAdr = common.HexToAddress("0x5555555555555555555555555555555555555555")
 func r3World(t *testing.T) (*world, *ecdsa.PrivateKey, common.Address, *Client) {
 	w := testnetWorld(t)
 	k, a := w.fundedWallet()
-	w.setFee(ChainCross, w.net.Chains[ChainBSC].ChainID, tok(w, ChainCross, "USDTx"), big.NewInt(1), new(big.Int), new(big.Int))
+	w.setFee(ChainOne, w.net.Chains[ChainBSC].ChainID, tok(w, ChainOne, "USDTx"), big.NewInt(1), new(big.Int), new(big.Int))
 	w.swapOut = n18(100)
 	return w, k, a, w.client()
 }
@@ -95,13 +95,13 @@ func overrideNetwork(t *testing.T) *NetworkData {
 	}
 	c := nd.Chains
 	s := func(v string) *string { return &v }
-	c[ChainCross].Bridge = s(fakeAdr("a1000000001"))
-	c[ChainCross].Swap.SwapBridgeRouter = s(fakeAdr("a1000000002"))
-	c[ChainCross].Swap.V3SwapRouter = s(fakeAdr("a1000000003"))
-	c[ChainCross].Swap.QuoterV2 = s(fakeAdr("a1000000004"))
-	c[ChainCross].Swap.V3Factory = s(fakeAdr("a1000000005"))
-	c[ChainCross].Tokens["ONEUSD"] = &Token{Address: fakeAdr("a1000000006"), Symbol: s("ONEUSD"), Decimals: 18, Kind: "erc20"}
-	c[ChainCross].Swap.X1Pool = &X1Pool{TokenIn: c[ChainCross].Tokens["USDTx"].Address, TokenOut: fakeAdr("a1000000006"), Fee: 500, Pool: fakeAdr("a1000000007")}
+	c[ChainOne].Bridge = s(fakeAdr("a1000000001"))
+	c[ChainOne].Swap.SwapBridgeRouter = s(fakeAdr("a1000000002"))
+	c[ChainOne].Swap.V3SwapRouter = s(fakeAdr("a1000000003"))
+	c[ChainOne].Swap.QuoterV2 = s(fakeAdr("a1000000004"))
+	c[ChainOne].Swap.V3Factory = s(fakeAdr("a1000000005"))
+	c[ChainOne].Tokens["ONEUSD"] = &Token{Address: fakeAdr("a1000000006"), Symbol: s("ONEUSD"), Decimals: 18, Kind: "erc20"}
+	c[ChainOne].Swap.X1Pool = &X1Pool{TokenIn: c[ChainOne].Tokens["USDTx"].Address, TokenOut: fakeAdr("a1000000006"), Fee: 500, Pool: fakeAdr("a1000000007")}
 	c[ChainHyperEVM].Tokens["ONE"].Address = fakeAdr("a1000000008")
 	return &nd
 }
@@ -122,13 +122,13 @@ func newEnv(t *testing.T, nd *NetworkData) *overrideEnv {
 	w := testnetWorldNet(t, nd)
 	k, a := w.fundedWallet()
 	c := w.net.Chains
-	hubID := c[ChainCross].ChainID
-	usdt, usdtx := common.HexToAddress(c[ChainBSC].Tokens["USDT"].Address), common.HexToAddress(c[ChainCross].Tokens["USDTx"].Address)
+	hubID := c[ChainOne].ChainID
+	usdt, usdtx := common.HexToAddress(c[ChainBSC].Tokens["USDT"].Address), common.HexToAddress(c[ChainOne].Tokens["USDTx"].Address)
 	w.setPair(ChainBSC, hubID, usdt, usdtx, true)
 	w.setFee(ChainBSC, hubID, usdt, n18(5), new(big.Int), new(big.Int))
-	w.whitelist[key(ChainCross, *c[ChainCross].Swap.V3SwapRouter)] = true
+	w.whitelist[key(ChainOne, *c[ChainOne].Swap.V3SwapRouter)] = true
 	w.setBal(ChainBSC, usdt, a, n18(1000))
-	w.setFee(ChainCross, c[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	w.setFee(ChainOne, c[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w.swapOut = n18(100)
 	w.x1Out = add(n18(100), big.NewInt(3_511_957))
 	o := w.opts()
@@ -147,7 +147,7 @@ func newEnv(t *testing.T, nd *NetworkData) *overrideEnv {
 
 func (e *overrideEnv) quotes(t *testing.T) map[string]*Quote {
 	t.Helper()
-	usdtx := tok(e.w, ChainCross, "USDTx")
+	usdtx := tok(e.w, ChainOne, "USDTx")
 	mk := func(r QuoteRequest) *Quote {
 		r.Sender, r.Recipient = e.a, recipient
 		return mustQuote(t, e.client, r)
@@ -191,12 +191,12 @@ func deepCopyNet(t *testing.T, n *NetworkData) *NetworkData {
 func x1WorldFor(t *testing.T) (*world, *ecdsa.PrivateKey, common.Address, *Client) {
 	w := newWorld(t, Mainnet)
 	ch := w.net.Chains
-	hubID := ch[ChainCross].ChainID
-	usdt, usdtx := tok(w, ChainBSC, "USDT"), tok(w, ChainCross, "USDTx")
-	router := common.HexToAddress(*ch[ChainCross].Swap.V3SwapRouter)
+	hubID := ch[ChainOne].ChainID
+	usdt, usdtx := tok(w, ChainBSC, "USDT"), tok(w, ChainOne, "USDTx")
+	router := common.HexToAddress(*ch[ChainOne].Swap.V3SwapRouter)
 	w.setPair(ChainBSC, hubID, usdt, usdtx, true)
 	w.setFee(ChainBSC, hubID, usdt, n18(5), new(big.Int), new(big.Int))
-	w.whitelist[key(ChainCross, router)] = true
+	w.whitelist[key(ChainOne, router)] = true
 	k, a := w.fundedWallet()
 	w.setBal(ChainBSC, usdt, a, n18(1000))
 	w.x1Out = add(n18(100), big.NewInt(3_511_957))
@@ -242,7 +242,7 @@ func q1Setup(t *testing.T) *q1env {
 		t.Fatal(err)
 	}
 	// the destination moved on: a healthy tracker would scan logs
-	w.finNext[key(ChainCross, w.net.Chains[ChainBSC].ChainID)] = add(parseU(h.Hop1.Index), big.NewInt(1))
+	w.finNext[key(ChainOne, w.net.Chains[ChainBSC].ChainID)] = add(parseU(h.Hop1.Index), big.NewInt(1))
 	return &q1env{w: w, pending: pending, mined: mined, handle: h}
 }
 
@@ -301,23 +301,23 @@ func newS1(t *testing.T, x3 bool) *s1env {
 	w := testnetWorld(t)
 	k, a := w.fundedWallet()
 	ch := w.net.Chains
-	e := &s1env{w: w, a: a, router: common.HexToAddress(*ch[ChainCross].Swap.SwapBridgeRouter), hub: common.HexToAddress(*ch[ChainCross].Bridge),
-		usdtx: tok(w, ChainCross, "USDTx"), bscUSDT: tok(w, ChainBSC, "USDT"), bsc: tok(w, ChainBSC, "ONE"), bscID: ch[ChainBSC].ChainID}
-	w.setFee(ChainCross, e.bscID, e.usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	e := &s1env{w: w, a: a, router: common.HexToAddress(*ch[ChainOne].Swap.SwapBridgeRouter), hub: common.HexToAddress(*ch[ChainOne].Bridge),
+		usdtx: tok(w, ChainOne, "USDTx"), bscUSDT: tok(w, ChainBSC, "USDT"), bsc: tok(w, ChainBSC, "ONE"), bscID: ch[ChainBSC].ChainID}
+	w.setFee(ChainOne, e.bscID, e.usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	e.c = w.client()
 	var q *Quote
 	if x3 {
 		q = mustQuote(t, e.c, x3Req(w, a, 50))
-		w.setAllow(ChainCross, tokenA, a, e.router, n18(1000))
+		w.setAllow(ChainOne, tokenA, a, e.router, n18(1000))
 	} else {
 		q = mustQuote(t, e.c, QuoteRequest{Route: RouteOneToBSC, Amount: n18(10), Sender: a, Recipient: recipient})
 	}
-	w.chains[ChainCross].sendMode = "pending" // accepted by the node, never mined: the nonce stays open for a replacement
-	sent, err := e.c.Send(ctx, w.signer(k, ChainCross), q, SendOptions{})
+	w.chains[ChainOne].sendMode = "pending" // accepted by the node, never mined: the nonce stays open for a replacement
+	sent, err := e.c.Send(ctx, w.signer(k, ChainOne), q, SendOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	w.chains[ChainCross].sendMode = ""
+	w.chains[ChainOne].sendMode = ""
 	e.sent = sent
 	return e
 }
@@ -352,8 +352,8 @@ func (e *s1env) x3Logs(o x3o) []types.Log {
 		minOut = n18(40)
 	}
 	out, val, nf, ef := obg(o.amountOut, new(big.Int).Add(minOut, n18(1))), obg(o.value, minOut), obg(o.nf, new(big.Int)), obg(o.ef, new(big.Int))
-	bi := e.w.initiatedLog(ChainCross, eb, m.ToChainID, m.TokenOut, toTok, e.router, rcpt, val, nf, ef, o.extra)
-	idx := new(big.Int).Sub(e.w.initIdx[key(ChainCross, int64(m.ToChainID))], big.NewInt(1))
+	bi := e.w.initiatedLog(ChainOne, eb, m.ToChainID, m.TokenOut, toTok, e.router, rcpt, val, nf, ef, o.extra)
+	idx := new(big.Int).Sub(e.w.initIdx[key(ChainOne, int64(m.ToChainID))], big.NewInt(1))
 	sbIdx := idx
 	if o.badIndex {
 		sbIdx = new(big.Int).Add(idx, big.NewInt(7))
@@ -366,12 +366,12 @@ func (e *s1env) x3Logs(o x3o) []types.Log {
 }
 
 func (e *s1env) direct(from, rcpt common.Address, v *big.Int) types.Log {
-	return e.w.initiatedLog(ChainCross, e.hub, uint64(e.bscID), nativeAdr, e.bsc, from, rcpt, v, new(big.Int), new(big.Int), nil)
+	return e.w.initiatedLog(ChainOne, e.hub, uint64(e.bscID), nativeAdr, e.bsc, from, rcpt, v, new(big.Int), new(big.Int), nil)
 }
 
 func (e *s1env) verdict(t *testing.T, logs ...types.Log) (*ReplacementVerdict, error) {
 	t.Helper()
-	h := e.w.chains[ChainCross].mineSigned(e.a, e.sent.Nonce, e.router, logs)
+	h := e.w.chains[ChainOne].mineSigned(e.a, e.sent.Nonce, e.router, logs)
 	return analyzeP(e.c, e.sent, h)
 }
 
@@ -487,13 +487,13 @@ func contains(s []string, v string) bool {
 }
 
 func bridgeCall(w *world, v *big.Int) []byte {
-	d, _ := EncodeBridgeToken(BridgeTokenCall{ToChainID: uint64(w.net.Chains[ChainCross].ChainID), FromToken: tok(w, ChainBSC, "ONE"), To: recipient, Value: v, NetworkFee: new(big.Int), ExFee: new(big.Int)})
+	d, _ := EncodeBridgeToken(BridgeTokenCall{ToChainID: uint64(w.net.Chains[ChainOne].ChainID), FromToken: tok(w, ChainBSC, "ONE"), To: recipient, Value: v, NetworkFee: new(big.Int), ExFee: new(big.Int)})
 	return d
 }
 
 func x3Req(w *world, a common.Address, bps int) QuoteRequest {
 	return QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, Swap: SwapOptions{SlippageBps: Bps(uint32(bps))},
-		X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainCross, "USDTx"), PoolFee: 0, ToChain: ChainBSC}}
+		X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainOne, "USDTx"), PoolFee: 0, ToChain: ChainBSC}}
 }
 
 var _ = binding.CrossBridgeMetaData
@@ -566,7 +566,7 @@ func withExtra(t *testing.T, q *Quote, extra []byte) *Quote {
 }
 
 func tok2(c *Client, name string) common.Address {
-	return common.HexToAddress(c.net.Chains[ChainCross].Tokens[name].Address)
+	return common.HexToAddress(c.net.Chains[ChainOne].Tokens[name].Address)
 }
 
 func newPending(t *testing.T) (*world, *Client, *SentTx, common.Address) {

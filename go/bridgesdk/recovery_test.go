@@ -117,7 +117,7 @@ func TestRecoveryUsesAdoptedFees(t *testing.T) {
 	w := testnetWorld(t)
 	key, a := w.fundedWallet()
 	c := w.client()
-	hubID := w.net.Chains[ChainCross].ChainID
+	hubID := w.net.Chains[ChainOne].ChainID
 	one := tok(w, ChainBSC, "ONE")
 	w.setFee(ChainBSC, hubID, one, n18(1), n18(2), new(big.Int))
 	q := mustQuote(t, c, r1Req(a))
@@ -148,7 +148,7 @@ func TestFindSourceTransferFeeRule(t *testing.T) {
 		w := testnetWorld(t)
 		key, a := w.fundedWallet()
 		c := w.client()
-		hubID := w.net.Chains[ChainCross].ChainID
+		hubID := w.net.Chains[ChainOne].ChainID
 		one := tok(w, ChainBSC, "ONE")
 		bridge := common.HexToAddress(*w.net.Chains[ChainBSC].Bridge)
 		w.setFee(ChainBSC, hubID, one, n18(1), n18(2), new(big.Int))
@@ -168,7 +168,7 @@ func TestFindSourceTransferFeeRule(t *testing.T) {
 		return w, c, bu, tx, one
 	}
 	nd, _ := GetNetwork(Testnet)
-	hubID := nd.Chains[ChainCross].ChainID
+	hubID := nd.Chains[ChainOne].ChainID
 	{ // (1) fees dropped before inclusion: event nf = 1 < intent nf = 2 -> FOUND
 		w, c, bu, tx, one := mk()
 		w.setFee(ChainBSC, hubID, one, n18(1), n18(1), new(big.Int))

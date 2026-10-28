@@ -174,7 +174,7 @@ async function recordDestBlocks(ctx: Ctx, q: Quote): Promise<Partial<Record<Chai
   const keys = new Set<ChainKey>([q.details.destChainKey]);
   if (q.details.hubChainKey) keys.add(q.details.hubChainKey);
   if (q.kind === 'single' || q.kind === 'x3') keys.add(q.details.destChainKey);
-  if (q.kind === 'x1') keys.add('cross');
+  if (q.kind === 'x1') keys.add('one');
   const out: Partial<Record<ChainKey, number>> = {};
   for (const k of keys) {
     if (k === q.sourceChainKey && q.kind !== 'x3' && q.kind !== 'x1') continue;

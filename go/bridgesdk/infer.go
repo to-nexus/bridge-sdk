@@ -44,8 +44,8 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 	}
 	srcBridge := addr(src.Bridge)
 	var router common.Address
-	if srcKey == ChainCross {
-		if sw := c.net.Chains[ChainCross].Swap; sw != nil && sw.SwapBridgeRouter != nil {
+	if srcKey == ChainOne {
+		if sw := c.net.Chains[ChainOne].Swap; sw != nil && sw.SwapBridgeRouter != nil {
 			router = addr(sw.SwapBridgeRouter)
 		}
 	}
@@ -128,7 +128,7 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 		}
 		out.route, out.x3To = RouteSwapBridge, destKey
 	case len(e.ExtraData) == 0:
-		plain := map[string]Route{"bsc>cross": RouteBSCToOne, "cross>bsc": RouteOneToBSC, "cross>hyperevm": RouteOneToHyperEVM, "hyperevm>cross": RouteHyperEVMToOne}
+		plain := map[string]Route{"bsc>one": RouteBSCToOne, "one>bsc": RouteOneToBSC, "one>hyperevm": RouteOneToHyperEVM, "hyperevm>one": RouteHyperEVMToOne}
 		r, ok := plain[string(srcKey)+">"+string(destKey)]
 		if destKey == "" || !ok {
 			return nil, unsupported(fmt.Sprintf("no plain route from %s to chain %s", srcKey, e.ToChainID), "", "")
@@ -142,20 +142,20 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 		var sel [4]byte
 		copy(sel[:], e.ExtraData[20:24])
 		selHex := fmt.Sprintf("0x%x", sel)
-		cross := c.net.Chains[ChainCross]
+		oneChain := c.net.Chains[ChainOne]
 		var hub, v3, heTok common.Address
-		if cross.Bridge != nil {
-			hub = addr(cross.Bridge)
+		if oneChain.Bridge != nil {
+			hub = addr(oneChain.Bridge)
 		}
-		if cross.Swap != nil && cross.Swap.V3SwapRouter != nil {
-			v3 = addr(cross.Swap.V3SwapRouter)
+		if oneChain.Swap != nil && oneChain.Swap.V3SwapRouter != nil {
+			v3 = addr(oneChain.Swap.V3SwapRouter)
 		}
 		if t := c.net.Chains[ChainHyperEVM].Tokens["ONE"]; t != nil {
 			heTok = common.HexToAddress(t.Address)
 		}
 		switch {
 		case hub != (common.Address{}) && target == hub && sel == ForwardSelector:
-			if destKey != ChainCross {
+			if destKey != ChainOne {
 				return nil, unsupported("a hub forward must be sent to the hub chain", target.Hex(), selHex)
 			}
 			fwd, err := decodeForward(e.ExtraData)
@@ -183,12 +183,12 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 					return nil, unsupported("unsupported nested hop-2 extraData", it, is)
 				}
 			}
-		case v3 != (common.Address{}) && target == v3 && sel == ExactInputSingleSelector && srcKey == ChainBSC && destKey == ChainCross:
+		case v3 != (common.Address{}) && target == v3 && sel == ExactInputSingleSelector && srcKey == ChainBSC && destKey == ChainOne:
 			if _, err := c.checkX1(e.ExtraData, e.Value); err != nil {
 				return nil, err
 			}
 			out.route = RouteBSCUSDTToONEUSD
-		case heTok != (common.Address{}) && target == heTok && sel == CoreSelector && srcKey == ChainCross && destKey == ChainHyperEVM:
+		case heTok != (common.Address{}) && target == heTok && sel == CoreSelector && srcKey == ChainOne && destKey == ChainHyperEVM:
 			if _, err := c.checkX2(e.ExtraData, e.Value); err != nil {
 				return nil, err
 			}

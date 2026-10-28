@@ -24,30 +24,30 @@ type routeShape struct {
 func shapeFor(route Route, hypercore bool, x3To ChainKey) (routeShape, error) {
 	switch route {
 	case RouteBSCToOne:
-		return routeShape{ChainBSC, "", ChainCross, ChainCross, HopPlain, "", false}, nil
+		return routeShape{ChainBSC, "", ChainOne, ChainOne, HopPlain, "", false}, nil
 	case RouteOneToBSC:
-		return routeShape{ChainCross, "", ChainBSC, ChainBSC, HopPlain, "", false}, nil
+		return routeShape{ChainOne, "", ChainBSC, ChainBSC, HopPlain, "", false}, nil
 	case RouteOneToHyperEVM:
-		return routeShape{ChainCross, "", ChainHyperEVM, ChainHyperEVM, HopPlain, "", false}, nil
+		return routeShape{ChainOne, "", ChainHyperEVM, ChainHyperEVM, HopPlain, "", false}, nil
 	case RouteOneToHyperCore:
-		return routeShape{ChainCross, "", ChainHyperEVM, ChainHyperEVM, HopX2, "", false}, nil
+		return routeShape{ChainOne, "", ChainHyperEVM, ChainHyperEVM, HopX2, "", false}, nil
 	case RouteHyperEVMToOne:
-		return routeShape{ChainHyperEVM, "", ChainCross, ChainCross, HopPlain, "", false}, nil
+		return routeShape{ChainHyperEVM, "", ChainOne, ChainOne, HopPlain, "", false}, nil
 	case RouteBSCToOneToHyperEVM:
 		k := HopPlain
 		if hypercore {
 			k = HopX2
 		}
-		return routeShape{ChainBSC, ChainCross, ChainHyperEVM, ChainCross, HopHubForward, k, false}, nil
+		return routeShape{ChainBSC, ChainOne, ChainHyperEVM, ChainOne, HopHubForward, k, false}, nil
 	case RouteHyperEVMToOneToBSC:
-		return routeShape{ChainHyperEVM, ChainCross, ChainBSC, ChainCross, HopHubForward, HopPlain, false}, nil
+		return routeShape{ChainHyperEVM, ChainOne, ChainBSC, ChainOne, HopHubForward, HopPlain, false}, nil
 	case RouteBSCUSDTToONEUSD:
-		return routeShape{ChainBSC, ChainCross, ChainCross, ChainCross, HopX1, "", false}, nil
+		return routeShape{ChainBSC, ChainOne, ChainOne, ChainOne, HopX1, "", false}, nil
 	case RouteSwapBridge:
 		if x3To == "" {
 			x3To = ChainBSC
 		}
-		return routeShape{ChainCross, ChainCross, x3To, x3To, HopPlain, "", true}, nil
+		return routeShape{ChainOne, ChainOne, x3To, x3To, HopPlain, "", true}, nil
 	}
 	return routeShape{}, fmt.Errorf("unknown route %q", route)
 }
@@ -204,7 +204,7 @@ func (c *Client) buildHandle(h handleInput) (*TransferHandle, error) {
 	srcContract := srcBridge
 	var router common.Address
 	if shape.swap {
-		if sw := c.net.Chains[ChainCross].Swap; sw != nil && sw.SwapBridgeRouter != nil {
+		if sw := c.net.Chains[ChainOne].Swap; sw != nil && sw.SwapBridgeRouter != nil {
 			router = addr(sw.SwapBridgeRouter)
 			srcContract = router
 		}

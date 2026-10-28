@@ -25,15 +25,15 @@ export interface RouteShape {
 
 export function routeShape(route: Route, opts: { hypercore?: boolean; x3ToChain?: 'bsc' | 'hyperevm' } = {}): RouteShape {
   switch (route) {
-    case Route.BSC_TO_ONE: return { src: 'bsc', dest: 'cross', hop1Dest: 'cross', hop1Kind: 'plain', swap: false };
-    case Route.ONE_TO_BSC: return { src: 'cross', dest: 'bsc', hop1Dest: 'bsc', hop1Kind: 'plain', swap: false };
-    case Route.ONE_TO_HYPEREVM: return { src: 'cross', dest: 'hyperevm', hop1Dest: 'hyperevm', hop1Kind: 'plain', swap: false };
-    case Route.ONE_TO_HYPERCORE: return { src: 'cross', dest: 'hyperevm', hop1Dest: 'hyperevm', hop1Kind: 'x2', swap: false };
-    case Route.HYPEREVM_TO_ONE: return { src: 'hyperevm', dest: 'cross', hop1Dest: 'cross', hop1Kind: 'plain', swap: false };
-    case Route.BSC_TO_ONE_TO_HYPEREVM: return { src: 'bsc', hub: 'cross', dest: 'hyperevm', hop1Dest: 'cross', hop1Kind: 'hubForward', hop2Kind: opts.hypercore ? 'x2' : 'plain', swap: false };
-    case Route.HYPEREVM_TO_ONE_TO_BSC: return { src: 'hyperevm', hub: 'cross', dest: 'bsc', hop1Dest: 'cross', hop1Kind: 'hubForward', hop2Kind: 'plain', swap: false };
-    case Route.BSC_USDT_TO_ONEUSD: return { src: 'bsc', hub: 'cross', dest: 'cross', hop1Dest: 'cross', hop1Kind: 'x1', swap: false };
-    case Route.SWAP_BRIDGE: return { src: 'cross', dest: opts.x3ToChain ?? 'bsc', hop1Dest: opts.x3ToChain ?? 'bsc', hop1Kind: 'plain', swap: true };
+    case Route.BSC_TO_ONE: return { src: 'bsc', dest: 'one', hop1Dest: 'one', hop1Kind: 'plain', swap: false };
+    case Route.ONE_TO_BSC: return { src: 'one', dest: 'bsc', hop1Dest: 'bsc', hop1Kind: 'plain', swap: false };
+    case Route.ONE_TO_HYPEREVM: return { src: 'one', dest: 'hyperevm', hop1Dest: 'hyperevm', hop1Kind: 'plain', swap: false };
+    case Route.ONE_TO_HYPERCORE: return { src: 'one', dest: 'hyperevm', hop1Dest: 'hyperevm', hop1Kind: 'x2', swap: false };
+    case Route.HYPEREVM_TO_ONE: return { src: 'hyperevm', dest: 'one', hop1Dest: 'one', hop1Kind: 'plain', swap: false };
+    case Route.BSC_TO_ONE_TO_HYPEREVM: return { src: 'bsc', hub: 'one', dest: 'hyperevm', hop1Dest: 'one', hop1Kind: 'hubForward', hop2Kind: opts.hypercore ? 'x2' : 'plain', swap: false };
+    case Route.HYPEREVM_TO_ONE_TO_BSC: return { src: 'hyperevm', hub: 'one', dest: 'bsc', hop1Dest: 'one', hop1Kind: 'hubForward', hop2Kind: 'plain', swap: false };
+    case Route.BSC_USDT_TO_ONEUSD: return { src: 'bsc', hub: 'one', dest: 'one', hop1Dest: 'one', hop1Kind: 'x1', swap: false };
+    case Route.SWAP_BRIDGE: return { src: 'one', dest: opts.x3ToChain ?? 'bsc', hop1Dest: opts.x3ToChain ?? 'bsc', hop1Kind: 'plain', swap: true };
     default: throw new RangeError(`unknown route ${String(route)}`);
   }
 }
@@ -205,7 +205,7 @@ export function buildHandle(ctx: Ctx, h: HandleInput): TransferHandle {
   const src = chainOf(ctx.net, h.srcKey);
   if (h.srcKey !== shape.src) throw new BridgeSdkError(`route ${h.route} starts on ${shape.src}, not ${h.srcKey}`);
   const srcBridge = getAddress(src.bridge!);
-  const router = ctx.net.chains.cross.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.cross.swap.swapBridgeRouter) : null;
+  const router = ctx.net.chains.one.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.one.swap.swapBridgeRouter) : null;
   const srcContract = shape.swap ? router! : srcBridge;
   const bridgeAddr = srcBridge;
 

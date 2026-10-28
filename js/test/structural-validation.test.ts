@@ -19,18 +19,18 @@ function testnet() {
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
   w.setBal('hyperevm', c.hyperevm.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  w.setFee('cross', c.bsc.chainId, c.cross.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  w.setFee('one', c.bsc.chainId, c.one.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   return { w, c, wallet, client: new BridgeClient(w.options()) };
 }
 function mainnetX1(x1Out = 100n * E18 + 3_511_957n) {
   const w = new World('mainnet');
   const c = w.net.chains;
-  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.cross.tokens.USDTx!.address;
-  w.setPair('bsc', c.cross.chainId, usdt, usdtx, true);
-  w.setFee('bsc', c.cross.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${c.cross.swap!.v3SwapRouter!.toLowerCase()}`);
+  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.one.tokens.USDTx!.address;
+  w.setPair('bsc', c.one.chainId, usdt, usdtx, true);
+  w.setFee('bsc', c.one.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
+  w.execWhitelist.add(`one:${c.one.swap!.v3SwapRouter!.toLowerCase()}`);
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.x1Out = x1Out;
@@ -64,8 +64,8 @@ test('positive controls: every route, an X1 quote with a floor of 0 and the reci
     { ...base, route: Route.BSC_TO_ONE }, { ...base, route: Route.ONE_TO_BSC }, { ...base, route: Route.ONE_TO_HYPEREVM }, { ...base, route: Route.HYPEREVM_TO_ONE },
     { ...base, route: Route.BSC_TO_ONE_TO_HYPEREVM }, { ...base, route: Route.BSC_TO_ONE_TO_HYPEREVM, hypercore: true }, { ...base, route: Route.HYPEREVM_TO_ONE_TO_BSC },
     { ...base, route: Route.ONE_TO_HYPERCORE },
-    { ...base, amount: 50n * E18, route: Route.SWAP_BRIDGE, x3: { tokenIn: TOKEN_A, tokenOut: c.cross.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } },
-    { ...base, amount: 50n * E18, route: Route.SWAP_BRIDGE, x3: { tokenIn: 'native', tokenOut: c.cross.tokens.USDTx!.address, poolFee: 0, toChain: 'hyperevm' } },
+    { ...base, amount: 50n * E18, route: Route.SWAP_BRIDGE, x3: { tokenIn: TOKEN_A, tokenOut: c.one.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } },
+    { ...base, amount: 50n * E18, route: Route.SWAP_BRIDGE, x3: { tokenIn: 'native', tokenOut: c.one.tokens.USDTx!.address, poolFee: 0, toChain: 'hyperevm' } },
   ];
   for (const r of reqs) accepted(await client.quote(r), `${r.route}${r.hypercore ? '+core' : ''}${r.x3?.tokenIn === 'native' ? ' native' : ''}`);
   const x = mainnetX1();
@@ -106,8 +106,8 @@ test('X1: missing limits.amountOutMinimum / deadlineSec (or a deadline in the pa
 
 test('X1: the decoded exactInputSingle recipient must equal the RESOLVED destination recipient (recipients.dest override honoured, a different recipient refused)', async () => {
   const x = mainnetX1();
-  const sw = x.c.cross.swap!;
-  const newX1 = (q: Quote, recipient: string) => encodeX1ExtraData({ router: sw.v3SwapRouter!, tokenIn: x.c.cross.tokens.USDTx!.address, tokenOut: x.c.cross.tokens.ONEUSD!.address, fee: sw.x1Pool!.fee, recipient, deadline: q.deadline!, amountIn: q.value, amountOutMinimum: q.limits.amountOutMinimum! });
+  const sw = x.c.one.swap!;
+  const newX1 = (q: Quote, recipient: string) => encodeX1ExtraData({ router: sw.v3SwapRouter!, tokenIn: x.c.one.tokens.USDTx!.address, tokenOut: x.c.one.tokens.ONEUSD!.address, fee: sw.x1Pool!.fee, recipient, deadline: q.deadline!, amountIn: q.value, amountOutMinimum: q.limits.amountOutMinimum! });
   const q = await x.client.quote({ route: Route.BSC_USDT_TO_ONEUSD, amount: 100n * E18, sender: x.wallet.address, recipient: RECIPIENT });
   assert.throws(() => openQuote(sealForTest(withExtra(q, newX1(q, OTHER)) as Quote)), sealErr('details.extraData'));
   // with the override the SAME recipient is now the wrong one, and the override recipient is the right one
@@ -120,7 +120,7 @@ test('X1: the decoded exactInputSingle recipient must equal the RESOLVED destina
 
 test('X3: missing limits.minBridgeValue / limits.amountOutMinimum / deadlineSec; calldata that contradicts the request => invalid-payload; 0 RPC', async () => {
   const { w, c, wallet, client } = testnet();
-  const q = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: wallet.address, recipient: RECIPIENT, x3: { tokenIn: TOKEN_A, tokenOut: c.cross.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } });
+  const q = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: wallet.address, recipient: RECIPIENT, x3: { tokenIn: TOKEN_A, tokenOut: c.one.tokens.USDTx!.address, poolFee: 0, toChain: 'bsc' } });
   const before = rpcCalls(w);
   const cases: [string, Quote, string][] = [
     ['no minBridgeValue', mut(q, (o) => { delete o.limits.minBridgeValue; }), 'limits.minBridgeValue'],
@@ -134,7 +134,7 @@ test('X3: missing limits.minBridgeValue / limits.amountOutMinimum / deadlineSec;
     await assert.rejects(() => client.send(wallet, bad), sealErr(path), name);
   }
   assert.equal(rpcCalls(w), before, '0 RPC');
-  assert.deepEqual([w.approveCalls.length, w.chains.cross.rawSent.length], [0, 0]);
+  assert.deepEqual([w.approveCalls.length, w.chains.one.rawSent.length], [0, 0]);
 });
 
 test('multihop: missing v2 / fees.hop2 / fees.hop2ExFeeDeclared / verifiers.hub / details.hop2Kind => invalid-payload; hop-2 fields must agree with the sealed bridgeTokenForwarded payload', async () => {
@@ -174,7 +174,7 @@ test('X2 (R3 + core, R5 + core): a zero coreRecipient, a wrong amount or a coreR
     await assert.rejects(() => client.send(wallet, bad), sealErr('details.extraData'), name);
   }
   assert.equal(rpcCalls(w), before, '0 RPC');
-  assert.deepEqual([w.approveCalls.length, w.chains.cross.rawSent.length], [0, 0]);
+  assert.deepEqual([w.approveCalls.length, w.chains.one.rawSent.length], [0, 0]);
   // R5 + core: the inner payload is decoded from the sealed forward call
   const r5 = await client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount, sender: wallet.address, recipient: RECIPIENT, hypercore: true, recipients: { core: CORE } });
   const mutInner = (coreRecipient: string, value: bigint) => {

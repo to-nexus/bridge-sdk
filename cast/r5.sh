@@ -4,7 +4,7 @@
 #           CORE_RECIPIENT (X2: HyperCore deposit as the innermost extraData).
 source "$(dirname "$0")/lib.sh"
 ROUTE=R5; SRC_PREFIX=BSC; DEST_PREFIX=HYPEREVM
-need BSC_BRIDGE; need BSC_ONE_TOKEN; need CROSS_BRIDGE; need HYPEREVM_BRIDGE; need HYPEREVM_ONE_TOKEN
+need BSC_BRIDGE; need BSC_ONE_TOKEN; need ONE_BRIDGE; need HYPEREVM_BRIDGE; need HYPEREVM_ONE_TOKEN
 [ -n "${CORE_RECIPIENT:-}" ] && ROUTE=R5+X2
 source "$KIT_DIR/multihop.inc.sh"
 quote_route() { multihop_quote; }

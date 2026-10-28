@@ -43,30 +43,30 @@ type routeSpec struct {
 func specFor(req *QuoteRequest) (routeSpec, error) {
 	switch req.Route {
 	case RouteBSCToOne:
-		return routeSpec{KindSingle, ChainBSC, ChainCross, "", "ONE", false, []string{"bsc.bridge", "bsc.tokens.ONE", "cross.bridge"}}, nil
+		return routeSpec{KindSingle, ChainBSC, ChainOne, "", "ONE", false, []string{"bsc.bridge", "bsc.tokens.ONE", "one.bridge"}}, nil
 	case RouteOneToBSC:
-		return routeSpec{KindSingle, ChainCross, ChainBSC, "", "native", false, []string{"cross.bridge", "bsc.bridge", "bsc.tokens.ONE"}}, nil
+		return routeSpec{KindSingle, ChainOne, ChainBSC, "", "native", false, []string{"one.bridge", "bsc.bridge", "bsc.tokens.ONE"}}, nil
 	case RouteOneToHyperEVM:
-		return routeSpec{KindSingle, ChainCross, ChainHyperEVM, "", "native", false, []string{"cross.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
+		return routeSpec{KindSingle, ChainOne, ChainHyperEVM, "", "native", false, []string{"one.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
 	case RouteOneToHyperCore:
-		return routeSpec{KindSingle, ChainCross, ChainHyperEVM, "", "native", true, []string{"cross.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
+		return routeSpec{KindSingle, ChainOne, ChainHyperEVM, "", "native", true, []string{"one.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
 	case RouteHyperEVMToOne:
-		return routeSpec{KindSingle, ChainHyperEVM, ChainCross, "", "ONE", false, []string{"hyperevm.bridge", "hyperevm.tokens.ONE", "cross.bridge"}}, nil
+		return routeSpec{KindSingle, ChainHyperEVM, ChainOne, "", "ONE", false, []string{"hyperevm.bridge", "hyperevm.tokens.ONE", "one.bridge"}}, nil
 	case RouteBSCToOneToHyperEVM:
-		return routeSpec{KindMultihop, ChainBSC, ChainHyperEVM, ChainCross, "ONE", req.Hypercore, []string{"bsc.bridge", "bsc.tokens.ONE", "cross.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
+		return routeSpec{KindMultihop, ChainBSC, ChainHyperEVM, ChainOne, "ONE", req.Hypercore, []string{"bsc.bridge", "bsc.tokens.ONE", "one.bridge", "hyperevm.bridge", "hyperevm.tokens.ONE"}}, nil
 	case RouteHyperEVMToOneToBSC:
-		return routeSpec{KindMultihop, ChainHyperEVM, ChainBSC, ChainCross, "ONE", false, []string{"hyperevm.bridge", "hyperevm.tokens.ONE", "cross.bridge", "bsc.bridge", "bsc.tokens.ONE"}}, nil
+		return routeSpec{KindMultihop, ChainHyperEVM, ChainBSC, ChainOne, "ONE", false, []string{"hyperevm.bridge", "hyperevm.tokens.ONE", "one.bridge", "bsc.bridge", "bsc.tokens.ONE"}}, nil
 	case RouteBSCUSDTToONEUSD:
-		return routeSpec{KindX1, ChainBSC, ChainCross, ChainCross, "USDT", false, []string{"bsc.bridge", "bsc.tokens.USDT", "cross.bridge", "cross.tokens.USDTx", "cross.tokens.ONEUSD", "cross.swap.v3SwapRouter", "cross.swap.quoterV2", "cross.swap.x1Pool"}}, nil
+		return routeSpec{KindX1, ChainBSC, ChainOne, ChainOne, "USDT", false, []string{"bsc.bridge", "bsc.tokens.USDT", "one.bridge", "one.tokens.USDTx", "one.tokens.ONEUSD", "one.swap.v3SwapRouter", "one.swap.quoterV2", "one.swap.x1Pool"}}, nil
 	case RouteSwapBridge:
 		if req.X3 == nil || (req.X3.ToChain != ChainBSC && req.X3.ToChain != ChainHyperEVM) {
 			return routeSpec{}, fmt.Errorf("X3 requires QuoteRequest.X3 with ToChain = bsc | hyperevm")
 		}
-		r := []string{"cross.bridge", "cross.swap.swapBridgeRouter", string(req.X3.ToChain) + ".bridge"}
+		r := []string{"one.bridge", "one.swap.swapBridgeRouter", string(req.X3.ToChain) + ".bridge"}
 		if req.X3.NativeIn {
-			r = append(r, "cross.tokens.WCROSS")
+			r = append(r, "one.tokens.WCROSS")
 		}
-		return routeSpec{KindX3, ChainCross, req.X3.ToChain, ChainCross, "native", false, r}, nil
+		return routeSpec{KindX3, ChainOne, req.X3.ToChain, ChainOne, "native", false, r}, nil
 	}
 	return routeSpec{}, fmt.Errorf("unknown route %q", req.Route)
 }
@@ -182,18 +182,18 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 	// ---------------------------------------------------------------------------------------- X3
 	if spec.kind == KindX3 {
 		x3 := req.X3
-		router := addr(chains[ChainCross].Swap.SwapBridgeRouter)
+		router := addr(chains[ChainOne].Swap.SwapBridgeRouter)
 		toChainID := uint64(chains[spec.dest].ChainID)
 		tokenIn := x3.TokenIn
 		if x3.NativeIn {
-			tokenIn = common.HexToAddress(chains[ChainCross].Tokens["WCROSS"].Address)
+			tokenIn = common.HexToAddress(chains[ChainOne].Tokens["WCROSS"].Address)
 		}
 		deadline := uint64(c.now().Unix()) + deadlineSec
 		if fz != nil {
 			deadline = fz.deadline
 		}
 		sender := req.Sender
-		out, err := c.callABI(ctx, ChainCross, sbrABI, router, "getAmountSwapBridgeOut", &sender, u(toChainID), tokenIn, x3.TokenOut, u(uint64(x3.PoolFee)), req.Amount)
+		out, err := c.callABI(ctx, ChainOne, sbrABI, router, "getAmountSwapBridgeOut", &sender, u(toChainID), tokenIn, x3.TokenOut, u(uint64(x3.PoolFee)), req.Amount)
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +203,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 				Hint: "NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity."}}}
 		}
 		// the EXPECTED destination token: the hub pair's remoteToken, read on the chain-verified hub RPC; a missing pair fails the quote
-		xpair, err := c.readPair(ctx, ChainCross, addr(chains[ChainCross].Bridge), toChainID, x3.TokenOut)
+		xpair, err := c.readPair(ctx, ChainOne, addr(chains[ChainOne].Bridge), toChainID, x3.TokenOut)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		if fz != nil {
 			amountOutMin = fz.amountOutMinimum
 		}
-		eb, err := c.callABI(ctx, ChainCross, sbrABI, router, "getExpectedBridgeAmount", nil, u(toChainID), x3.TokenOut, amountOutMin)
+		eb, err := c.callABI(ctx, ChainOne, sbrABI, router, "getExpectedBridgeAmount", nil, u(toChainID), x3.TokenOut, amountOutMin)
 		if err != nil {
 			return nil, err
 		}
@@ -257,8 +257,8 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			approval = &Approval{Token: tokenIn, Spender: router, Amount: req.Amount}
 		}
 		q := &Quote{
-			ID: randID(), Network: c.network, Route: req.Route, Request: req, Kind: KindX3, SourceChain: ChainCross, SourceChainID: chains[ChainCross].ChainID,
-			SourceContract: router, SourceBridge: addr(chains[ChainCross].Bridge), Sender: req.Sender, CreatedAt: c.now(), TTL: ttl,
+			ID: randID(), Network: c.network, Route: req.Route, Request: req, Kind: KindX3, SourceChain: ChainOne, SourceChainID: chains[ChainOne].ChainID,
+			SourceContract: router, SourceBridge: addr(chains[ChainOne].Bridge), Sender: req.Sender, CreatedAt: c.now(), TTL: ttl,
 			Hop1Fees: hop1, Value: expectedBridge, TotalSpend: req.Amount, Tx: TxData{To: router, Data: data, Value: val}, Approval: approval, Limits: limits, Deadline: deadline,
 			Match:   MatchSpec{Kind: MatchSwap, TokenIn: tokenIn, TokenOut: x3.TokenOut, AmountIn: req.Amount, ToChainID: toChainID, ToToken: xpair.RemoteToken, Recipient: dest, ExtraHash: hashExtraData(nil)},
 			Details: QuoteDetails{Hop1ToChainID: toChainID, Hop1ToToken: x3.TokenOut, DestChain: spec.dest, DestChainID: toChainID, Hop1Kind: HopPlain, ExtraData: []byte{}, Dest: dest, SwapAmountOut: swapOut},
@@ -281,7 +281,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 	}
 	toChainID := uint64(chains[spec.dest].ChainID)
 	if spec.kind == KindMultihop || spec.kind == KindX1 {
-		toChainID = uint64(chains[ChainCross].ChainID)
+		toChainID = uint64(chains[ChainOne].ChainID)
 	}
 	srcVerifier, err := c.bridgeVerifier(ctx, spec.src, srcBridge)
 	if err != nil {
@@ -330,11 +330,11 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		hop1Kind = HopX2
 		coreInfo(value)
 	case spec.kind == KindMultihop:
-		hub := addr(chains[ChainCross].Bridge)
-		if hubVerifier, err = c.bridgeVerifier(ctx, ChainCross, hub); err != nil {
+		hub := addr(chains[ChainOne].Bridge)
+		if hubVerifier, err = c.bridgeVerifier(ctx, ChainOne, hub); err != nil {
 			return nil, err
 		}
-		hubFee, err := c.readFee(ctx, ChainCross, hubVerifier, destToChainID, common.HexToAddress(NativeToken), req.Amount)
+		hubFee, err := c.readFee(ctx, ChainOne, hubVerifier, destToChainID, common.HexToAddress(NativeToken), req.Amount)
 		if err != nil {
 			return nil, err
 		}
@@ -363,15 +363,15 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		}
 		hop1Kind = HopHubForward
 	case spec.kind == KindX1:
-		cross := chains[ChainCross]
-		pool := cross.Swap.X1Pool
-		router := addr(cross.Swap.V3SwapRouter)
+		oneChain := chains[ChainOne]
+		pool := oneChain.Swap.X1Pool
+		router := addr(oneChain.Swap.V3SwapRouter)
 		deadline = uint64(c.now().Unix()) + deadlineSec
 		if fz != nil {
 			deadline = fz.deadline
 		}
-		usdtx, oneusd := common.HexToAddress(cross.Tokens["USDTx"].Address), common.HexToAddress(cross.Tokens["ONEUSD"].Address)
-		if err := c.assertChain(ctx, ChainCross); err != nil {
+		usdtx, oneusd := common.HexToAddress(oneChain.Tokens["USDTx"].Address), common.HexToAddress(oneChain.Tokens["ONEUSD"].Address)
+		if err := c.assertChain(ctx, ChainOne); err != nil {
 			return nil, err
 		}
 		type quoteParams struct {
@@ -381,7 +381,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			Fee               *big.Int
 			SqrtPriceLimitX96 *big.Int
 		}
-		qo, err := c.callABI(ctx, ChainCross, quoterABI, addr(cross.Swap.QuoterV2), "quoteExactInputSingle", nil, quoteParams{usdtx, oneusd, value, u(uint64(pool.Fee)), new(big.Int)})
+		qo, err := c.callABI(ctx, ChainOne, quoterABI, addr(oneChain.Swap.QuoterV2), "quoteExactInputSingle", nil, quoteParams{usdtx, oneusd, value, u(uint64(pool.Fee)), new(big.Int)})
 		if err != nil {
 			return nil, err
 		}
@@ -398,7 +398,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			return nil, err
 		}
 		hop1Kind = HopX1
-		destToChainID = uint64(chains[ChainCross].ChainID)
+		destToChainID = uint64(chains[ChainOne].ChainID)
 	}
 
 	fee1, err := c.readFee(ctx, spec.src, srcVerifier, toChainID, srcTokenAddr, value)

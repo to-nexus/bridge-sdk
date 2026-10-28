@@ -7,19 +7,19 @@
 # shown to you; it holds as long as bridge fees do not rise between quote and inclusion).
 source "$(dirname "$0")/lib.sh"
 ROUTE=X3
-need CROSS_BRIDGE; need CROSS_SWAP_BRIDGE_ROUTER
+need ONE_BRIDGE; need ONE_SWAP_BRIDGE_ROUTER
 need_env FROM
 TO_CHAIN=${TO_CHAIN:-bsc}
 case "$TO_CHAIN" in bsc) TO_ID=$BSC_CHAIN_ID; need BSC_BRIDGE;; hyperevm) TO_ID=$HYPEREVM_CHAIN_ID; need HYPEREVM_BRIDGE;; *) die "TO_CHAIN must be bsc or hyperevm";; esac
-TOKEN_IN=${TOKEN_IN:-${CROSS_ONEUSD:-}}; TOKEN_OUT=${TOKEN_OUT:-${CROSS_USDTX:-}}
+TOKEN_IN=${TOKEN_IN:-${ONE_ONEUSD:-}}; TOKEN_OUT=${TOKEN_OUT:-${ONE_USDTX:-}}
 # quote-only demo on a network without ONEUSD: swap native ONE (via WCROSS) instead
 if [ -z "$TOKEN_IN" ] && [ "${QUOTE_ONLY:-0}" = "1" ]; then TOKEN_IN=native; fi
 [ -n "$TOKEN_IN" ] || die "TOKEN_IN is required on $NETWORK (no default: ONEUSD is not configured)"
 [ -n "$TOKEN_OUT" ] || die "TOKEN_OUT is required"
 POOL_FEE=${POOL_FEE:-0}
 NATIVE_IN=0; TOKEN_IN_ADDR=$TOKEN_IN
-if [ "$TOKEN_IN" = "native" ]; then need CROSS_WCROSS; NATIVE_IN=1; TOKEN_IN_ADDR=$CROSS_WCROSS; fi
-check_chain CROSS; chain_vars CROSS; RPC=$C_RPC; ROUTER=$CROSS_SWAP_BRIDGE_ROUTER
+if [ "$TOKEN_IN" = "native" ]; then need ONE_WCROSS; NATIVE_IN=1; TOKEN_IN_ADDR=$ONE_WCROSS; fi
+check_chain ONE; chain_vars ONE; RPC=$C_RPC; ROUTER=$ONE_SWAP_BRIDGE_ROUTER
 AMOUNT_IN=$(amount_wei)
 SBR_STRUCT_SIG="swapBridgeExactInputSingle((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
 [ $NATIVE_IN = 1 ] && SBR_STRUCT_SIG="swapBridgeExactInputSingleETH((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
@@ -89,7 +89,7 @@ say "re-quote under the approved floors (amountOutMinimum=$FROZEN_MIN minBridgeV
 quote_route
 preflight_route X3 post-approve   # after the re-quote: exit 4 when refused, nothing is sent
 simulate >/dev/null || die "final simulation reverted - nothing was sent"
-say "checkpoint: from=$FROM chainId=$CROSS_CHAIN_ID pendingNonceBefore=$nonce0 blockBefore=$block0 router=$ROUTER (recovery: SwapBridge(user=FROM,...) on the router, NOT BridgeInitiated.from)"
+say "checkpoint: from=$FROM chainId=$ONE_CHAIN_ID pendingNonceBefore=$nonce0 blockBefore=$block0 router=$ROUTER (recovery: SwapBridge(user=FROM,...) on the router, NOT BridgeInitiated.from)"
 if [ $NATIVE_IN = 1 ]; then SV=$AMOUNT_IN; else SV=0; fi
 h=$(SEND_VALUE=$SV send_tx "$RPC" "$ROUTER" "$SBR_STRUCT_SIG" "$PARAMS" "$DEADLINE")
-say "SENT $h"; say "track: $KIT_DIR/track.sh $CROSS_CHAIN_ID $h   (NETWORK=$NETWORK)"
+say "SENT $h"; say "track: $KIT_DIR/track.sh $ONE_CHAIN_ID $h   (NETWORK=$NETWORK)"

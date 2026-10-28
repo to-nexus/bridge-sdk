@@ -74,7 +74,7 @@ func Run(label string, build func(a Args, net *bridgesdk.NetworkData) (bridgesdk
 	ctx := context.Background()
 	// optional RPC overrides, e.g. RPC_BSC=http://127.0.0.1:8545 (anvil fork) - see tools/fork-test
 	urls := map[bridgesdk.ChainKey]string{}
-	for _, k := range []bridgesdk.ChainKey{bridgesdk.ChainCross, bridgesdk.ChainBSC, bridgesdk.ChainHyperEVM} {
+	for _, k := range []bridgesdk.ChainKey{bridgesdk.ChainOne, bridgesdk.ChainBSC, bridgesdk.ChainHyperEVM} {
 		if v := os.Getenv("RPC_" + strings.ToUpper(string(k))); v != "" {
 			urls[k] = v
 		}

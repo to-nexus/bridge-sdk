@@ -5,9 +5,9 @@ import { Route, runExample } from './_common.js';
 //     Representative combination (assumption A6): ONEUSD -> USDTx -> BSC USDT (addresses come from the built-in config).
 //     Override with --tokenIn/--tokenOut/--fee/--to.  --tokenIn native = swap native ONE (through WCROSS) instead of an ERC20.
 await runExample('X3', (a) => {
-  const cross = getNetwork(a.network).chains.cross;
-  const tokenIn = a.extra.tokenIn ?? cross.tokens.ONEUSD?.address;
-  const tokenOut = a.extra.tokenOut ?? cross.tokens.USDTx?.address;
+  const oneChain = getNetwork(a.network).chains.one;
+  const tokenIn = a.extra.tokenIn ?? oneChain.tokens.ONEUSD?.address;
+  const tokenOut = a.extra.tokenOut ?? oneChain.tokens.USDTx?.address;
   if (!tokenIn || !tokenOut) throw new Error(`no default token pair on ${a.network} (ONEUSD is not configured): pass --tokenIn and --tokenOut`);
   return {
     route: Route.SWAP_BRIDGE, amount: a.amount, sender: a.sender, recipient: a.recipient,

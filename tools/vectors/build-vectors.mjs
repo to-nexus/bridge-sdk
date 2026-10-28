@@ -93,7 +93,7 @@ for (const [route, network, i, note] of single) encoding.push({ name: `${route}-
 
 // R5 (mainnet shape, plain delivery on the destination) — BSC -> ONE -> HyperEVM
 {
-  const hub = M.cross.bridge;
+  const hub = M.one.bridge;
   const f = { hub, destChainId: 999, toDest: U2, value2: 10n * E18, networkFee2: 180000000000000000n, exFee2Declared: 0n, inner: '0x' };
   const ed1 = forwardExtra(f);
   const call = { toChainId: 612055, fromToken: M.bsc.tokens.ONE.address, to: U1, value: 10n * E18 + 180000000000000000n, networkFee: 0n, exFee: 0n, extraData: ed1 };
@@ -101,7 +101,7 @@ for (const [route, network, i, note] of single) encoding.push({ name: `${route}-
 }
 // R6 — HyperEVM -> ONE -> BSC (testnet, 997/97 not used: hub -> 97)
 {
-  const hub = T.cross.bridge;
+  const hub = T.one.bridge;
   const f = { hub, destChainId: 97, toDest: U2, value2: 10n * E18, networkFee2: 180000000000000000n, exFee2Declared: 0n, inner: '0x' };
   const ed1 = forwardExtra(f);
   const call = { toChainId: 612044, fromToken: T.hyperevm.tokens.ONE.address, to: U1, value: 10n * E18 + 180000000000000000n, networkFee: 0n, exFee: 0n, extraData: ed1 };
@@ -111,7 +111,7 @@ for (const [route, network, i, note] of single) encoding.push({ name: `${route}-
 {
   const coreIn = { token: T.hyperevm.tokens.ONE.address, coreRecipient: U3, value: 5000000000000000042n };
   const ed2 = coreExtra(coreIn);
-  const f = { hub: T.cross.bridge, destChainId: 998, toDest: U2, value2: 5000000000000000042n, networkFee2: 180000000000000000n, exFee2Declared: 0n, inner: ed2 };
+  const f = { hub: T.one.bridge, destChainId: 998, toDest: U2, value2: 5000000000000000042n, networkFee2: 180000000000000000n, exFee2Declared: 0n, inner: ed2 };
   const ed1 = forwardExtra(f);
   const call = { toChainId: 612044, fromToken: T.bsc.tokens.ONE.address, to: U1, value: 5180000000000000042n, networkFee: 0n, exFee: 0n, extraData: ed1 };
   if (byteLen(ed2) !== 88 || byteLen(ed1) !== 344) throw new Error(`extraData reference lengths wrong: ${byteLen(ed2)} / ${byteLen(ed1)}`);
@@ -126,16 +126,16 @@ for (const [route, network, i, note] of single) encoding.push({ name: `${route}-
 }
 // X1: BSC USDT -> ONE chain ONEUSD (mainnet)
 {
-  const sw = { router: M.cross.swap.v3SwapRouter, tokenIn: M.cross.tokens.USDTx.address, tokenOut: M.cross.tokens.ONEUSD.address, fee: 0, recipient: U1, deadline: 1800000000, amountIn: 100n * E18, amountOutMinimum: 99495929364966904498n };
+  const sw = { router: M.one.swap.v3SwapRouter, tokenIn: M.one.tokens.USDTx.address, tokenOut: M.one.tokens.ONEUSD.address, fee: 0, recipient: U1, deadline: 1800000000, amountIn: 100n * E18, amountOutMinimum: 99495929364966904498n };
   const ed = x1Extra(sw);
   const call = { toChainId: 612055, fromToken: M.bsc.tokens.USDT.address, to: U1, value: 100n * E18, networkFee: 5n * E18, exFee: 0n, extraData: ed };
   encoding.push({ name: 'X1-mainnet', kind: 'x1', route: 'X1', network: 'mainnet', note: 'BSC USDT -> ONEUSD via BridgeExecutor extraCall (deadline-in-struct exactInputSingle, selector 0x414bf389)', inputs: { swap: s(sw), call: s(call) }, expected: { extraData: ed, extraDataBytes: byteLen(ed), calldata: bridgeCall(call) } });
 }
 // X3: swap on ONE then bridge (ERC20 and native-in variants)
 {
-  const sb = { tokenIn: M.cross.tokens.ONEUSD.address, tokenOut: M.cross.tokens.USDTx.address, fee: 0, amountIn: 100n * E18, amountOutMinimum: 99495929364966904498n, toChainId: 56, recipient: U1, extraData: '0x', deadline: 1800000000 };
+  const sb = { tokenIn: M.one.tokens.ONEUSD.address, tokenOut: M.one.tokens.USDTx.address, fee: 0, amountIn: 100n * E18, amountOutMinimum: 99495929364966904498n, toChainId: 56, recipient: U1, extraData: '0x', deadline: 1800000000 };
   encoding.push({ name: 'X3-erc20-mainnet-shape', kind: 'x3', route: 'X3', network: 'mainnet', note: 'ONEUSD -> USDTx -> BSC USDT', inputs: s(sb), expected: { calldata: sbrCall(sb, false) } });
-  const sbe = { ...sb, tokenIn: M.cross.tokens.WCROSS.address, tokenOut: M.cross.tokens.USDTx.address };
+  const sbe = { ...sb, tokenIn: M.one.tokens.WCROSS.address, tokenOut: M.one.tokens.USDTx.address };
   encoding.push({ name: 'X3-native-mainnet-shape', kind: 'x3eth', route: 'X3', network: 'mainnet', note: 'native ONE (tokenIn = WCROSS) -> USDTx -> BSC USDT, msg.value = amountIn', inputs: s(sbe), expected: { calldata: sbrCall(sbe, true) } });
 }
 

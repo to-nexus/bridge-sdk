@@ -24,7 +24,7 @@ const (
 type ChainKey string
 
 const (
-	ChainCross    ChainKey = "cross"
+	ChainOne    ChainKey = "one"
 	ChainBSC      ChainKey = "bsc"
 	ChainHyperEVM ChainKey = "hyperevm"
 )
@@ -114,7 +114,7 @@ func GetNetwork(name NetworkName) (*NetworkData, error) {
 // Chain returns the chain configuration.
 func (n *NetworkData) Chain(k ChainKey) *ChainConfig { return n.Chains[k] }
 
-// ConfigValue resolves a dotted path such as "hyperevm.bridge", "cross.swap.swapBridgeRouter" or "bsc.tokens.USDT".
+// ConfigValue resolves a dotted path such as "hyperevm.bridge", "one.swap.swapBridgeRouter" or "bsc.tokens.USDT".
 // It returns nil when the value is null/unconfigured.
 func (n *NetworkData) ConfigValue(path string) *string {
 	parts := strings.Split(path, ".")

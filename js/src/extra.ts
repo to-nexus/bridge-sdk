@@ -36,9 +36,9 @@ export function decodeX1Struct(extraData: string): X1Expect {
  * tokenIn == hub USDTx, tokenOut == ONEUSD, fee == the configured pool fee, amountIn == the committed value.
  */
 export function checkX1(net: NetworkData, extraData: string, committedValue: bigint): X1Expect {
-  const cross = net.chains.cross;
+  const oneChain = net.chains.one;
   const bad = (why: string) => new UnsupportedRouteError(`unsupported X1 extraData: ${why}`);
-  const router = cross.swap?.v3SwapRouter, pool = cross.swap?.x1Pool, usdtx = cross.tokens.USDTx?.address, oneusd = cross.tokens.ONEUSD?.address;
+  const router = oneChain.swap?.v3SwapRouter, pool = oneChain.swap?.x1Pool, usdtx = oneChain.tokens.USDTx?.address, oneusd = oneChain.tokens.ONEUSD?.address;
   if (!router || !pool || !usdtx || !oneusd) throw bad('the X1 router / pool / tokens are not configured');
   const x = decodeX1Struct(extraData);
   if (!same(x.router, router)) throw bad(`target ${x.router} is not the configured V3 router`);

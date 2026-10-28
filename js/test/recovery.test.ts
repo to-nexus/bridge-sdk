@@ -17,7 +17,7 @@ test('findSourceTransfer: NOT_FOUND_YET (same-from log with a different value mu
   try { await client.send(wl, q); } catch (e) { err = e as BroadcastOutcomeUnknownError; }
   assert.ok(err instanceof BroadcastOutcomeUnknownError);
   // someone else's / the same account's DIFFERENT transfer (value differs): same from + toChainID, must NOT match
-  const tx = (value: bigint) => w.chains.bsc.applyTx({ from: wallet.address, to: c.bsc.bridge!, data: bridgeI.encodeFunctionData('bridgeToken', [c.cross.chainId, c.bsc.tokens.ONE!.address, RECIPIENT, value, 0n, 0n, '0x']), value: 0n });
+  const tx = (value: bigint) => w.chains.bsc.applyTx({ from: wallet.address, to: c.bsc.bridge!, data: bridgeI.encodeFunctionData('bridgeToken', [c.one.chainId, c.bsc.tokens.ONE!.address, RECIPIENT, value, 0n, 0n, '0x']), value: 0n });
   tx(amount + 1n);
   let f = await client.findSourceTransfer(err!.intent, err!.checkpoint);
   assert.equal(f.result.status, 'NOT_FOUND_YET');
@@ -39,7 +39,7 @@ test('replacement analysis (Mode L): speed-up = FOUND, cancel / failed replaceme
     t.w.chains.bsc.sendMode = 'mine';
     return { ...t, sent, q };
   };
-  const callData = (t: any, value: bigint) => bridgeI.encodeFunctionData('bridgeToken', [t.c.cross.chainId, t.c.bsc.tokens.ONE!.address, RECIPIENT, value, 0n, 0n, '0x']);
+  const callData = (t: any, value: bigint) => bridgeI.encodeFunctionData('bridgeToken', [t.c.one.chainId, t.c.bsc.tokens.ONE!.address, RECIPIENT, value, 0n, 0n, '0x']);
   const analyze = (t: any, replacementHash?: string) => t.client.analyzeReplacement({ intent: t.sent.intent, checkpoint: t.sent.checkpoint, original: { hash: t.sent.hash, nonce: t.sent.nonce }, replacementHash });
 
   { // original still possible: nonce not consumed
@@ -84,13 +84,13 @@ test('X3 recovery without a hash goes through SwapBridge (bridge-level from is t
   const w = World.testnet();
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  const usdtx = c.cross.tokens.USDTx!.address;
-  w.setFee('cross', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  const usdtx = c.one.tokens.USDTx!.address;
+  w.setFee('one', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
   const client = new BridgeClient(w.options());
   const q = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: wallet.address, recipient: RECIPIENT, x3: { tokenIn: TOKEN_A, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } });
-  w.setAllow('cross', TOKEN_A, wallet.address, c.cross.swap!.swapBridgeRouter!, 10n ** 30n);
-  const wl = new FakeWalletSigner(wallet.address, w.chains.cross);
+  w.setAllow('one', TOKEN_A, wallet.address, c.one.swap!.swapBridgeRouter!, 10n ** 30n);
+  const wl = new FakeWalletSigner(wallet.address, w.chains.one);
   wl.behavior = 'throw-after-mine';
   let err: BroadcastOutcomeUnknownError | undefined;
   try { await client.send(wl, q); } catch (e) { err = e as BroadcastOutcomeUnknownError; }
@@ -99,7 +99,7 @@ test('X3 recovery without a hash goes through SwapBridge (bridge-level from is t
   assert.equal(f.result.status, 'FOUND');
   const h = (f.result as any).handle;
   assert.equal(h.route, Route.SWAP_BRIDGE);
-  assert.equal(h.srcContract.toLowerCase(), c.cross.swap!.swapBridgeRouter!.toLowerCase());
+  assert.equal(h.srcContract.toLowerCase(), c.one.swap!.swapBridgeRouter!.toLowerCase());
   assert.equal(h.hop1.destChainId, c.bsc.chainId);
 });
 
@@ -109,7 +109,7 @@ test('findSourceTransfer fee rule: lower event fees => FOUND; higher => no match
   const mk = async () => {
     const { w, c, wallet, client } = setup();
     const one = c.bsc.tokens.ONE!.address;
-    w.setFee('bsc', c.cross.chainId, one, { min: 1n * E18, nf: 2n * E18, rate: 0n });
+    w.setFee('bsc', c.one.chainId, one, { min: 1n * E18, nf: 2n * E18, rate: 0n });
     const q = await client.quote(r1(wallet.address));
     w.setAllow('bsc', one, wallet.address, c.bsc.bridge!, 10n ** 30n);
     const wl = new FakeWalletSigner(wallet.address, w.chains.bsc);
@@ -118,12 +118,12 @@ test('findSourceTransfer fee rule: lower event fees => FOUND; higher => no match
     try { await client.send(wl, q); } catch (e) { err = e as BroadcastOutcomeUnknownError; }
     assert.ok(err instanceof BroadcastOutcomeUnknownError);
     assert.equal(err!.intent.match.kind === 'bridge' && err!.intent.match.networkFee, 2n * E18);
-    const tx = (to: string, value: bigint, nf: bigint) => w.chains.bsc.applyTx({ from: wallet.address, to: c.bsc.bridge!, data: bridgeI.encodeFunctionData('bridgeToken', [c.cross.chainId, one, to, value, nf, 0n, '0x']), value: 0n });
+    const tx = (to: string, value: bigint, nf: bigint) => w.chains.bsc.applyTx({ from: wallet.address, to: c.bsc.bridge!, data: bridgeI.encodeFunctionData('bridgeToken', [c.one.chainId, one, to, value, nf, 0n, '0x']), value: 0n });
     return { w, c, wallet, client, err: err!, tx, one };
   };
   { // (1) fees dropped before inclusion: the event carries nf = 1 < intent nf = 2 -> FOUND
     const t = await mk();
-    t.w.setFee('bsc', t.c.cross.chainId, t.one, { min: 1n * E18, nf: 1n * E18, rate: 0n });
+    t.w.setFee('bsc', t.c.one.chainId, t.one, { min: 1n * E18, nf: 1n * E18, rate: 0n });
     t.tx(RECIPIENT, amount, 2n * E18); // calldata keeps the intent's fee; the contract emits the calculated (lower) one
     const log = t.w.chains.bsc.logs.at(-1)!;
     assert.equal(bridgeI.parseLog({ topics: log.topics, data: log.data })!.args[7], 1n * E18);
@@ -132,7 +132,7 @@ test('findSourceTransfer fee rule: lower event fees => FOUND; higher => no match
   }
   { // (2) the event carries a HIGHER fee than the intent (nf = 3 > 2): cannot be this transfer
     const t = await mk();
-    t.w.setFee('bsc', t.c.cross.chainId, t.one, { min: 1n * E18, nf: 3n * E18, rate: 0n });
+    t.w.setFee('bsc', t.c.one.chainId, t.one, { min: 1n * E18, nf: 3n * E18, rate: 0n });
     t.tx(RECIPIENT, amount, 3n * E18);
     const f = await t.client.findSourceTransfer(t.err.intent, t.err.checkpoint);
     assert.equal(f.result.status, 'NOT_FOUND_YET');

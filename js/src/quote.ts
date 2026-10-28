@@ -93,20 +93,20 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
   // ---------------------------------------------------------------------------------------- X3
   if (spec.kind === 'x3') {
     const x3 = req.x3!;
-    const router = getAddress(chains.cross.swap!.swapBridgeRouter!);
+    const router = getAddress(chains.one.swap!.swapBridgeRouter!);
     const toChainId = chains[spec.dest].chainId;
     const native = x3.tokenIn === 'native';
-    const tokenIn = native ? getAddress(chains.cross.tokens.WCROSS!.address) : getAddress(x3.tokenIn);
+    const tokenIn = native ? getAddress(chains.one.tokens.WCROSS!.address) : getAddress(x3.tokenIn);
     const tokenOut = getAddress(x3.tokenOut);
     const { slippageBps, deadlineSec } = swapOptions(req);
     const deadline = frozen?.deadline ?? Math.floor(ctx.now() / 1000) + deadlineSec;
     const extraData = '0x'; // X3 supports extraData = 0x only
 
-    const r: any = await readContract(ctx.rpc('cross'), sbrI, router, 'getAmountSwapBridgeOut', [toChainId, tokenIn, tokenOut, x3.poolFee, req.amount], { from: req.sender });
+    const r: any = await readContract(ctx.rpc('one'), sbrI, router, 'getAmountSwapBridgeOut', [toChainId, tokenIn, tokenOut, x3.poolFee, req.amount], { from: req.sender });
     const status = Number(r[0]);
     if (status !== 1) throw new PreflightError([{ level: 'error', code: `X3_QUOTE_${QUOTE_STATUS[status] ?? status}`, message: `SwapBridgeRouter quote status ${QUOTE_STATUS[status] ?? status}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' }]);
     // the EXPECTED destination token: the hub pair's remoteToken (read on the chain-verified hub RPC); a missing pair fails the quote
-    const xpair = await readPair(ctx, 'cross', getAddress(chains.cross.bridge!), toChainId, tokenOut);
+    const xpair = await readPair(ctx, 'one', getAddress(chains.one.bridge!), toChainId, tokenOut);
     if (xpair.localToken.toLowerCase() !== tokenOut.toLowerCase()) {
       throw new PreflightError([{ level: 'error', code: 'PAIR_NOT_REGISTERED', message: `tokenOut ${tokenOut} has no hub pair to chain ${toChainId}`, hint: 'The token pair is not registered (RegistryNotExistToken).' }]);
     }
@@ -115,7 +115,7 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     const hop1 = { minimumValue: 0n, networkFee: BigInt(r[3]), exFee: BigInt(r[4]) };
 
     const amountOutMinimum = frozen?.amountOutMinimum ?? floorBps(swapAmountOut, slippageBps);
-    const eb: any = await readContract(ctx.rpc('cross'), sbrI, router, 'getExpectedBridgeAmount', [toChainId, tokenOut, amountOutMinimum]);
+    const eb: any = await readContract(ctx.rpc('one'), sbrI, router, 'getExpectedBridgeAmount', [toChainId, tokenOut, amountOutMinimum]);
     const ebStatus = Number(eb[0]);
     const deliveryAtFloor: bigint = eb[1];
     if (frozen) {
@@ -134,8 +134,8 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
       minBridgeValue,
     };
     const quote: Omit<Quote, 'seal'> = {
-      id: rand(), network: ctx.network, route, request: req, kind: 'x3', sourceChainKey: 'cross', sourceChainId: chains.cross.chainId,
-      sourceContract: router, sourceBridge: getAddress(chains.cross.bridge!), sender: req.sender, createdAt: ctx.now(), ttlMs,
+      id: rand(), network: ctx.network, route, request: req, kind: 'x3', sourceChainKey: 'one', sourceChainId: chains.one.chainId,
+      sourceContract: router, sourceBridge: getAddress(chains.one.bridge!), sender: req.sender, createdAt: ctx.now(), ttlMs,
       verifiers: {}, fees: { hop1 }, value: expectedBridge, totalSpend: req.amount,
       tx: { to: router, data, value: native ? req.amount : 0n },
       approval: native ? null : { token: tokenIn, spender: router, amount: req.amount },
@@ -152,7 +152,7 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
   const native = spec.srcToken === 'native';
   const srcTokenAddr = native ? NATIVE_TOKEN : getAddress(src.tokens[spec.srcToken]!.address);
   const hubKey: ChainKey | undefined = spec.hub;
-  const toChainId = spec.kind === 'multihop' || spec.kind === 'x1' ? chains.cross.chainId : chains[spec.dest].chainId;
+  const toChainId = spec.kind === 'multihop' || spec.kind === 'x1' ? chains.one.chainId : chains[spec.dest].chainId;
   const srcVerifier = await readContract<string>(ctx.rpc(spec.src), bridgeI, srcBridge, 'bridgeVerifier', []);
 
   const pair = await readPair(ctx, spec.src, srcBridge, toChainId, srcTokenAddr);
@@ -187,9 +187,9 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
       ({ coreAmount, dust: coreDust } = coreAmounts(value, unit));
     } catch { /* reported by preflight */ }
   } else if (spec.kind === 'multihop') {
-    const hub = getAddress(chains.cross.bridge!);
-    hubVerifier = await readContract<string>(ctx.rpc('cross'), bridgeI, hub, 'bridgeVerifier', []);
-    const hubFee = await readFee(ctx, 'cross', hubVerifier, destToChainId, NATIVE_TOKEN, req.amount);
+    const hub = getAddress(chains.one.bridge!);
+    hubVerifier = await readContract<string>(ctx.rpc('one'), bridgeI, hub, 'bridgeVerifier', []);
+    const hubFee = await readFee(ctx, 'one', hubVerifier, destToChainId, NATIVE_TOKEN, req.amount);
     v2 = req.amount;
     if (v2 < hubFee.minimumValue) throw new PreflightError([{ level: 'error', code: 'BELOW_MINIMUM_HOP2', message: `amount ${v2} is below the hub minimumValue ${hubFee.minimumValue} for chain ${destToChainId}` }]);
     hop2 = hubFee;
@@ -212,22 +212,22 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     extraData = encodeForwardExtraData({ hub, destChainId: destToChainId, toDest: rec.dest, value2: v2, networkFee2: hubFee.networkFee, exFee2Declared: m.ef2Declared, inner });
     hop1Kind = 'hubForward';
   } else if (spec.kind === 'x1') {
-    const cross = chains.cross;
-    const swapCfg = cross.swap!;
+    const oneChain = chains.one;
+    const swapCfg = oneChain.swap!;
     const pool = swapCfg.x1Pool!;
     const router = getAddress(swapCfg.v3SwapRouter!);
     const { slippageBps, deadlineSec } = swapOptions(req);
     deadline = frozen?.deadline ?? Math.floor(ctx.now() / 1000) + deadlineSec;
-    const usdtx = getAddress(cross.tokens.USDTx!.address);
-    const oneusd = getAddress(cross.tokens.ONEUSD!.address);
-    await ctx.assertChain('cross');
-    const q = await readContract<any>(ctx.rpc('cross'), quoterI, getAddress(swapCfg.quoterV2!), 'quoteExactInputSingle', [[usdtx, oneusd, value, pool.fee, 0]]);
+    const usdtx = getAddress(oneChain.tokens.USDTx!.address);
+    const oneusd = getAddress(oneChain.tokens.ONEUSD!.address);
+    await ctx.assertChain('one');
+    const q = await readContract<any>(ctx.rpc('one'), quoterI, getAddress(swapCfg.quoterV2!), 'quoteExactInputSingle', [[usdtx, oneusd, value, pool.fee, 0]]);
     expectedSwapOut = BigInt(q[0]);
     amountOutMinimum = frozen?.amountOutMinimum ?? floorBps(expectedSwapOut, slippageBps);
     if (frozen && expectedSwapOut < amountOutMinimum) violated.push('swapOutputBelowFloor');
     extraData = encodeX1ExtraData({ router, tokenIn: usdtx, tokenOut: oneusd, fee: pool.fee, recipient: rec.dest, deadline, amountIn: value, amountOutMinimum });
     hop1Kind = 'x1';
-    destToChainId = chains.cross.chainId;
+    destToChainId = chains.one.chainId;
   }
 
   const fee1 = await readFee(ctx, spec.src, srcVerifier, toChainId, srcTokenAddr, value);

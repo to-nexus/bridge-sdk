@@ -75,10 +75,10 @@ func newWorldNet(t *testing.T, network NetworkName, override *NetworkData) *worl
 		balances: map[string]*big.Int{}, allow: map[string]*big.Int{}, initIdx: map[string]*big.Int{}, finNext: map[string]*big.Int{}, pending: map[string][]*big.Int{},
 		paused: map[ChainKey]bool{}, whitelist: map[string]bool{}, methodChecks: map[string]bool{}, hyperCoreSet: true, maxExtra: map[ChainKey]*big.Int{}, coreUnit: new(big.Int).Exp(big.NewInt(10), big.NewInt(10), nil),
 		x1Out: n18(1), swapOut: n18(100), clock: time.Unix(1_700_000_000, 0)}
-	for _, k := range []ChainKey{ChainCross, ChainBSC, ChainHyperEVM} {
+	for _, k := range []ChainKey{ChainOne, ChainBSC, ChainHyperEVM} {
 		w.chains[k] = newFakeChain(nd.Chains[k].ChainID)
 	}
-	for _, k := range []ChainKey{ChainCross, ChainBSC, ChainHyperEVM} {
+	for _, k := range []ChainKey{ChainOne, ChainBSC, ChainHyperEVM} {
 		w.deployChain(k)
 	}
 	return w
@@ -188,7 +188,7 @@ func (w *world) deployChain(k ChainKey) {
 		verifier = common.HexToAddress(*cfg.BridgeVerifier)
 	}
 	executor := common.Address{}
-	if (k == ChainCross || k == ChainHyperEVM) && cfg.BridgeExecutor != nil {
+	if (k == ChainOne || k == ChainHyperEVM) && cfg.BridgeExecutor != nil {
 		executor = common.HexToAddress(*cfg.BridgeExecutor)
 	}
 	ch.deploy(bridgeAddr, &fakeContract{
@@ -257,8 +257,8 @@ func (w *world) deployChain(k ChainKey) {
 			},
 		}})
 	}
-	if k == ChainCross {
-		w.deployCrossExtras()
+	if k == ChainOne {
+		w.deployOneExtras()
 	}
 }
 
@@ -292,13 +292,13 @@ func (w *world) deployHyper(a common.Address) {
 	})
 }
 
-func (w *world) deployCrossExtras() {
-	cross := w.net.Chains[ChainCross]
-	sw := cross.Swap
+func (w *world) deployOneExtras() {
+	oneChain := w.net.Chains[ChainOne]
+	sw := oneChain.Swap
 	if sw == nil {
 		return
 	}
-	ch := w.chains[ChainCross]
+	ch := w.chains[ChainOne]
 	if sw.QuoterV2 != nil {
 		ch.deploy(common.HexToAddress(*sw.QuoterV2), &fakeContract{abi: quoterABI, call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
 			"quoteExactInputSingle": func([]interface{}, callCtx) ([]interface{}, error) {
@@ -341,10 +341,10 @@ func (w *world) deployCrossExtras() {
 					if w.routerBridge != nil {
 						return []interface{}{*w.routerBridge}, nil
 					}
-					return []interface{}{common.HexToAddress(*w.net.Chains[ChainCross].Bridge)}, nil
+					return []interface{}{common.HexToAddress(*w.net.Chains[ChainOne].Bridge)}, nil
 				},
 				"getAmountSwapBridgeOut": func(args []interface{}, c callCtx) ([]interface{}, error) {
-					f := w.getFee(ChainCross, args[0].(*big.Int).Uint64(), args[2].(common.Address))
+					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[2].(common.Address))
 					eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
 					st := status(eb.Status)
 					if w.swapStatus != nil {
@@ -353,7 +353,7 @@ func (w *world) deployCrossExtras() {
 					return []interface{}{st, w.swapOut, eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
 				},
 				"getExpectedBridgeAmount": func(args []interface{}, c callCtx) ([]interface{}, error) {
-					f := w.getFee(ChainCross, args[0].(*big.Int).Uint64(), args[1].(common.Address))
+					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[1].(common.Address))
 					eb := ExpectedBridgeAmount(args[2].(*big.Int), f.nf, f.rate, f.min)
 					return []interface{}{status(eb.Status), eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
 				},
@@ -465,24 +465,24 @@ func (w *world) execSwapBridge(router common.Address, args []interface{}, c txCt
 	if w.swapOut.Cmp(p.AmountOutMinimum) < 0 {
 		return nil, revert("0x")
 	}
-	f := w.getFee(ChainCross, p.BridgeParams.ToChainID.Uint64(), p.TokenOut)
+	f := w.getFee(ChainOne, p.BridgeParams.ToChainID.Uint64(), p.TokenOut)
 	eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
 	if eb.Status != "Success" {
 		return nil, revert("0x")
 	}
 	if !native {
-		if w.allowance(ChainCross, p.TokenIn, c.From, router).Cmp(p.AmountIn) < 0 {
+		if w.allowance(ChainOne, p.TokenIn, c.From, router).Cmp(p.AmountIn) < 0 {
 			return nil, revert("0xfb8f41b2")
 		}
-		w.setBal(ChainCross, p.TokenIn, c.From, new(big.Int).Sub(w.bal(ChainCross, p.TokenIn, c.From), p.AmountIn))
+		w.setBal(ChainOne, p.TokenIn, c.From, new(big.Int).Sub(w.bal(ChainOne, p.TokenIn, c.From), p.AmountIn))
 	}
-	hub := common.HexToAddress(*w.net.Chains[ChainCross].Bridge)
+	hub := common.HexToAddress(*w.net.Chains[ChainOne].Bridge)
 	remote := nativeAdr
-	if pr, ok := w.pairs[key(ChainCross, p.BridgeParams.ToChainID, p.TokenOut)]; ok {
+	if pr, ok := w.pairs[key(ChainOne, p.BridgeParams.ToChainID, p.TokenOut)]; ok {
 		remote = pr.RemoteToken
 	}
-	bi := w.initiatedLog(ChainCross, hub, p.BridgeParams.ToChainID.Uint64(), p.TokenOut, remote, router, p.BridgeParams.Recipient, eb.BridgeValue, eb.NetworkFee, eb.ExFee, p.BridgeParams.ExtraData)
-	idx := new(big.Int).Sub(w.initIdx[key(ChainCross, p.BridgeParams.ToChainID)], big.NewInt(1))
+	bi := w.initiatedLog(ChainOne, hub, p.BridgeParams.ToChainID.Uint64(), p.TokenOut, remote, router, p.BridgeParams.Recipient, eb.BridgeValue, eb.NetworkFee, eb.ExFee, p.BridgeParams.ExtraData)
+	idx := new(big.Int).Sub(w.initIdx[key(ChainOne, p.BridgeParams.ToChainID)], big.NewInt(1))
 	sb := w.encodeEvent(sbrABI, "SwapBridge", router, c.From, p.TokenIn, p.TokenOut, p.AmountIn, w.swapOut, p.BridgeParams.ToChainID, idx, eb.BridgeValue, eb.NetworkFee, eb.ExFee)
 	return []types.Log{sb, bi}, nil
 }
@@ -493,26 +493,26 @@ func testnetWorld(t *testing.T) *world { return testnetWorldNet(t, nil) }
 func testnetWorldNet(t *testing.T, override *NetworkData) *world {
 	w := newWorldNet(t, Testnet, override)
 	c := w.net.Chains
-	hubID := c[ChainCross].ChainID
+	hubID := c[ChainOne].ChainID
 	tok := func(k ChainKey, n string) common.Address { return common.HexToAddress(c[k].Tokens[n].Address) }
 	w.setPair(ChainBSC, hubID, tok(ChainBSC, "ONE"), nativeAdr, true)
 	w.setPair(ChainHyperEVM, hubID, tok(ChainHyperEVM, "ONE"), nativeAdr, false)
-	w.setPair(ChainCross, c[ChainBSC].ChainID, nativeAdr, tok(ChainBSC, "ONE"), false)
-	w.setPair(ChainCross, c[ChainHyperEVM].ChainID, nativeAdr, tok(ChainHyperEVM, "ONE"), true)
-	w.setPair(ChainCross, c[ChainBSC].ChainID, tok(ChainCross, "USDTx"), tok(ChainBSC, "USDT"), false)
-	w.setPair(ChainCross, c[ChainHyperEVM].ChainID, tok(ChainCross, "USDTx"), tok(ChainHyperEVM, "ONE"), false)
+	w.setPair(ChainOne, c[ChainBSC].ChainID, nativeAdr, tok(ChainBSC, "ONE"), false)
+	w.setPair(ChainOne, c[ChainHyperEVM].ChainID, nativeAdr, tok(ChainHyperEVM, "ONE"), true)
+	w.setPair(ChainOne, c[ChainBSC].ChainID, tok(ChainOne, "USDTx"), tok(ChainBSC, "USDT"), false)
+	w.setPair(ChainOne, c[ChainHyperEVM].ChainID, tok(ChainOne, "USDTx"), tok(ChainHyperEVM, "ONE"), false)
 	nf := new(big.Int).Mul(big.NewInt(18), new(big.Int).Exp(big.NewInt(10), big.NewInt(16), nil))
 	z := new(big.Int)
-	w.setFee(ChainCross, c[ChainBSC].ChainID, nativeAdr, n18(5), nf, z)
-	w.setFee(ChainCross, c[ChainHyperEVM].ChainID, nativeAdr, n18(5), nf, z)
-	w.setFee(ChainCross, c[ChainBSC].ChainID, tok(ChainCross, "USDTx"), n18(5), nf, z)
+	w.setFee(ChainOne, c[ChainBSC].ChainID, nativeAdr, n18(5), nf, z)
+	w.setFee(ChainOne, c[ChainHyperEVM].ChainID, nativeAdr, n18(5), nf, z)
+	w.setFee(ChainOne, c[ChainBSC].ChainID, tok(ChainOne, "USDTx"), n18(5), nf, z)
 	w.setFee(ChainBSC, hubID, tok(ChainBSC, "ONE"), n18(1), z, z)
 	w.setFee(ChainHyperEVM, hubID, tok(ChainHyperEVM, "ONE"), n18(5), z, z)
-	hub := *c[ChainCross].Bridge
-	w.whitelist[key(ChainCross, hub)] = true
+	hub := *c[ChainOne].Bridge
+	w.whitelist[key(ChainOne, hub)] = true
 	w.whitelist[key(ChainHyperEVM, tok(ChainHyperEVM, "ONE"))] = true
-	w.methodChecks[key(ChainCross, hub)] = true
-	w.deployErc20(ChainCross, tokenA)
+	w.methodChecks[key(ChainOne, hub)] = true
+	w.deployErc20(ChainOne, tokenA)
 	return w
 }
 
@@ -533,7 +533,7 @@ func (w *world) fundedWallet() (*ecdsa.PrivateKey, common.Address) {
 	if t := c[ChainHyperEVM].Tokens["ONE"]; t != nil {
 		w.setBal(ChainHyperEVM, common.HexToAddress(t.Address), a, n18(1000))
 	}
-	w.setBal(ChainCross, tokenA, a, n18(1000))
+	w.setBal(ChainOne, tokenA, a, n18(1000))
 	return k, a
 }
 

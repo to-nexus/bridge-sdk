@@ -8,10 +8,10 @@ IMPL_SLOT=0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
 NATIVE=0x0000000000000000000000000000000000000001
 PAIR_T='(address,address,bool,bool,uint256,uint256,uint256)'
 
-RPC_CROSS_MAIN=https://mainnet.onechain.nexus:22001
+RPC_ONE_MAIN=https://mainnet.onechain.nexus:22001
 RPC_BSC_MAIN=https://bsc-mainnet-public.cross-api.in
 RPC_HYPE_MAIN=https://rpc.hyperliquid.xyz/evm
-RPC_CROSS_TEST=https://testnet.onechain.nexus:22001
+RPC_ONE_TEST=https://testnet.onechain.nexus:22001
 RPC_BSC_TEST=https://bsc-testnet-public.cross-api.in
 RPC_HYPE_TEST=https://rpc.hyperliquid-testnet.xyz/evm
 
@@ -33,7 +33,7 @@ code() { # net rpc label addr [selector]
 impl() { local net=$1 rpc=$2 addr=$3; echo "PROBE $net impl-slot($addr) => $(timeout 30 cast storage "$addr" $IMPL_SLOT --rpc-url "$rpc" 2>&1 | tr '\n' ' ')"; }
 
 echo "# probe run $(date -u +%FT%TZ)"
-for n in "cross-mainnet $RPC_CROSS_MAIN" "bsc-mainnet $RPC_BSC_MAIN" "hyperevm-mainnet $RPC_HYPE_MAIN" "cross-testnet $RPC_CROSS_TEST" "bsc-testnet $RPC_BSC_TEST" "hyperevm-testnet $RPC_HYPE_TEST"; do
+for n in "one-mainnet $RPC_ONE_MAIN" "bsc-mainnet $RPC_BSC_MAIN" "hyperevm-mainnet $RPC_HYPE_MAIN" "one-testnet $RPC_ONE_TEST" "bsc-testnet $RPC_BSC_TEST" "hyperevm-testnet $RPC_HYPE_TEST"; do
   set -- $n; echo "PROBE $1 chain-id => $(timeout 30 cast chain-id --rpc-url "$2" 2>&1)"
 done
 
@@ -70,8 +70,8 @@ exec_probe() { # net rpc bridge target...
 HUB=0xb81d6e000000000000000000000000000000C0de
 FWD_SEL=0x55fd0776
 
-# ================================================================ CROSS mainnet 612055
-N=cross-mainnet; R=$RPC_CROSS_MAIN
+# ================================================================ ONE mainnet 612055
+N=one-mainnet; R=$RPC_ONE_MAIN
 bridge_probe $N $R $HUB
 code $N $R "hub proxy" $HUB
 IMPL=$(cast storage $HUB $IMPL_SLOT --rpc-url $R | sed 's/0x000000000000000000000000/0x/')
@@ -106,7 +106,11 @@ p $N $R "pool.liquidity()" $POOL_M "liquidity()(uint128)"
 p $N $R "pool.fee()" $POOL_M "fee()(uint24)"
 p $N $R "quoterV2.quoteExactInputSingle(USDTx->ONEUSD,1e18,fee0)" $QV2_M "quoteExactInputSingle((address,address,uint256,uint24,uint160))(uint256,uint160,uint32,uint256)" "($USDTX_M,$ONEUSD,1000000000000000000,0,0)"
 p $N $R "quoterV2.quoteExactInputSingle(ONEUSD->USDTx,1e18,fee0)" $QV2_M "quoteExactInputSingle((address,address,uint256,uint24,uint160))(uint256,uint160,uint32,uint256)" "($ONEUSD,$USDTX_M,1000000000000000000,0,0)"
-code $N $R "SwapBridgeRouter candidate 0xc9b23a5e14747cc2acc3dca7237d3174ce1bcf5b (testnet broadcast addr, probed on mainnet)" 0xc9b23a5e14747cc2acc3dca7237d3174ce1bcf5b
+SBR_M=0xB298C340816fee45cfB39B1e6EE4DB4D5739e357
+code $N $R "SwapBridgeRouter" $SBR_M
+p $N $R "router.bridge()" $SBR_M "bridge()(address)"
+p $N $R "router.swapRouter()" $SBR_M "swapRouter()(address)"
+p $N $R "router.quoter()" $SBR_M "quoter()(address)"
 
 # ================================================================ BSC mainnet 56
 N=bsc-mainnet; R=$RPC_BSC_MAIN; B56=0xa6a1a0c1e6ABa5FC6C84E856dCF81506e2bE06c5
@@ -115,11 +119,11 @@ code $N $R "bridge proxy" $B56
 BIMPL=$(cast storage $B56 $IMPL_SLOT --rpc-url $R | sed 's/0x000000000000000000000000/0x/')
 code $N $R "bridge impl $BIMPL" "$BIMPL"
 pairs $N $R $B56 612055
-BSC_CROSS_M=0x6bf62ca91e397B5A7d1D6bCe97D9092065d7A510; BSC_USDT_M=0x55d398326f99059fF775485246999027B3197955
-tok $N $R $BSC_CROSS_M; tok $N $R $BSC_USDT_M
-p $N $R "getTokenPair(612055,CROSS)" $B56 "getTokenPair(uint256,address)($PAIR_T)" 612055 $BSC_CROSS_M
+BSC_ONE_M=0x6bf62ca91e397B5A7d1D6bCe97D9092065d7A510; BSC_USDT_M=0x55d398326f99059fF775485246999027B3197955
+tok $N $R $BSC_ONE_M; tok $N $R $BSC_USDT_M
+p $N $R "getTokenPair(612055,ONE)" $B56 "getTokenPair(uint256,address)($PAIR_T)" 612055 $BSC_ONE_M
 p $N $R "getTokenPair(612055,USDT)" $B56 "getTokenPair(uint256,address)($PAIR_T)" 612055 $BSC_USDT_M
-fee $N $R $B56 612055 $BSC_CROSS_M 10000000000000000000
+fee $N $R $B56 612055 $BSC_ONE_M 10000000000000000000
 fee $N $R $B56 612055 $BSC_USDT_M 10000000000000000000
 
 # ================================================================ HyperEVM mainnet 999
@@ -135,8 +139,8 @@ impl $N $R $B999_M
 p $N $R "getTokenPair(612055,ONE)" $B999_M "getTokenPair(uint256,address)($PAIR_T)" 612055 $H_TOK_M
 fee $N $R $B999_M 612055 $H_TOK_M 10000000000000000000
 
-# ================================================================ CROSS testnet 612044
-N=cross-testnet; R=$RPC_CROSS_TEST
+# ================================================================ ONE testnet 612044
+N=one-testnet; R=$RPC_ONE_TEST
 bridge_probe $N $R $HUB
 IMPL=$(cast storage $HUB $IMPL_SLOT --rpc-url $R | sed 's/0x000000000000000000000000/0x/')
 code $N $R "hub impl $IMPL" "$IMPL" $FWD_SEL
@@ -167,12 +171,12 @@ for a in $V3R_M $QV2_M $ONEUSD $POOL_M; do code $N $R "mainnet address $a on tes
 # ================================================================ BSC testnet 97
 N=bsc-testnet; R=$RPC_BSC_TEST; B97=0x192FFaCAf26A53b439C33F3d2C166ceB0A26bf2d
 bridge_probe $N $R $B97
-BSC_CROSS_T=0x26ca2A92ea9659e073621bb85b9117Dc5944Cff1; BSC_USDT_T=0xBB188503c32FA7F61E019c3b3Ae61ae6B0b3B492
+BSC_ONE_T=0x26ca2A92ea9659e073621bb85b9117Dc5944Cff1; BSC_USDT_T=0xBB188503c32FA7F61E019c3b3Ae61ae6B0b3B492
 pairs $N $R $B97 612044
-tok $N $R $BSC_CROSS_T; tok $N $R $BSC_USDT_T
-p $N $R "getTokenPair(612044,CROSS)" $B97 "getTokenPair(uint256,address)($PAIR_T)" 612044 $BSC_CROSS_T
+tok $N $R $BSC_ONE_T; tok $N $R $BSC_USDT_T
+p $N $R "getTokenPair(612044,ONE)" $B97 "getTokenPair(uint256,address)($PAIR_T)" 612044 $BSC_ONE_T
 p $N $R "getTokenPair(612044,tUSDt)" $B97 "getTokenPair(uint256,address)($PAIR_T)" 612044 $BSC_USDT_T
-fee $N $R $B97 612044 $BSC_CROSS_T 10000000000000000000
+fee $N $R $B97 612044 $BSC_ONE_T 10000000000000000000
 fee $N $R $B97 612044 $BSC_USDT_T 10000000000000000000
 
 # ================================================================ HyperEVM testnet 998

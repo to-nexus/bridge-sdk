@@ -13,11 +13,11 @@ export const networksData: NetworksData = {
   "networks": {
     "mainnet": {
       "label": "Mainnet",
-      "hubChain": "cross",
+      "hubChain": "one",
       "chains": {
-        "cross": {
+        "one": {
           "chainId": 612055,
-          "name": "CROSS Mainnet",
+          "name": "ONE Chain Mainnet",
           "nativeSymbol": "ONE",
           "rpc": "https://mainnet.onechain.nexus:22001",
           "explorer": "https://explorer.onechain.nexus/612055",
@@ -54,7 +54,7 @@ export const networksData: NetworksData = {
             "v3SwapRouter": "0x0e36011c70e28DF14B7Eb39Aab23F8e9F3fa39Ba",
             "quoterV2": "0x9FBa55a11f845Fe029546f6Fe1CA7f6B2a3e07eb",
             "v3Factory": "0x4658026B6C0f9751E6d9F312718FaCFa12Dfb61D",
-            "swapBridgeRouter": null,
+            "swapBridgeRouter": "0xB298C340816fee45cfB39B1e6EE4DB4D5739e357",
             "x1Pool": {
               "tokenIn": "USDTx",
               "tokenOut": "ONEUSD",
@@ -62,9 +62,7 @@ export const networksData: NetworksData = {
               "pool": "0x298c360039de417A1b12aFAc64b9175Dbdd0DbfE"
             }
           },
-          "todo": {
-            "swap.swapBridgeRouter": "TODO(UNCONFIRMED) 메인넷 SwapBridgeRouter 주소를 찾지 못함 (X3 메인넷 비활성)"
-          }
+          "todo": {}
         },
         "bsc": {
           "chainId": 56,
@@ -121,12 +119,12 @@ export const networksData: NetworksData = {
     },
     "testnet": {
       "label": "Testnet",
-      "hubChain": "cross",
+      "hubChain": "one",
       "chains": {
-        "cross": {
+        "one": {
           "chainId": 612044,
-          "name": "CROSS Testnet",
-          "nativeSymbol": null,
+          "name": "ONE Chain Testnet",
+          "nativeSymbol": "ONE",
           "rpc": "https://testnet.onechain.nexus:22001",
           "explorer": null,
           "bridge": "0xb81d6e000000000000000000000000000000C0de",
@@ -161,8 +159,7 @@ export const networksData: NetworksData = {
             "x1Pool": null
           },
           "todo": {
-            "nativeSymbol": "TODO(UNCONFIRMED) CROSS 체인 네이티브 심볼의 공식 출처 미확인",
-            "explorer": "TODO(UNCONFIRMED) CROSS 테스트넷 익스플로러 공식 URL 미확인",
+            "explorer": "TODO(UNCONFIRMED) ONE 체인 테스트넷 익스플로러 공식 URL 미확인",
             "tokens.ONEUSD": "TODO(UNCONFIRMED) 테스트넷 ONEUSD 주소를 찾지 못함",
             "swap.x1Pool": "TODO(UNCONFIRMED) 테스트넷 USDTx/ONEUSD 풀을 찾지 못함 (X1 테스트넷 비활성)"
           }
@@ -222,39 +219,40 @@ export const networksData: NetworksData = {
     }
   },
   "provenance": {
-    "mainnet.cross.bridge": "S-M01",
-    "mainnet.cross.bridgeVerifier": "S-M02",
-    "mainnet.cross.bridgeExecutor": "S-M03",
-    "mainnet.cross.tokens.ONE": "S-M04",
-    "mainnet.cross.tokens.USDTx": "S-M05",
-    "mainnet.cross.tokens.ONEUSD": "S-M06",
-    "mainnet.cross.tokens.WCROSS": "S-M07",
-    "mainnet.cross.swap.v3SwapRouter": "S-M08",
-    "mainnet.cross.swap.quoterV2": "S-M09",
-    "mainnet.cross.swap.v3Factory": "S-M10",
-    "mainnet.cross.swap.x1Pool": "S-M11",
+    "mainnet.one.bridge": "S-M01",
+    "mainnet.one.bridgeVerifier": "S-M02",
+    "mainnet.one.bridgeExecutor": "S-M03",
+    "mainnet.one.tokens.ONE": "S-M04",
+    "mainnet.one.tokens.USDTx": "S-M05",
+    "mainnet.one.tokens.ONEUSD": "S-M06",
+    "mainnet.one.tokens.WCROSS": "S-M07",
+    "mainnet.one.swap.v3SwapRouter": "S-M08",
+    "mainnet.one.swap.quoterV2": "S-M09",
+    "mainnet.one.swap.v3Factory": "S-M10",
+    "mainnet.one.swap.x1Pool": "S-M11",
+    "mainnet.one.swap.swapBridgeRouter": "S-M20",
     "mainnet.bsc.bridge": "S-M12",
     "mainnet.bsc.bridgeVerifier": "S-M13",
     "mainnet.bsc.tokens.ONE": "S-M14",
     "mainnet.bsc.tokens.USDT": "S-M15",
     "mainnet.hyperevm.tokens.ONE": "S-M16",
-    "mainnet.cross.rpc": "S-C01",
+    "mainnet.one.rpc": "S-C01",
     "mainnet.bsc.rpc": "S-C02",
     "mainnet.hyperevm.rpc": "S-C03",
     "mainnet.bsc.explorer": "S-E01",
     "mainnet.hyperevm.explorer": "S-E02",
     "mainnet.bsc.nativeSymbol": "S-E01",
     "mainnet.hyperevm.nativeSymbol": "S-E02",
-    "testnet.cross.bridge": "S-T01",
-    "testnet.cross.bridgeVerifier": "S-T02",
-    "testnet.cross.bridgeExecutor": "S-T03",
-    "testnet.cross.tokens.ONE": "S-T04",
-    "testnet.cross.tokens.USDTx": "S-T05",
-    "testnet.cross.tokens.WCROSS": "S-T06",
-    "testnet.cross.swap.v3SwapRouter": "S-T07",
-    "testnet.cross.swap.quoterV2": "S-T08",
-    "testnet.cross.swap.v3Factory": "S-T09",
-    "testnet.cross.swap.swapBridgeRouter": "S-T10",
+    "testnet.one.bridge": "S-T01",
+    "testnet.one.bridgeVerifier": "S-T02",
+    "testnet.one.bridgeExecutor": "S-T03",
+    "testnet.one.tokens.ONE": "S-T04",
+    "testnet.one.tokens.USDTx": "S-T05",
+    "testnet.one.tokens.WCROSS": "S-T06",
+    "testnet.one.swap.v3SwapRouter": "S-T07",
+    "testnet.one.swap.quoterV2": "S-T08",
+    "testnet.one.swap.v3Factory": "S-T09",
+    "testnet.one.swap.swapBridgeRouter": "S-T10",
     "testnet.bsc.bridge": "S-T11",
     "testnet.bsc.bridgeVerifier": "S-T12",
     "testnet.bsc.tokens.ONE": "S-T13",
@@ -264,17 +262,18 @@ export const networksData: NetworksData = {
     "testnet.hyperevm.bridgeExecutor": "S-T17",
     "testnet.hyperevm.tokens.ONE": "S-T18",
     "testnet.hyperevm.coreSystemAddress": "S-T19",
-    "testnet.cross.rpc": "S-C04",
+    "testnet.one.rpc": "S-C04",
     "testnet.bsc.rpc": "S-C05",
     "testnet.hyperevm.rpc": "S-C06",
     "testnet.bsc.explorer": "S-E03",
     "testnet.bsc.nativeSymbol": "S-E03",
     "testnet.hyperevm.nativeSymbol": "S-E02",
+    "testnet.one.nativeSymbol": "S-E05",
     "mainnet.hyperevm.coreInfoApi": "S-E04",
     "mainnet.hyperevm.bridge": "S-M17",
     "mainnet.hyperevm.bridgeVerifier": "S-M18",
     "mainnet.hyperevm.bridgeExecutor": "S-M19",
-    "mainnet.cross.explorer": "S-E05",
-    "mainnet.cross.nativeSymbol": "S-E05"
+    "mainnet.one.explorer": "S-E05",
+    "mainnet.one.nativeSymbol": "S-E05"
   }
 };

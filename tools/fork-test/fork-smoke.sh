@@ -10,7 +10,7 @@
 # balance delta == value+fees and the exact approve fully consumed; native source: tx value == value+fees.
 # The two refusal cases change the fork (not a real chain) and expect the SDK to refuse before approving or sending anything:
 #   pause-source-bridge  the source bridge is paused on the fork                  -> PreflightError BRIDGE_PAUSED
-#   pause-dest-bridge    (R1) BSC source fork + a CROSS destination fork whose bridge is paused -> PreflightError DEST_BRIDGE_PAUSED
+#   pause-dest-bridge    (R1) BSC source fork + a ONE destination fork whose bridge is paused -> PreflightError DEST_BRIDGE_PAUSED
 # Both set the OpenZeppelin Pausable storage slot of the proxy (no pauser account can be discovered from a fork) and read `paused()` back before the
 # SDK runs. A refusal must exit 2, stop at pre-approve, print no broadcast/sign line, and leave the sender's nonce 0, balance and allowance unchanged.
 # Exit code: 0 only if every assertion of every case held; otherwise 1. A public RPC that cannot be forked is a failure (exit 2) unless
@@ -34,10 +34,10 @@ smoke_route() { # <network> <route> <which> [mutation]   (runs in a subshell; ex
     X1) SRC=BSC; EX=x1-usdt-to-oneusd; MODE=erc20-locked; TOKEN_VAR=BSC_USDT;;
     R4) SRC=HYPEREVM; EX=r4-hyperevm-to-one; MODE=erc20-minted; TOKEN_VAR=HYPEREVM_ONE_TOKEN;;
     R6) SRC=HYPEREVM; EX=r6-hyperevm-to-bsc; MODE=erc20-minted; TOKEN_VAR=HYPEREVM_ONE_TOKEN;;
-    R2) SRC=CROSS; EX=r2-one-to-bsc; MODE=native;;
-    R3) SRC=CROSS; EX=r3-one-to-hyperevm; MODE=native;;
-    X2) SRC=CROSS; EX=x2-one-to-hypercore; MODE=native;;
-    *) echo "SMOKE $ROUTE $NET unsupported (X3 cannot run end to end: the testnet router has no V3 pool for any pair and the mainnet router address is not confirmed)"; return 2;;
+    R2) SRC=ONE; EX=r2-one-to-bsc; MODE=native;;
+    R3) SRC=ONE; EX=r3-one-to-hyperevm; MODE=native;;
+    X2) SRC=ONE; EX=x2-one-to-hypercore; MODE=native;;
+    *) echo "SMOKE $ROUTE $NET unsupported (X3 is not exercised end to end here: the testnet router has no V3 pool for any pair; the mainnet router is configured but this fork script does not run X3)"; return 2;;
   esac
   local RPC_V="${SRC}_RPC" BR_V="${SRC}_BRIDGE"; local PUB_RPC="${!RPC_V}" BRIDGE="${!BR_V}"
   if [ -z "$BRIDGE" ]; then echo "SMOKE FAIL $ROUTE $NET: source bridge not configured"; return 1; fi
@@ -71,19 +71,19 @@ smoke_route() { # <network> <route> <which> [mutation]   (runs in a subshell; ex
   fi
   local DEST_ENV=""
   if [ "$MUTATE" = pause-dest-bridge ]; then
-    [ "$ROUTE" = R1 ] || { echo "SMOKE FAIL $ROUTE $NET: pause-dest-bridge is defined for R1 only (BSC source fork + CROSS destination fork)"; return 1; }
+    [ "$ROUTE" = R1 ] || { echo "SMOKE FAIL $ROUTE $NET: pause-dest-bridge is defined for R1 only (BSC source fork + ONE destination fork)"; return 1; }
     local DPORT; DPORT=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
     local DLOCAL="http://127.0.0.1:$DPORT"
-    anvil --fork-url "$CROSS_RPC" --port "$DPORT" --retries 15 --fork-retry-backoff 500 --silent > "$WORK/anvil-$ROUTE-$NET-dest.log" 2>&1 &
+    anvil --fork-url "$ONE_RPC" --port "$DPORT" --retries 15 --fork-retry-backoff 500 --silent > "$WORK/anvil-$ROUTE-$NET-dest.log" 2>&1 &
     APID2=$!
     for i in $(seq 1 40); do cast chain-id --rpc-url "$DLOCAL" >/dev/null 2>&1 && break; sleep 1; done
     cast chain-id --rpc-url "$DLOCAL" >/dev/null 2>&1 || { echo "SMOKE $ROUTE $NET destination fork impossible: $(head -c 300 "$WORK/anvil-$ROUTE-$NET-dest.log")"; [ "${SMOKE_ALLOW_FORK_IMPOSSIBLE:-0}" = 1 ] && return 0 || return 2; }
-    [ "$(cast call "$CROSS_BRIDGE" "paused()(bool)" --rpc-url "$DLOCAL")" = false ] || { echo "SMOKE FAIL $ROUTE $NET: the destination bridge is already paused before the mutation"; return 1; }
+    [ "$(cast call "$ONE_BRIDGE" "paused()(bool)" --rpc-url "$DLOCAL")" = false ] || { echo "SMOKE FAIL $ROUTE $NET: the destination bridge is already paused before the mutation"; return 1; }
     # fork-only state mutation on the DESTINATION fork: OZ PausableUpgradeable ERC-7201 slot (_paused = true) on the destination bridge proxy
-    cast rpc anvil_setStorageAt "$CROSS_BRIDGE" 0xcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f03300 0x0000000000000000000000000000000000000000000000000000000000000001 --rpc-url "$DLOCAL" >/dev/null
+    cast rpc anvil_setStorageAt "$ONE_BRIDGE" 0xcd5ed15c6e187e77e9aee88184c21f4f2182ab5827cb3b7e07fbedcd63f03300 0x0000000000000000000000000000000000000000000000000000000000000001 --rpc-url "$DLOCAL" >/dev/null
     # CONFIRM by a read before the SDK runs (a mutation that did not take is a FAIL, never a silent pass)
-    [ "$(cast call "$CROSS_BRIDGE" "paused()(bool)" --rpc-url "$DLOCAL")" = true ] || { echo "SMOKE FAIL $ROUTE $NET: the destination pause did not take on the fork (paused() != true)"; return 1; }
-    echo "SMOKE $ROUTE $NET fork state mutated: DESTINATION bridge $CROSS_BRIDGE paused on the destination fork $DLOCAL (read back: paused() == true); source fork $LOCAL (local forks only)"
+    [ "$(cast call "$ONE_BRIDGE" "paused()(bool)" --rpc-url "$DLOCAL")" = true ] || { echo "SMOKE FAIL $ROUTE $NET: the destination pause did not take on the fork (paused() != true)"; return 1; }
+    echo "SMOKE $ROUTE $NET fork state mutated: DESTINATION bridge $ONE_BRIDGE paused on the destination fork $DLOCAL (read back: paused() == true); source fork $LOCAL (local forks only)"
     DEST_ENV="$DLOCAL"
   fi
   local EXPECT=send-success
@@ -92,7 +92,7 @@ smoke_route() { # <network> <route> <which> [mutation]   (runs in a subshell; ex
     pause-dest-bridge) EXPECT=preflight-refused:DEST_BRIDGE_PAUSED;;
   esac
   export "RPC_$SRC=$LOCAL" PRIVATE_KEY="$PK" NETWORK="$NET" AMOUNT
-  if [ -n "$DEST_ENV" ]; then export RPC_CROSS="$DEST_ENV"; fi
+  if [ -n "$DEST_ENV" ]; then export RPC_ONE="$DEST_ENV"; fi
   local extra_js="" extra_go=""
   [ "$ROUTE" = X2 ] && { extra_js="--recipient-core $ME"; extra_go="-recipient-core $ME"; }
 

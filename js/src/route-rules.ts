@@ -71,7 +71,7 @@ export function checkRouteRules(q: Quote): void {
     if (q.fees.hop2 === undefined) bad('fees.hop2', 'required for a multihop quote');
     if (q.fees.hop2ExFeeDeclared === undefined) bad('fees.hop2ExFeeDeclared', 'required for a multihop quote');
     if (q.verifiers.hub === undefined) bad('verifiers.hub', 'required for a multihop quote');
-    if (q.details.hubChainKey !== 'cross') bad('details.hubChainKey', 'a multihop quote goes through the hub chain');
+    if (q.details.hubChainKey !== 'one') bad('details.hubChainKey', 'a multihop quote goes through the hub chain');
     if (q.details.hop2Kind === undefined) bad('details.hop2Kind', 'required for a multihop quote');
     if (q.details.hop2Kind !== (spec.core ? 'x2' : 'plain')) bad('details.hop2Kind', `must be ${spec.core ? 'x2' : 'plain'}`);
     let f;
@@ -95,7 +95,7 @@ export function checkRouteRules(q: Quote): void {
   if (q.limits.amountOutMinimum === undefined) bad('limits.amountOutMinimum', 'required for an X1 quote (0 is a valid floor)');
   if (q.deadline === undefined) bad('deadlineSec', 'required for an X1 quote');
   if (BigInt(q.deadline!) * 1000n <= BigInt(q.createdAt)) bad('deadlineSec', 'must be after createdAtMs / 1000');
-  if (q.details.hubChainKey !== 'cross') bad('details.hubChainKey', 'an X1 quote goes through the hub chain');
+  if (q.details.hubChainKey !== 'one') bad('details.hubChainKey', 'an X1 quote goes through the hub chain');
   if (q.details.hop1Kind !== 'x1') bad('details.hop1Kind', 'X1 needs hop1Kind x1');
   let x1;
   try { x1 = decodeX1Struct(ed); } catch (e) { return bad('details.extraData', (e as Error).message); }

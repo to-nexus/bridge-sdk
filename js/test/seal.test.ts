@@ -42,7 +42,7 @@ test('an unchanged quote is accepted in every copy style (spread, structuredClon
 test('edits made while the approve is pending (request, limits, X3 tokens) have no effect: calldata and limits stay the sealed originals', async () => {
   for (const kind of ['r1', 'x3'] as const) {
     const { w, c, wallet, client } = setup();
-    const usdtx = c.cross.tokens.USDTx!.address;
+    const usdtx = c.one.tokens.USDTx!.address;
     const q = await client.quote(kind === 'r1' ? r1(wallet.address) : x3req(wallet.address, usdtx));
     const copy: any = { ...q, request: { ...q.request, ...(q.request.x3 ? { x3: { ...q.request.x3 } } : {}) }, limits: { ...q.limits }, tx: { ...q.tx } };
     w.onApprove = () => {
@@ -168,12 +168,12 @@ test('seal vectors generator (only with UPDATE_SEAL_VECTORS=1)', { skip: !proces
   await add('single R1 (erc20 source, approval)', await client.quote(r1(wallet.address)));
   await add('single R2 (native source, no approval)', await client.quote({ route: Route.ONE_TO_BSC, amount, sender: wallet.address, recipient: RECIPIENT }));
   await add('multihop R5 + X2 (hubForward, core)', await client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount, sender: wallet.address, recipient: RECIPIENT, hypercore: true }));
-  await add('x3 (swap match, erc20 in)', await client.quote(x3req(wallet.address, c.cross.tokens.USDTx!.address)));
+  await add('x3 (swap match, erc20 in)', await client.quote(x3req(wallet.address, c.one.tokens.USDTx!.address)));
   const m = new World('mainnet');
   const mc = m.net.chains;
-  const usdt = mc.bsc.tokens.USDT!.address, usdtx = mc.cross.tokens.USDTx!.address;
-  m.setPair('bsc', mc.cross.chainId, usdt, usdtx, true);
-  m.setFee('bsc', mc.cross.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
+  const usdt = mc.bsc.tokens.USDT!.address, usdtx = mc.one.tokens.USDTx!.address;
+  m.setPair('bsc', mc.one.chainId, usdt, usdtx, true);
+  m.setFee('bsc', mc.one.chainId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
   m.x1Out = 100n * E18 + 3_511_957n;
   await add('x1 (swap deadline, amountOutMinimum)', await new BridgeClient(m.options({ quoteTtlMs: 60_000 })).quote({ route: Route.BSC_USDT_TO_ONEUSD, amount: 100n * E18, sender: wallet.address, recipient: RECIPIENT }));
   writeFileSync(new URL('../../test/seal.vectors.json', import.meta.url), JSON.stringify(out, null, 2) + '\n');

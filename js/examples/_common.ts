@@ -27,7 +27,7 @@ function parseArgs(): Args {
 export async function runExample(label: string, build: (a: Args) => QuoteRequest): Promise<void> {
   const a = parseArgs();
   // optional RPC overrides, e.g. RPC_BSC=http://127.0.0.1:8545 (anvil fork) - see tools/fork-test
-  const rpcUrls = Object.fromEntries((['cross', 'bsc', 'hyperevm'] as const).flatMap((k) => { const v = process.env[`RPC_${k.toUpperCase()}`]; return v ? [[k, v]] : []; }));
+  const rpcUrls = Object.fromEntries((['one', 'bsc', 'hyperevm'] as const).flatMap((k) => { const v = process.env[`RPC_${k.toUpperCase()}`]; return v ? [[k, v]] : []; }));
   const client = new BridgeClient({ network: a.network, rpcUrls });
   const req = build(a);
   console.log(`== ${label} on ${a.network} (${a.send ? 'SEND' : 'dry-run'})  sender=${a.sender} recipient=${a.recipient} amount=${formatUnits(a.amount)}`);

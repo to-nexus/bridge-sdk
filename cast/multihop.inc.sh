@@ -1,9 +1,9 @@
 # shared by r5.sh / r6.sh: multihop backward computation. Needs SRC_PREFIX, SRC_TOKEN_VAR, DEST_PREFIX.
 multihop_quote() {
-  chain_vars CROSS; local hub_rpc=$C_RPC hub=$C_BRIDGE
+  chain_vars ONE; local hub_rpc=$C_RPC hub=$C_BRIDGE
   chain_vars "$DEST_PREFIX"; local dest_id=$C_ID dest_token_var="${DEST_PREFIX}_ONE_TOKEN"
   chain_vars "$SRC_PREFIX"; local src_rpc=$C_RPC src_bridge=$C_BRIDGE src_id=$C_ID
-  local tv="${SRC_PREFIX}_ONE_TOKEN"; SRC_TOKEN="${!tv}"; TO_CHAIN_ID=$CROSS_CHAIN_ID
+  local tv="${SRC_PREFIX}_ONE_TOKEN"; SRC_TOKEN="${!tv}"; TO_CHAIN_ID=$ONE_CHAIN_ID
   local hubv out; hubv=$(verifier_of "$hub_rpc" "$hub")
   V2=$(amount_wei)
   # 1) hop-2 fee from the HUB verifier (destination = final chain, token = native)

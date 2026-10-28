@@ -58,11 +58,11 @@ export class World {
   constructor(public network: NetworkName, public networksData?: NetworksData) {
     this.net = (networksData ?? getNetworksData()).networks[network];
     this.chains = {
-      cross: new FakeChain(this.net.chains.cross.chainId),
+      one: new FakeChain(this.net.chains.one.chainId),
       bsc: new FakeChain(this.net.chains.bsc.chainId),
       hyperevm: new FakeChain(this.net.chains.hyperevm.chainId),
     };
-    for (const key of ['cross', 'bsc', 'hyperevm'] as ChainKey[]) this.deployChain(key);
+    for (const key of ['one', 'bsc', 'hyperevm'] as ChainKey[]) this.deployChain(key);
   }
 
   feeKey = (key: ChainKey, to: number, token: string) => `${key}:${to}:${token.toLowerCase()}`;
@@ -117,7 +117,7 @@ export class World {
       call: {
         paused: () => w.paused.has(key),
         bridgeVerifier: () => cfg.bridgeVerifier ?? '0x00000000000000000000000000000000000000f1',
-        bridgeExecutor: () => (key === 'cross' || key === 'hyperevm' ? (cfg.bridgeExecutor ?? '0x00000000000000000000000000000000000000e1') : '0x0000000000000000000000000000000000000000'),
+        bridgeExecutor: () => (key === 'one' || key === 'hyperevm' ? (cfg.bridgeExecutor ?? '0x00000000000000000000000000000000000000e1') : '0x0000000000000000000000000000000000000000'),
         maxExtraDataLength: () => w.maxExtra.get(key) ?? 1024n,
         getTokenPair: ([to, token]) => {
           const p = w.pairs.get(`${key}:${to}:${String(token).toLowerCase()}`);
@@ -153,7 +153,7 @@ export class World {
         },
       });
     }
-    if (key === 'cross') this.deployCrossExtras();
+    if (key === 'one') this.deployOneExtras();
   }
 
   deployHyperToken(address: string) {
@@ -177,32 +177,32 @@ export class World {
     });
   }
 
-  private deployCrossExtras() {
+  private deployOneExtras() {
     const w = this;
-    const cross = this.net.chains.cross;
-    const sw = cross.swap;
+    const oneChain = this.net.chains.one;
+    const sw = oneChain.swap;
     if (sw?.quoterV2) {
-      this.chains.cross.deploy(sw.quoterV2, { iface: quoterI, call: { quoteExactInputSingle: () => [w.x1Out, 0n, 0, 100000n] } });
+      this.chains.one.deploy(sw.quoterV2, { iface: quoterI, call: { quoteExactInputSingle: () => [w.x1Out, 0n, 0, 100000n] } });
     }
     if (sw?.v3Factory && sw?.x1Pool) {
       const pool = sw.x1Pool;
-      this.chains.cross.deploy(sw.v3Factory, { iface: v3FactoryI, call: { getPool: () => (w.poolMissing ? '0x0000000000000000000000000000000000000000' : pool.pool) } });
+      this.chains.one.deploy(sw.v3Factory, { iface: v3FactoryI, call: { getPool: () => (w.poolMissing ? '0x0000000000000000000000000000000000000000' : pool.pool) } });
     }
-    if (sw?.x1Pool) this.chains.cross.deploy(sw.x1Pool.pool, { iface: poolI, call: { liquidity: () => 10n ** 27n, fee: () => 0, token0: () => NATIVE, token1: () => NATIVE } });
+    if (sw?.x1Pool) this.chains.one.deploy(sw.x1Pool.pool, { iface: poolI, call: { liquidity: () => 10n ** 27n, fee: () => 0, token0: () => NATIVE, token1: () => NATIVE } });
     if (sw?.swapBridgeRouter) {
       const router = sw.swapBridgeRouter;
-      this.chains.cross.deploy(router, {
+      this.chains.one.deploy(router, {
         iface: sbrI,
         call: {
-          bridge: () => w.routerBridgeOverride ?? w.net.chains.cross.bridge!,
+          bridge: () => w.routerBridgeOverride ?? w.net.chains.one.bridge!,
           getAmountSwapBridgeOut: ([to, , tokenOut, , amountIn]) => {
-            const f = w.getFee('cross', Number(to), tokenOut);
+            const f = w.getFee('one', Number(to), tokenOut);
             const eb = expectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min);
             const st = w.swapStatus !== null ? BigInt(w.swapStatus) : eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n;
             return [st, w.swapOut, eb.bridgeValue, eb.networkFee, eb.exFee, amountIn].slice(0, 5);
           },
           getExpectedBridgeAmount: ([to, token, total]) => {
-            const f = w.getFee('cross', Number(to), token);
+            const f = w.getFee('one', Number(to), token);
             const eb = expectedBridgeAmount(total, f.nf, f.rate, f.min);
             return [eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n, eb.bridgeValue, eb.networkFee, eb.exFee];
           },
@@ -254,17 +254,17 @@ export class World {
     const [tokenIn, tokenOut, , amountIn, amountOutMinimum, , bp] = params as any[];
     const [toChainID, recipient, extra] = bp as any[];
     if (this.swapOut < amountOutMinimum) throw revert('0x');
-    const f = this.getFee('cross', Number(toChainID), tokenOut);
+    const f = this.getFee('one', Number(toChainID), tokenOut);
     const eb = expectedBridgeAmount(this.swapOut, f.nf, f.rate, f.min);
     if (eb.status !== 'Success') throw revert('0x');
     if (!native) {
-      if (this.allow('cross', tokenIn, c.from, router) < amountIn) throw revert('0xfb8f41b2');
-      this.setBal('cross', tokenIn, c.from, this.bal('cross', tokenIn, c.from) - amountIn);
+      if (this.allow('one', tokenIn, c.from, router) < amountIn) throw revert('0xfb8f41b2');
+      this.setBal('one', tokenIn, c.from, this.bal('one', tokenIn, c.from) - amountIn);
     }
-    const hub = this.net.chains.cross.bridge!;
-    const pair = this.pairs.get(`cross:${toChainID}:${String(tokenOut).toLowerCase()}`);
-    const bi = this.initiatedLog('cross', hub, Number(toChainID), tokenOut, pair?.remote ?? NATIVE, router, recipient, eb.bridgeValue, eb.networkFee, eb.exFee, extra);
-    const idx = this.initIndex.get(`cross:${Number(toChainID)}`)! - 1n;
+    const hub = this.net.chains.one.bridge!;
+    const pair = this.pairs.get(`one:${toChainID}:${String(tokenOut).toLowerCase()}`);
+    const bi = this.initiatedLog('one', hub, Number(toChainID), tokenOut, pair?.remote ?? NATIVE, router, recipient, eb.bridgeValue, eb.networkFee, eb.exFee, extra);
+    const idx = this.initIndex.get(`one:${Number(toChainID)}`)! - 1n;
     const sb = sbrI.encodeEventLog('SwapBridge', [c.from, tokenIn, tokenOut, amountIn, this.swapOut, toChainID, idx, eb.bridgeValue, eb.networkFee, eb.exFee]);
     return [{ address: router, topics: sb.topics as string[], data: sb.data }, bi];
   }
@@ -273,30 +273,30 @@ export class World {
   static testnet(networksData?: NetworksData): World {
     const w = new World('testnet', networksData);
     const c = w.net.chains;
-    const hubId = c.cross.chainId;
+    const hubId = c.one.chainId;
     // pairs (source bridge -> toChain, token)
     w.setPair('bsc', hubId, c.bsc.tokens.ONE!.address, NATIVE, true);
     w.setPair('hyperevm', hubId, c.hyperevm.tokens.ONE!.address, NATIVE, false);
-    w.setPair('cross', c.bsc.chainId, NATIVE, c.bsc.tokens.ONE!.address, false);
-    w.setPair('cross', c.hyperevm.chainId, NATIVE, c.hyperevm.tokens.ONE!.address, true);
-    w.setPair('cross', c.bsc.chainId, c.cross.tokens.USDTx!.address, c.bsc.tokens.USDT!.address, false);
-    w.setPair('cross', c.hyperevm.chainId, c.cross.tokens.USDTx!.address, c.hyperevm.tokens.ONE!.address, false);
+    w.setPair('one', c.bsc.chainId, NATIVE, c.bsc.tokens.ONE!.address, false);
+    w.setPair('one', c.hyperevm.chainId, NATIVE, c.hyperevm.tokens.ONE!.address, true);
+    w.setPair('one', c.bsc.chainId, c.one.tokens.USDTx!.address, c.bsc.tokens.USDT!.address, false);
+    w.setPair('one', c.hyperevm.chainId, c.one.tokens.USDTx!.address, c.hyperevm.tokens.ONE!.address, false);
     // fees: hub -> dest 5 ONE min / 0.18 nf; leaves -> hub 5 ONE min
-    w.setFee('cross', c.bsc.chainId, NATIVE, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
-    w.setFee('cross', c.hyperevm.chainId, NATIVE, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
-    w.setFee('cross', c.bsc.chainId, c.cross.tokens.USDTx!.address, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
+    w.setFee('one', c.bsc.chainId, NATIVE, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
+    w.setFee('one', c.hyperevm.chainId, NATIVE, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
+    w.setFee('one', c.bsc.chainId, c.one.tokens.USDTx!.address, { min: 5n * E18, nf: 18n * 10n ** 16n, rate: 0n });
     w.setFee('bsc', hubId, c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 0n, rate: 0n });
     w.setFee('hyperevm', hubId, c.hyperevm.tokens.ONE!.address, { min: 5n * E18, nf: 0n, rate: 0n });
     // executor whitelists
-    const hub = c.cross.bridge!.toLowerCase();
-    w.execWhitelist.add(`cross:${hub}`);
+    const hub = c.one.bridge!.toLowerCase();
+    w.execWhitelist.add(`one:${hub}`);
     w.execWhitelist.add(`hyperevm:${c.hyperevm.tokens.ONE!.address.toLowerCase()}`);
-    w.methodChecks.add(`cross:${hub}`);
+    w.methodChecks.add(`one:${hub}`);
     // funds
     w.setBal('bsc', c.bsc.tokens.ONE!.address, SENDER, 1000n * E18);
     w.setBal('hyperevm', c.hyperevm.tokens.ONE!.address, SENDER, 1000n * E18);
-    w.setBal('cross', TOKEN_A, SENDER, 1000n * E18);
-    w.deployErc20('cross', TOKEN_A);
+    w.setBal('one', TOKEN_A, SENDER, 1000n * E18);
+    w.deployErc20('one', TOKEN_A);
     return w;
   }
 }

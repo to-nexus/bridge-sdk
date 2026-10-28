@@ -286,7 +286,7 @@ func TestDecodeBridgeErrorTable(t *testing.T) {
 func TestConfigGateRefusesNullRoutesBeforeAnyRPC(t *testing.T) {
 	ctx := context.Background()
 	// no RPC injected and no dial possible: the config gate must fire first
-	c, err := NewClient(ctx, Mainnet, &ClientOptions{RPCURLs: map[ChainKey]string{ChainCross: "http://127.0.0.1:1", ChainBSC: "http://127.0.0.1:1", ChainHyperEVM: "http://127.0.0.1:1"}})
+	c, err := NewClient(ctx, Mainnet, &ClientOptions{RPCURLs: map[ChainKey]string{ChainOne: "http://127.0.0.1:1", ChainBSC: "http://127.0.0.1:1", ChainHyperEVM: "http://127.0.0.1:1"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,12 +304,13 @@ func TestConfigGateRefusesNullRoutesBeforeAnyRPC(t *testing.T) {
 	req := base
 	req.Route = RouteSwapBridge
 	req.X3 = &X3Request{NativeIn: true, TokenOut: tokenA, ToChain: ChainBSC}
+	// the mainnet SwapBridgeRouter is configured: X3 gets past the config gate and fails only at the (unreachable) RPC
 	_, err = c.Quote(ctx, req)
 	var nc *AddressNotConfiguredError
-	if !errors.As(err, &nc) || !strings.Contains(nc.Field, "swapBridgeRouter") || !strings.Contains(nc.Todo, "TODO(UNCONFIRMED)") {
+	if err == nil || errors.As(err, &nc) {
 		t.Fatalf("X3 mainnet: %v", err)
 	}
-	tc, _ := NewClient(ctx, Testnet, &ClientOptions{RPCURLs: map[ChainKey]string{ChainCross: "http://127.0.0.1:1", ChainBSC: "http://127.0.0.1:1"}})
+	tc, _ := NewClient(ctx, Testnet, &ClientOptions{RPCURLs: map[ChainKey]string{ChainOne: "http://127.0.0.1:1", ChainBSC: "http://127.0.0.1:1"}})
 	req = base
 	req.Route = RouteBSCUSDTToONEUSD
 	if _, err = tc.Quote(ctx, req); !errors.As(err, &nc) || !strings.Contains(nc.Field, "ONEUSD") {

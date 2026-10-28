@@ -5,7 +5,7 @@
 #   resolve extraCall outcomes, hub forwards (hop 2), releases and fallbacks (GUIDE 이벤트 & 상태 추적).
 source "$(dirname "$0")/lib.sh"
 SRC_ID=${1:?usage: track.sh <srcChainId> <txhash>}; TX=${2:?usage: track.sh <srcChainId> <txhash>}
-pfx=""; for p in CROSS BSC HYPEREVM; do v="${p}_CHAIN_ID"; [ "${!v}" = "$SRC_ID" ] && pfx=$p; done
+pfx=""; for p in ONE BSC HYPEREVM; do v="${p}_CHAIN_ID"; [ "${!v}" = "$SRC_ID" ] && pfx=$p; done
 [ -n "$pfx" ] || die "chain $SRC_ID is not part of $NETWORK"
 check_chain "$pfx"; chain_vars "$pfx"; SRC_RPC=$C_RPC; SRC_BRIDGE=$C_BRIDGE
 TOPIC_INIT=$(cast keccak "BridgeInitiated(uint256,uint256,address,address,address,address,uint256,uint256,uint256,bytes,uint256)")
@@ -25,7 +25,7 @@ while read -r to idx; do
   [ -n "$to" ] || continue
   n=$((n+1))
   # map toChainId -> prefix
-  dpfx=""; for p in CROSS BSC HYPEREVM; do v="${p}_CHAIN_ID"; [ "${!v}" = "$to" ] && dpfx=$p; done
+  dpfx=""; for p in ONE BSC HYPEREVM; do v="${p}_CHAIN_ID"; [ "${!v}" = "$to" ] && dpfx=$p; done
   [ -n "$dpfx" ] || { say "transfer #$n: toChainID=$to index=$idx (destination chain not in $NETWORK config)"; continue; }
   check_chain "$dpfx"; chain_vars "$dpfx"
   say "transfer #$n: $pfx($SRC_ID) -> $dpfx($to) index=$idx"
@@ -37,7 +37,7 @@ while read -r to idx; do
   topic0s=$(for e in "BridgeFinalized(uint256,uint256,address,address,uint256,uint256)" "ExtraCallExecuted(uint256,uint256,address,bytes4,bool,uint256,bytes)" "ForwardInitiated(uint256,uint256,uint256,address,address,uint256,uint256,uint256,bytes32)" "ForwardFailed(uint256,uint256,uint8,bytes32)" "ManualReleased(uint256,uint256)" "PendingRemoved(uint256,uint256)" "BridgePending(uint256,uint256,address,address,uint256,uint256,uint8)"; do cast keccak "$e"; done | python3 -c 'import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))')
   p32() { python3 -c 'import sys;print("0x"+format(int(sys.argv[1]),"064x"))' "$1"; }
   head=$(cast block-number --rpc-url "$C_RPC"); from=$(python3 -c 'import sys;print(max(0,int(sys.argv[1])-20000))' "$head")
-  logs=$(cast rpc eth_getLogs "{\"address\":\"$C_BRIDGE\",\"fromBlock\":\"$(printf '0x%x' "$from")\",\"toBlock\":\"latest\",\"topics\":[$topic0s,\"$(p32 "$SRC_ID")\",\"$(p32 "$idx")\"]}" --rpc-url "$C_RPC") || { say "  UNKNOWN: logs unavailable on this RPC (CROSS nodes may not serve old logs). Check the explorer."; continue; }
+  logs=$(cast rpc eth_getLogs "{\"address\":\"$C_BRIDGE\",\"fromBlock\":\"$(printf '0x%x' "$from")\",\"toBlock\":\"latest\",\"topics\":[$topic0s,\"$(p32 "$SRC_ID")\",\"$(p32 "$idx")\"]}" --rpc-url "$C_RPC") || { say "  UNKNOWN: logs unavailable on this RPC (ONE nodes may not serve old logs). Check the explorer."; continue; }
   echo "$logs" | python3 -c '
 import json,sys
 names={}

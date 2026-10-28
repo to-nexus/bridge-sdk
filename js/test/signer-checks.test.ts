@@ -151,9 +151,9 @@ test('Mode L: broadcast error -> BroadcastOutcomeUnknownError with raw; rebroadc
 
 test('Mode W: wallet throws without a hash -> error carries intent + checkpoint (no raw/hash/nonce); recovery with FULL-field match', async () => {
   const { w, c, wallet, client } = setup();
-  w.setFee('bsc', c.cross.chainId, c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 2n * E18, rate: 0n });
+  w.setFee('bsc', c.one.chainId, c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 2n * E18, rate: 0n });
   const q = await client.quote(r1(wallet.address));
-  w.onApprove = () => w.setFee('bsc', c.cross.chainId, c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 1n * E18, rate: 0n }); // fee drops -> adopted
+  w.onApprove = () => w.setFee('bsc', c.one.chainId, c.bsc.tokens.ONE!.address, { min: 1n * E18, nf: 1n * E18, rate: 0n }); // fee drops -> adopted
   const wl = new FakeWalletSigner(wallet.address, w.chains.bsc);
   // the approve is ALSO sent by the wallet; make the first call fine, the second (bridge) lose its response
   const orig = wl.sendTransaction.bind(wl);

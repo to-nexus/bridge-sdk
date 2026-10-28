@@ -42,7 +42,7 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
   const src = net.chains[srcKey];
   if (!src.bridge) throw new UnsupportedRouteError(`the source bridge of ${srcKey} is not configured`);
   const srcBridge = getAddress(src.bridge);
-  const routerCfg = srcKey === 'cross' ? net.chains.cross.swap?.swapBridgeRouter : null;
+  const routerCfg = srcKey === 'one' ? net.chains.one.swap?.swapBridgeRouter : null;
   const router = routerCfg ? getAddress(routerCfg) : null;
 
   const bridgeLogs: ParsedInitiated[] = [];
@@ -86,7 +86,7 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
     route = Route.SWAP_BRIDGE;
     x3ToChain = destKey;
   } else if (e.extraData === '0x' || e.extraData.length === 2) {
-    const plain: Record<string, Route> = { 'bsc>cross': Route.BSC_TO_ONE, 'cross>bsc': Route.ONE_TO_BSC, 'cross>hyperevm': Route.ONE_TO_HYPEREVM, 'hyperevm>cross': Route.HYPEREVM_TO_ONE };
+    const plain: Record<string, Route> = { 'bsc>one': Route.BSC_TO_ONE, 'one>bsc': Route.ONE_TO_BSC, 'one>hyperevm': Route.ONE_TO_HYPEREVM, 'hyperevm>one': Route.HYPEREVM_TO_ONE };
     const r = destKey ? plain[`${srcKey}>${destKey}`] : undefined;
     if (!r) throw unsupported(`no plain route from ${srcKey} to chain ${e.toChainID}`);
     route = r;
@@ -94,11 +94,11 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
     if (e.extraData.length < 2 + 48) throw unsupported('extraData is shorter than target(20 B) + selector(4 B)');
     const target = getAddress('0x' + e.extraData.slice(2, 42));
     const selector = ('0x' + e.extraData.slice(42, 50)).toLowerCase();
-    const hub = net.chains.cross.bridge ? getAddress(net.chains.cross.bridge) : null;
-    const v3 = net.chains.cross.swap?.v3SwapRouter ? getAddress(net.chains.cross.swap.v3SwapRouter) : null;
+    const hub = net.chains.one.bridge ? getAddress(net.chains.one.bridge) : null;
+    const v3 = net.chains.one.swap?.v3SwapRouter ? getAddress(net.chains.one.swap.v3SwapRouter) : null;
     const heTok = net.chains.hyperevm.tokens.ONE ? getAddress(net.chains.hyperevm.tokens.ONE.address) : null;
     if (hub && sameAddr(target, hub) && selector === FORWARD_SELECTOR) {
-      if (destKey !== 'cross') throw unsupported('a hub forward must be sent to the hub chain', target, selector);
+      if (destKey !== 'one') throw unsupported('a hub forward must be sent to the hub chain', target, selector);
       let fwd;
       try { fwd = decodeForward(e.extraData); } catch (err) { throw unsupported(`undecodable bridgeTokenForwarded call: ${(err as Error).message}`, target, selector); }
       const dest = chainKeyById(net, Number(fwd.toChainID));
@@ -112,10 +112,10 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
         if (r === Route.BSC_TO_ONE_TO_HYPEREVM && heTok && it && sameAddr(it, heTok) && isel === CORE_SELECTOR) { checkX2(net, fwd.inner, fwd.value); hypercore = true; }
         else throw unsupported('unsupported nested hop-2 extraData', it ?? undefined, isel);
       }
-    } else if (v3 && sameAddr(target, v3) && selector === EXACT_INPUT_SINGLE_SELECTOR && srcKey === 'bsc' && destKey === 'cross') {
+    } else if (v3 && sameAddr(target, v3) && selector === EXACT_INPUT_SINGLE_SELECTOR && srcKey === 'bsc' && destKey === 'one') {
       checkX1(net, e.extraData, e.value);
       route = Route.BSC_USDT_TO_ONEUSD;
-    } else if (heTok && sameAddr(target, heTok) && selector === CORE_SELECTOR && srcKey === 'cross' && destKey === 'hyperevm') {
+    } else if (heTok && sameAddr(target, heTok) && selector === CORE_SELECTOR && srcKey === 'one' && destKey === 'hyperevm') {
       checkX2(net, e.extraData, e.value);
       route = Route.ONE_TO_HYPERCORE;
     } else {

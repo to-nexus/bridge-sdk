@@ -1,11 +1,11 @@
-# CROSS / ONE 브리지 연동 가이드
+# ONE 브리지 연동 가이드
 
-BSC · CROSS(ONE 허브) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 방법. 브리지 내부를 몰라도 되도록 **쉽게 쓰기(Quick Start)** 를 맨 앞에 두고,
+BSC · ONE (허브) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 방법. 브리지 내부를 몰라도 되도록 **쉽게 쓰기(Quick Start)** 를 맨 앞에 두고,
 동작 원리·수수료·상태 추적·에러 처리는 그 뒤에 둔다.
 
 > 모든 주소·RPC·chainId 는 `networks.json` 한 곳에서 온다(출처: `SOURCES.md`).
 > ⚠️ 표시는 아직 확인되지 않았거나 체인에 아직 설정되지 않은 값이다 — 해당 경로의 호출은 SDK 가 거부한다(`quote()` 또는 `preflight()`).
-> CROSS 체인에는 reorg 가 없다. 컨펌 대기·finality 처리가 필요 없다(소스 체인이 BSC/HyperEVM 이면 소스 영수증만 기다린다).
+> ONE 체인에는 reorg 가 없다. 컨펌 대기·finality 처리가 필요 없다(소스 체인이 BSC/HyperEVM 이면 소스 영수증만 기다린다).
 
 ---
 
@@ -18,7 +18,7 @@ BSC · CROSS(ONE 허브) · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 방
 | Node.js ≥ 18 + `npm` | JS SDK (`js/`, TypeScript + ethers v6) |
 | Go ≥ 1.24 | Go SDK (`go/`) — 컨트랙트 바인딩은 공개 모듈에서 자동으로 내려받는다 |
 | `cast`(foundry) + `python3` | 셸 예제 (`cast/`) — 큰 정수 덧셈에 python3 를 쓴다 |
-| 소스 체인 가스 | BSC: BNB, HyperEVM: HYPE, CROSS: 네이티브 ONE |
+| 소스 체인 가스 | BSC: BNB, HyperEVM: HYPE, ONE 체인: 네이티브 ONE |
 | 키 | **환경변수 `PRIVATE_KEY` 로만** 읽는다. 코드·저장소에 넣지 말 것 |
 
 ### 1.2 설치
@@ -76,9 +76,9 @@ FROM=0x내주소 AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./cast/r1.sh  
 `amount` 는 wei(`bigint`). 단일 홉은 **도착 금액**, 멀티홉(R5/R6)은 **최종 도착 최소액**, X1 은 USDT 금액, X3 는 `amountIn` 이다.
 
 ```ts
-// R1  BSC → ONE          (BSC 의 CROSS ERC20 → CROSS 체인 네이티브 ONE)
+// R1  BSC → ONE          (BSC 의 ONE 토큰 → ONE 체인 네이티브 ONE)
 client.quote({ route: Route.BSC_TO_ONE, amount, sender, recipient });
-// R2  ONE → BSC          (네이티브 ONE → BSC 의 CROSS ERC20)
+// R2  ONE → BSC          (네이티브 ONE → BSC 의 ONE 토큰)
 client.quote({ route: Route.ONE_TO_BSC, amount, sender, recipient });
 // R3  ONE → HyperEVM
 client.quote({ route: Route.ONE_TO_HYPEREVM, amount, sender, recipient });
@@ -88,11 +88,11 @@ client.quote({ route: Route.HYPEREVM_TO_ONE, amount, sender, recipient });
 client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount: minDelivered, sender, recipient, recipients: { onHub, dest } });
 // R6  HyperEVM → ONE → BSC  (브릿지 요청 한 번으로 두 홉 처리, ERC20 이면 최초 approve 는 별도)
 client.quote({ route: Route.HYPEREVM_TO_ONE_TO_BSC, amount: minDelivered, sender, recipient });
-// X1  BSC USDT → CROSS 체인 ONEUSD  (executor 스왑)   ⚠️ 테스트넷: TODO(UNCONFIRMED)
+// X1  BSC USDT → ONE 체인 ONEUSD  (executor 스왑)   ⚠️ 테스트넷: TODO(UNCONFIRMED)
 client.quote({ route: Route.BSC_USDT_TO_ONEUSD, amount, sender, recipient, swap: { slippageBps: 50, deadlineSec: 1800 } });
 // X2  HyperCore 입금 옵션  (R3: Route.ONE_TO_HYPERCORE / R5: hypercore: true)   ⚠️ 메인넷: HyperCore 링크 전 (TODO(PENDING))
 client.quote({ route: Route.ONE_TO_HYPERCORE, amount, sender, recipient, recipients: { core } });
-// X3  CROSS 체인에서 스왑 후 브리지 (SwapBridgeRouter)   ⚠️ 메인넷: TODO(UNCONFIRMED)
+// X3  ONE 체인에서 스왑 후 브리지 (SwapBridgeRouter)
 client.quote({ route: Route.SWAP_BRIDGE, amount: amountIn, sender, recipient, x3: { tokenIn, tokenOut, poolFee: 0, toChain: 'bsc' } });
 ```
 
@@ -114,19 +114,19 @@ Go: `bridgesdk.RouteBSCToOne` … `RouteSwapBridge`(같은 9개) · cast: `cast/
 
 ### 1.6 X1 한 줄 요약
 
-BSC 의 USDT 를 보내면 CROSS 체인에서 USDTx 로 도착해 Uniswap V3 로 **ONEUSD 로 바꿔 받는다.** 스왑이 못 돌면(슬리피지·deadline·풀) **자금은 USDTx 그대로 받는다 — 손실 없음.** SDK 상태는 이때 `DELIVERED_FALLBACK`(token USDTx)로 알려준다. "ONEUSD 도착"이라고 단정하지 않는다.
+BSC 의 USDT 를 보내면 ONE 체인에서 USDTx 로 도착해 Uniswap V3 로 **ONEUSD 로 바꿔 받는다.** 스왑이 못 돌면(슬리피지·deadline·풀) **자금은 USDTx 그대로 받는다 — 손실 없음.** SDK 상태는 이때 `DELIVERED_FALLBACK`(token USDTx)로 알려준다. "ONEUSD 도착"이라고 단정하지 않는다.
 
 ### 1.7 경로 고르기
 
 | 하고 싶은 것 | 경로 |
 |---|---|
-| BSC 의 ONE(CROSS 토큰)을 CROSS 체인으로 | R1 |
-| CROSS 체인의 ONE 을 BSC 로 | R2 |
-| CROSS 체인의 ONE 을 HyperEVM 으로 / 되돌리기 | R3 / R4 |
+| BSC 의 ONE 토큰(컨트랙트 심볼 `CROSS`)을 ONE 체인으로 | R1 |
+| ONE 체인의 ONE 을 BSC 로 | R2 |
+| ONE 체인의 ONE 을 HyperEVM 으로 / 되돌리기 | R3 / R4 |
 | BSC ↔ HyperEVM 을 **브릿지 요청 한 번으로 두 홉 처리 (ERC20 이면 최초 approve 는 별도)** (허브 경유) | R5 (BSC→HyperEVM) / R6 (HyperEVM→BSC) |
-| BSC 의 USDT 를 CROSS 체인 ONEUSD 로 | X1 |
+| BSC 의 USDT 를 ONE 체인 ONEUSD 로 | X1 |
 | HyperEVM 에 도착한 ONE 을 곧바로 HyperCore 계정에 | X2 (R3/R5 옵션) |
-| CROSS 체인에서 토큰을 스왑하면서 다른 체인으로 | X3 |
+| ONE 체인에서 토큰을 스왑하면서 다른 체인으로 | X3 |
 
 ---
 
@@ -134,18 +134,18 @@ BSC 의 USDT 를 보내면 CROSS 체인에서 USDTx 로 도착해 Uniswap V3 로
 
 | ID | 경로 | 소스 호출 | 소스 토큰 → 도착 | 홉 |
 |---|---|---|---|---|
-| R1 | BSC → ONE | BSC 브리지 `bridgeToken(612055, CROSS토큰, …)` | CROSS ERC20 → 네이티브 ONE | 1 |
-| R2 | ONE → BSC | 허브 `bridgeToken(56, NATIVE, …)` payable | 네이티브 ONE → CROSS ERC20 | 1 |
+| R1 | BSC → ONE | BSC 브리지 `bridgeToken(612055, ONE토큰, …)` | ONE ERC20(BSC) → 네이티브 ONE | 1 |
+| R2 | ONE → BSC | 허브 `bridgeToken(56, NATIVE, …)` payable | 네이티브 ONE → ONE ERC20(BSC) | 1 |
 | R3 | ONE → HyperEVM | 허브 `bridgeToken(999, NATIVE, …)` payable | 네이티브 ONE → HyperEVM ONE ERC20 | 1 |
 | R4 | HyperEVM → ONE | HyperEVM 브리지 `bridgeToken(612055, ONE토큰, …)` | ONE ERC20 → 네이티브 ONE | 1 |
-| R5 | BSC → ONE → HyperEVM | BSC 브리지, extraData 에 허브 `bridgeTokenForwarded` | CROSS ERC20 → (허브 네이티브) → ONE ERC20 | 2 |
-| R6 | HyperEVM → ONE → BSC | HyperEVM 브리지, extraData 에 허브 `bridgeTokenForwarded` | ONE ERC20 → (허브 네이티브) → CROSS ERC20 | 2 |
+| R5 | BSC → ONE → HyperEVM | BSC 브리지, extraData 에 허브 `bridgeTokenForwarded` | ONE ERC20(BSC) → (허브 네이티브) → ONE ERC20 | 2 |
+| R6 | HyperEVM → ONE → BSC | HyperEVM 브리지, extraData 에 허브 `bridgeTokenForwarded` | ONE ERC20 → (허브 네이티브) → ONE ERC20(BSC) | 2 |
 | X1 | BSC USDT → ONEUSD | BSC 브리지, extraData = V3 router `exactInputSingle` | USDT → USDTx → ONEUSD | 1 + extraCall |
 | X2 | HyperCore 입금 | R3/R5 의 가장 안쪽 extraData = `transferToCoreFor` | HyperCore 스팟 잔고 | + extraCall |
 | X3 | 스왑 후 브리지 | `SwapBridgeRouter.swapBridgeExactInputSingle(ETH)` | tokenIn → 스왑 → tokenOut 브리지 | 스왑 + 1 |
 
 ```
-R5   BSC ──bridgeToken(extraData1)──▶ CROSS 허브 ──bridgeTokenForwarded──▶ HyperEVM ──(X2: transferToCoreFor)──▶ HyperCore
+R5   BSC ──bridgeToken(extraData1)──▶ ONE 허브 ──bridgeTokenForwarded──▶ HyperEVM ──(X2: transferToCoreFor)──▶ HyperCore
      사용자 요청 1번 (+필요시 approve)    자동(검증자+컨트랙트)                자동
 ```
 
@@ -169,23 +169,23 @@ inner      = 0x                                  (평범한 도착)
 
 | 체인 | chainId | RPC (공개) | Explorer | 네이티브 |
 |---|---|---|---|---|
-| CROSS Mainnet | `612055` | `https://mainnet.onechain.nexus:22001` | `https://explorer.onechain.nexus/612055` | `ONE` |
+| ONE Chain Mainnet | `612055` | `https://mainnet.onechain.nexus:22001` | `https://explorer.onechain.nexus/612055` | `ONE` |
 | BNB Smart Chain Mainnet | `56` | `https://bsc-mainnet-public.cross-api.in` | `https://bscscan.com` | `BNB` |
 | HyperEVM Mainnet | `999` | `https://rpc.hyperliquid.xyz/evm` | `https://hyperevmscan.io` | `HYPE` |
 
 | 체인 | 역할 | 주소 |
 |---|---|---|
-| CROSS | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
-| CROSS | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
-| CROSS | 토큰 USDTx (USDTx, 18 dec) | `0x1c37d4F44ed3eC86d96868001CfA89e97112a85C` |
-| CROSS | 토큰 ONEUSD (ONEUSD, 18 dec) | `0xff42C13D927a6b9265236619161Accb227b6d452` |
-| CROSS | 토큰 WCROSS (WCROSS, 18 dec) | `0x731A104a4461aE45BFEf520468B43c262d35E682` |
-| CROSS | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x0e36011c70e28DF14B7Eb39Aab23F8e9F3fa39Ba` |
-| CROSS | QuoterV2 | `0x9FBa55a11f845Fe029546f6Fe1CA7f6B2a3e07eb` |
-| CROSS | SwapBridgeRouter (X3) | ⚠️ `null` — TODO(UNCONFIRMED) 메인넷 SwapBridgeRouter 주소를 찾지 못함 (X3 메인넷 비활성) |
-| CROSS | USDTx/ONEUSD 풀 (fee 0) | `0x298c360039de417A1b12aFAc64b9175Dbdd0DbfE` |
-| CROSS | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0xcf6498dDc3a5d5Ca797444a87EB8B4AA6eB1F9c4` |
-| CROSS | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0xF356ab353c7f9d2010B66c24bba69c4532AC0f8F` |
+| ONE | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
+| ONE | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
+| ONE | 토큰 USDTx (USDTx, 18 dec) | `0x1c37d4F44ed3eC86d96868001CfA89e97112a85C` |
+| ONE | 토큰 ONEUSD (ONEUSD, 18 dec) | `0xff42C13D927a6b9265236619161Accb227b6d452` |
+| ONE | 토큰 WCROSS (WCROSS, 18 dec) | `0x731A104a4461aE45BFEf520468B43c262d35E682` |
+| ONE | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x0e36011c70e28DF14B7Eb39Aab23F8e9F3fa39Ba` |
+| ONE | QuoterV2 | `0x9FBa55a11f845Fe029546f6Fe1CA7f6B2a3e07eb` |
+| ONE | SwapBridgeRouter (X3) | `0xB298C340816fee45cfB39B1e6EE4DB4D5739e357` |
+| ONE | USDTx/ONEUSD 풀 (fee 0) | `0x298c360039de417A1b12aFAc64b9175Dbdd0DbfE` |
+| ONE | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0xcf6498dDc3a5d5Ca797444a87EB8B4AA6eB1F9c4` |
+| ONE | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0xF356ab353c7f9d2010B66c24bba69c4532AC0f8F` |
 | BSC | 브리지 (프록시) — 직접 호출 | `0xa6a1a0c1e6ABa5FC6C84E856dCF81506e2bE06c5` |
 | BSC | 토큰 ONE (CROSS, 18 dec) | `0x6bf62ca91e397B5A7d1D6bCe97D9092065d7A510` |
 | BSC | 토큰 USDT (USDT, 18 dec) | `0x55d398326f99059fF775485246999027B3197955` |
@@ -201,23 +201,23 @@ inner      = 0x                                  (평범한 도착)
 
 | 체인 | chainId | RPC (공개) | Explorer | 네이티브 |
 |---|---|---|---|---|
-| CROSS Testnet | `612044` | `https://testnet.onechain.nexus:22001` | ⚠️ `null` — TODO(UNCONFIRMED) CROSS 테스트넷 익스플로러 공식 URL 미확인 | ⚠️ TODO(UNCONFIRMED) CROSS 체인 네이티브 심볼의 공식 출처 미확인 |
+| ONE Chain Testnet | `612044` | `https://testnet.onechain.nexus:22001` | ⚠️ `null` — TODO(UNCONFIRMED) ONE 체인 테스트넷 익스플로러 공식 URL 미확인 | `ONE` |
 | BNB Smart Chain Testnet | `97` | `https://bsc-testnet-public.cross-api.in` | `https://testnet.bscscan.com` | `tBNB` |
 | HyperEVM Testnet | `998` | `https://rpc.hyperliquid-testnet.xyz/evm` | ⚠️ `null` — TODO(UNCONFIRMED) HyperEVM 테스트넷 익스플로러 공식 URL 미확인 | `HYPE` |
 
 | 체인 | 역할 | 주소 |
 |---|---|---|
-| CROSS | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
-| CROSS | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
-| CROSS | 토큰 USDTx (USDTx, 18 dec) | `0x9F85c7B5D7637E18f946cc8AF9C131318c6833d9` |
-| CROSS | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 ONEUSD 주소를 찾지 못함 |
-| CROSS | 토큰 WCROSS (WCROSS, 18 dec) | `0xda37a3B60E6b97E8CB44b460130d40331efc566b` |
-| CROSS | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x61745D6Dc4342cF01bE2C145218CE1952260cd05` |
-| CROSS | QuoterV2 | `0x19D62F16FbFc200F8a1eFc521f10b54A3801D10A` |
-| CROSS | SwapBridgeRouter (X3) | `0xc9B23a5E14747Cc2Acc3Dca7237D3174CE1BCf5B` |
-| CROSS | USDTx/ONEUSD 풀 (fee 0) | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 USDTx/ONEUSD 풀을 찾지 못함 (X1 테스트넷 비활성) |
-| CROSS | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x31104F827Ac2AE6C5a1A5315C7D7D8b8dFa61c37` |
-| CROSS | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x6147FA2602699dE1eb0141959d93bFE06dEF2279` |
+| ONE | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
+| ONE | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
+| ONE | 토큰 USDTx (USDTx, 18 dec) | `0x9F85c7B5D7637E18f946cc8AF9C131318c6833d9` |
+| ONE | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 ONEUSD 주소를 찾지 못함 |
+| ONE | 토큰 WCROSS (WCROSS, 18 dec) | `0xda37a3B60E6b97E8CB44b460130d40331efc566b` |
+| ONE | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x61745D6Dc4342cF01bE2C145218CE1952260cd05` |
+| ONE | QuoterV2 | `0x19D62F16FbFc200F8a1eFc521f10b54A3801D10A` |
+| ONE | SwapBridgeRouter (X3) | `0xc9B23a5E14747Cc2Acc3Dca7237D3174CE1BCf5B` |
+| ONE | USDTx/ONEUSD 풀 (fee 0) | ⚠️ `null` — TODO(UNCONFIRMED) 테스트넷 USDTx/ONEUSD 풀을 찾지 못함 (X1 테스트넷 비활성) |
+| ONE | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x31104F827Ac2AE6C5a1A5315C7D7D8b8dFa61c37` |
+| ONE | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x6147FA2602699dE1eb0141959d93bFE06dEF2279` |
 | BSC | 브리지 (프록시) — 직접 호출 | `0x192FFaCAf26A53b439C33F3d2C166ceB0A26bf2d` |
 | BSC | 토큰 ONE (CROSS, 18 dec) | `0x26ca2A92ea9659e073621bb85b9117Dc5944Cff1` |
 | BSC | 토큰 USDT (tUSDt, 18 dec) | `0xBB188503c32FA7F61E019c3b3Ae61ae6B0b3B492` |
@@ -231,6 +231,7 @@ inner      = 0x                                  (평범한 도착)
 
 <!-- END:networks -->
 
+- BSC 의 ONE 토큰의 컨트랙트 심볼은 `CROSS`, 네이티브 래퍼(wrapped ONE) 토큰의 키·심볼은 `WCROSS` 다. 위 표의 `CROSS` / `WCROSS` 는 온체인 심볼이다.
 - 브리지 주소는 **프록시**다(업그레이드되어도 같은 주소). 검증자·executor 주소는 재배포될 수 있어 SDK 가 항상 `bridge.bridgeVerifier()` / `bridge.bridgeExecutor()` 로 라이브 조회한다.
 - 라우터(SwapBridgeRouter)는 immutable 이라 재배포될 수 있다 — **주소는 설정에서만** 가져오고 하드코딩하지 말 것.
 - 소스 체인 RPC 의 `chainId` 가 설정과 다르면 SDK 는 `NetworkMismatchError` 로 **서명 전에** 멈춘다.
@@ -249,12 +250,12 @@ inner      = 0x                                  (평범한 도착)
 
 ### R1 · BSC → ONE
 
-BSC 브리지 `bridgeToken(612055, BSC_CROSS토큰, to, value, networkFee, exFee, 0x)`. ERC20 소스이므로 CROSS 토큰을 BSC 브리지에 approve(`value+fees`) 하고 `msg.value=0`. 도착: CROSS 체인에서 **네이티브 ONE**. 단계: approve → (재견적) → bridgeToken → 검증자 finalize → 도착(보통 10초~수 분, 테스트넷 관측값).
+BSC 브리지 `bridgeToken(612055, BSC_ONE토큰, to, value, networkFee, exFee, 0x)`. ERC20 소스이므로 ONE 토큰을 BSC 브리지에 approve(`value+fees`) 하고 `msg.value=0`. 도착: ONE 체인에서 **네이티브 ONE**. 단계: approve → (재견적) → bridgeToken → 검증자 finalize → 도착(보통 10초~수 분, 테스트넷 관측값).
 JS `examples/r1-bsc-to-one.ts` · Go `examples/r1-bsc-to-one` · cast `cast/r1.sh`.
 
 ### R2 · ONE → BSC
 
-허브 `bridgeToken(56, NATIVE(0x…01), to, value, networkFee, exFee, 0x)` — **payable**, `msg.value = value + networkFee + exFee`. 도착: BSC 의 CROSS ERC20. approve 없음.
+허브 `bridgeToken(56, NATIVE(0x…01), to, value, networkFee, exFee, 0x)` — **payable**, `msg.value = value + networkFee + exFee`. 도착: BSC 의 ONE 토큰. approve 없음.
 JS `r2-one-to-bsc.ts` · Go `r2-one-to-bsc` · cast `cast/r2.sh`.
 
 ### R3 · ONE → HyperEVM  (+ X2)
@@ -300,11 +301,11 @@ JS `r5-bsc-to-hyperevm.ts` · Go `r5-bsc-to-hyperevm` · cast `cast/r5.sh`.
 R5 와 같은 규칙, 소스가 HyperEVM(burn 경로, `approve(HyperEVM 브리지)`), 목적지가 BSC. `inner` 는 `0x`.
 JS `r6-hyperevm-to-bsc.ts` · Go `r6-hyperevm-to-bsc` · cast `cast/r6.sh`.
 
-### X1 · BSC USDT → CROSS 체인 ONEUSD
+### X1 · BSC USDT → ONE 체인 ONEUSD
 
 BSC 브리지 `bridgeToken(612055, USDT, to, value, nf, ef, extraData)`, `extraData = V3SwapRouter(20B) ‖ exactInputSingle((USDTx, ONEUSD, fee 0, to, deadline, value, amountOutMinimum, 0))`
 (deadline 이 struct 안에 있는 변형, selector `0x414bf389`). USDT 가 허브에 USDTx 로 도착하면 executor 가 V3 router 를 호출해 스왑한다.
-견적은 CROSS 체인 QuoterV2 의 `quoteExactInputSingle` 로 하고 `amountOutMinimum = 견적 × (1 − slippageBps/10000)`(기본 50 bps, deadline 1800 초 — 둘 다 조절 가능).
+견적은 ONE 체인 QuoterV2 의 `quoteExactInputSingle` 로 하고 `amountOutMinimum = 견적 × (1 − slippageBps/10000)`(기본 50 bps, deadline 1800 초 — 둘 다 조절 가능).
 **extraData 검증**: SDK 는 `exactInputSingle` 을 **전부 디코드**한다 — `tokenIn == 허브 USDTx`, `tokenOut == 설정된 ONEUSD`, `fee == 풀 fee`, `amountIn == value`, `sqrtPriceLimitX96 == 0`, 정규 인코딩(뒤에 바이트 없음)이 아니면 `handleFromTx` 는 `UnsupportedRouteError`, 추적은 `PROCESSED_UNVERIFIED{unsupported extraData}`(성공 보고 안 함). 디코드한 `{recipient, tokenOut, amountOutMinimum, deadline, amountIn}` 은 핸들(`expect.x1`)에 저장된다.
 **도착 보고**: `DELIVERED` 의 `recipient`·`token` 은 **디코드한 `exactInputSingle` 의 `recipient`·`tokenOut`** 이다(`BridgeFinalized.to` 는 executor 경로의 지급 대상이라 다를 수 있다 — `detail.bridgeFinalizedTo`). 금액은 `ExtraCallExecuted.returnData`.
 **결과 계약**: 스왑이 revert 하면(슬리피지/deadline/풀) executor 프레임이 되돌아가고 브리지가 **평범한 USDTx 를 `to`(= `BridgeFinalized.to`) 에게 지급**한다 — 손실 없음. 사전 조건: executor 가 V3 router 를 whitelist(+메서드 체크 시 selector) 해야 한다. ⚠️ 테스트넷은 USDTx/ONEUSD 풀을 찾지 못해 `TODO(UNCONFIRMED)`.
@@ -318,7 +319,7 @@ JS `x1-usdt-to-oneusd.ts` · Go `x1-usdt-to-oneusd` · cast `cast/x1.sh`.
 **extraData 검증·약정 금액**: SDK 는 `transferToCoreFor(coreRecipient, amount)` 도 디코드해 핸들에 `expect.x2 = {token, coreRecipient, encodedAmount}` 로 저장한다. **추론**(소스 영수증만)은 `encodedAmount` 가 소스에서 **약정한 금액**과 다르면 `UnsupportedRouteError` — 직접 X2 는 `BridgeInitiated.value`, R5 의 중첩 X2 는 forward payload 의 `bridgeTokenForwarded` `value`(v2). **추적**(도착 쪽)은 컨트랙트 규칙을 따른다(`src/BridgeExecutor.sol`, `src/token/HyperMintableERC20.sol`): executor 가 finalize 된 `value` 를 당겨 approve 하고, 토큰이 `coreTransferableAmount(encodedAmount)`(coreUnit 내림) 만 보내며 그 값이 `ExtraCallExecuted.returnData` 이고, 남은 `finalized − consumed` 는 `BridgeFinalized.to` 에게 돌아간다. 보고: `CORE_DEPOSIT_SUBMITTED{coreRecipient, coreAmount(EVM wei 단위, 내림된 값), returnedToDest, finalizedValue}` — hop 2 수수료가 내려 finalize 된 값이 v2 보다 크면 그 차이가 `returnedToDest` 에 보인다. `encodedAmount > finalized` 등으로 `ExtraCallExecuted(false)` 면 `DELIVERED_FALLBACK`. 실행된 call 의 target/selector 가 기대와 다르거나 핸들에 디코드 결과가 없으면 `PROCESSED_UNVERIFIED`.
 도착 확인은 HyperEVM 쪽 `ExtraCallExecuted(success=true)` = **`CORE_DEPOSIT_SUBMITTED`** 까지만 증명한다(EVM 에서 시스템 주소로 보낸 것). Core 크레딧은 비동기이므로 공개 info API `spotClearinghouseState`(사용자=coreRecipient)로 확인한다(SDK `checkCoreBalance`, 최선 노력).
 
-### X3 · SwapBridgeRouter (CROSS 체인에서 스왑 후 브리지)
+### X3 · SwapBridgeRouter (ONE 체인에서 스왑 후 브리지)
 
 한 트랜잭션: Uniswap V3 로 `tokenIn → tokenOut` 스왑 후 `tokenOut` 을 `toChainID` 로 브리지. 어느 단계든 실패하면 **전부 revert**(아무것도 안 움직임).
 - 네이티브 입력: `swapBridgeExactInputSingleETH`, `tokenIn == WCROSS`, `msg.value == amountIn`. ERC20 입력: `swapBridgeExactInputSingle`, `msg.value = 0`, **라우터에 `amountIn` approve**(브리지 수수료는 스왑 출력에서 차감된다).
@@ -326,7 +327,7 @@ JS `x1-usdt-to-oneusd.ts` · Go `x1-usdt-to-oneusd` · cast `cast/x1.sh`.
 - 견적: `getAmountSwapBridgeOut(toChainID, tokenIn, tokenOut, fee, amountIn)` → `(status, swapAmountOut, bridgeValue, networkFee, exFee)` (view 가 아니라 `eth_call` 로 호출).
 - **바닥이 두 개**다: ① 스왑 출력 바닥 `amountOutMinimum = floor(swapAmountOut×(10000−bps)/10000)` — **온체인에서 강제**; ② 도착 바닥 `minBridgeValue = getExpectedBridgeAmount(…, amountOutMinimum).bridgeValue` — 사용자에게 보여주는 값(견적~포함 사이에 브리지 수수료가 오르지 않는 한 유지).
 - **extraData 미지원**: X3 는 `extraData = 0x` 만 지원한다(`x3` 요청에 extraData 옵션이 없고, JS 가 런타임에 넣으면 `InvalidOptionError`). 영수증의 X3 `BridgeInitiated.extraData` 가 비어 있지 않으면 `handleFromTx` 는 `UnsupportedRouteError`.
-- 대표 예(가정 A6): CROSS 체인 **ONEUSD → USDTx → BSC USDT**. SDK 는 임의 조합을 받는다. ⚠️ 메인넷 SwapBridgeRouter 주소는 `TODO(UNCONFIRMED)` 라 메인넷 X3 는 비활성.
+- 대표 예: ONE 체인 **ONEUSD → USDTx → BSC USDT**. SDK 는 임의 조합을 받는다.
 JS `x3-swap-bridge.ts` · Go `x3-swap-bridge` · cast `cast/x3.sh`.
 
 ---
@@ -334,7 +335,7 @@ JS `x3-swap-bridge.ts` · Go `x3-swap-bridge` · cast `cast/x3.sh`.
 ## 5. 동작 원리
 
 ### 5.1 lock / mint / burn, 허브 앤 스포크
-CROSS 체인이 허브다. 원본 토큰이 있는 체인에서는 **lock**, 반대편(wrapped)에서는 **mint/burn**. 네이티브 ONE 은 CROSS 체인에서 그대로 움직인다(센티넬 주소 `0x…0001`).
+ONE 체인이 허브다. 원본 토큰이 있는 체인에서는 **lock**, 반대편(wrapped)에서는 **mint/burn**. 네이티브 ONE 은 ONE 체인에서 그대로 움직인다(센티넬 주소 `0x…0001`).
 소스 체인의 `bridgeToken` 이 `BridgeInitiated(toChainID, index, …)` 를 내면 검증자들이 서명해 목적지에서 `finalizeBridgeBatch` 로 처리한다. **`finalizeBridgeBatch` 는 한 트랜잭션에 여러 항목**을 담을 수 있어서 이벤트는 항상 `(fromChainID, index)` 키로 구분해야 한다(§7).
 
 ### 5.2 extraData 와 executor
@@ -398,7 +399,7 @@ Core 는 시스템 주소로 들어온 ERC20 `Transfer` 의 `from` 에게 크레
 | `UNKNOWN{reason}` | RPC·로그 불가(백오프 소진) 또는 호출 타임아웃(`reason` 이 `timeout:` 로 시작, `timedOut: true`) — 수동 복구 안내 포함 |
 
 정상 구간 소요는 홉당 **10초 ~ 5분**(테스트넷 관측치, 보장 아님). `PENDING`/운영 정지는 어떤 deadline 보다 길 수 있다(X1 deadline → USDTx 폴백).
-`track()` 의 타임아웃은 **현재(미완료) 상태**를 돌려준다 — 온체인 실패와 다르다. 모든 RPC 호출은 `min(callTimeoutMs(기본 15초), 남은 시간)` 으로 제한되므로(Go: `ClientOptions.CallTimeout` + `TrackOpts.Timeout` 의 context 기한), 응답이 멈춘 provider 에서도 `timeoutMs` + 여유 안에 돌아온다 — 확립된 상태가 없으면 `UNKNOWN{reason:'timeout: …'}` + `timedOut`. 로그 조회는 청크(기본 2,000 블록) + 지수 백오프(1초 ×2, 상한 30초, 6회) 후 `UNKNOWN`. CROSS 노드가 오래된 로그를 주지 않을 수 있어 그 경우 `PROCESSED_UNVERIFIED`/`UNKNOWN` 이지 거짓 성공이 아니다.
+`track()` 의 타임아웃은 **현재(미완료) 상태**를 돌려준다 — 온체인 실패와 다르다. 모든 RPC 호출은 `min(callTimeoutMs(기본 15초), 남은 시간)` 으로 제한되므로(Go: `ClientOptions.CallTimeout` + `TrackOpts.Timeout` 의 context 기한), 응답이 멈춘 provider 에서도 `timeoutMs` + 여유 안에 돌아온다 — 확립된 상태가 없으면 `UNKNOWN{reason:'timeout: …'}` + `timedOut`. 로그 조회는 청크(기본 2,000 블록) + 지수 백오프(1초 ×2, 상한 30초, 6회) 후 `UNKNOWN`. ONE 체인 노드가 오래된 로그를 주지 않을 수 있어 그 경우 `PROCESSED_UNVERIFIED`/`UNKNOWN` 이지 거짓 성공이 아니다.
 
 `FinalizeStatus`(pending 사유): `TokenPaused, VerificationAmountThresholdExceeded, PeriodTotalValueThresholdExceeded, TransferFailed, MintFailed, TokenScoreOverflow, TokenCurrentVolumeOverflow, CrossSupplyLimitExceeded, TokenPriceUnavailable, InsufficientLiquidity, InvalidRecipient`.
 
@@ -482,7 +483,7 @@ extraCall 실패의 흔한 원인: executor whitelist 누락, `coreTokenIndex` �
 - **BSC 테스트넷 가스 가격**: `eth_gasPrice` 표시가(약 0.05 gwei)로 보내면 채굴되지 않고 mempool 에 걸린다. 같은 nonce 에 더 높은 가격으로 교체해야 풀린다(3 gwei 로 해소 확인). SDK 는 chain 97 에서 최소 1 gwei 를, cast 스크립트는 `--legacy --gas-price ${GAS_PRICE:-3gwei}` 를 쓴다.
 - **동시성/nonce**: SDK 는 한 호출 안에서 approve → bridge 순서를 직렬화한다. **같은 계정에서 동시에 여러 전송**을 보내면 nonce 는 호출자 책임이다(Mode W 는 지갑이 nonce 를 관리).
 - **키 관리**: SDK 는 키를 저장·전송하지 않는다. 예제는 `PRIVATE_KEY` 환경변수에서만 읽는다. 브라우저 지갑은 Mode W(`sendTransaction`), 로컬 키는 Mode L(서명 → `onSigned` 로 raw 저장 → 브로드캐스트).
-- **finality**: CROSS 에는 reorg 가 없다 — 컨펌 수 임계값을 만들지 말 것. 검증자 쪽 finality 는 연동 범위 밖이다.
+- **finality**: ONE 체인에는 reorg 가 없다 — 컨펌 수 임계값을 만들지 말 것. 검증자 쪽 finality 는 연동 범위 밖이다.
 - **주소 입력**: 홉마다 `to` 는 그 체인에서 **내가 통제하는** 주소.
 - **`SELF_SIGNED_CERT_IN_CHAIN`(Node)**: TLS 를 가로채는 프록시 환경에서 나는 오류다. 그 프록시의 CA 를 `NODE_EXTRA_CA_CERTS=/경로/ca.pem` 으로 추가한다(Go·cast 는 시스템 신뢰 저장소를 쓴다).
 - Q. 수수료를 넉넉히 넣으면? — A. 안 된다(§6). 소스 verifier 값을 그대로.
@@ -497,8 +498,7 @@ extraCall 실패의 흔한 원인: executor whitelist 누락, `coreTokenIndex` �
 | 항목 | 마커 |
 |---|---|
 | HyperEVM 메인넷 Core 시스템 주소 (X2 메인넷 — ONE 토큰 HyperCore 링크 전) | `TODO(PENDING)` — 체인에 설정되면 갱신 |
-| 메인넷 SwapBridgeRouter | `TODO(UNCONFIRMED)` |
-| CROSS 테스트넷 네이티브 심볼·explorer, HyperEVM 테스트넷 explorer / info API | `TODO(UNCONFIRMED)` |
+| ONE 체인 테스트넷 explorer, HyperEVM 테스트넷 explorer / info API | `TODO(UNCONFIRMED)` |
 | 테스트넷 ONEUSD / USDTx-ONEUSD 풀 (X1 테스트넷) | `TODO(UNCONFIRMED)` |
 
 값이 채워지면: `networks.json` 수정 → `node tools/gen.mjs` → `node tools/check-consistency.mjs` → 테스트(SOURCES.md "테스트 방법") + `cast/00-quote.sh` 재실행 → 이 ⚠️ 박스 갱신.

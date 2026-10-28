@@ -44,8 +44,8 @@ func TestBroadcastHangIsUnknownOutcomeWithHashAndNoRetry(t *testing.T) {
 	w, k, a, _ := r3World(t)
 	c := realClockClient(w, 40*time.Millisecond)
 	q := mustQuote(t, c, QuoteRequest{Route: RouteOneToBSC, Amount: n18(10), Sender: a, Recipient: recipient})
-	w.chains[ChainCross].setHang("eth_sendRawTransaction", true)
-	_, err := c.Send(ctx, w.signer(k, ChainCross), q, SendOptions{})
+	w.chains[ChainOne].setHang("eth_sendRawTransaction", true)
+	_, err := c.Send(ctx, w.signer(k, ChainOne), q, SendOptions{})
 	var bu *BroadcastOutcomeUnknownError
 	var te *RpcTimeoutError
 	if !errors.As(err, &bu) || !errors.As(err, &te) {
@@ -56,8 +56,8 @@ func TestBroadcastHangIsUnknownOutcomeWithHashAndNoRetry(t *testing.T) {
 		t.Fatalf("the error must carry the hash and the raw tx")
 	}
 	time.Sleep(120 * time.Millisecond)
-	if w.chains[ChainCross].rawCount() != 1 {
-		t.Fatalf("exactly one broadcast, never retried: %d", w.chains[ChainCross].rawCount())
+	if w.chains[ChainOne].rawCount() != 1 {
+		t.Fatalf("exactly one broadcast, never retried: %d", w.chains[ChainOne].rawCount())
 	}
 }
 
@@ -79,8 +79,8 @@ func TestTrackIsBoundedOnAHungProvider(t *testing.T) {
 		t.Fatalf("want IN_FLIGHT timed out, got %+v %v", quick, err)
 	}
 	// the destination moved on, so the tracker scans logs; the provider hangs
-	w.finNext[key(ChainCross, w.net.Chains[ChainBSC].ChainID)] = add(parseU(h.Hop1.Index), big.NewInt(1))
-	w.chains[ChainCross].setHang("eth_getLogs", true)
+	w.finNext[key(ChainOne, w.net.Chains[ChainBSC].ChainID)] = add(parseU(h.Hop1.Index), big.NewInt(1))
+	w.chains[ChainOne].setHang("eth_getLogs", true)
 	t0 := time.Now()
 	r, err := c.Track(ctx, h, TrackOpts{Timeout: 400 * time.Millisecond, Poll: 20 * time.Millisecond})
 	if err != nil || time.Since(t0) > 400*time.Millisecond+700*time.Millisecond {

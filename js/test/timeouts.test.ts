@@ -30,7 +30,7 @@ test('send: a broadcast that never answers => BroadcastOutcomeUnknownError carry
   const { w, wallet } = setup();
   const client = new BridgeClient(w.options({ callTimeoutMs: 40 }));
   const q = await client.quote({ route: Route.ONE_TO_BSC, amount, sender: wallet.address, recipient: RECIPIENT });
-  w.chains.cross.sendMode = 'hang';
+  w.chains.one.sendMode = 'hang';
   let err: BroadcastOutcomeUnknownError | undefined;
   try { await client.send(wallet, q); } catch (e) { err = e as BroadcastOutcomeUnknownError; }
   assert.ok(err instanceof BroadcastOutcomeUnknownError, 'the existing recovery catch handles it');
@@ -39,20 +39,20 @@ test('send: a broadcast that never answers => BroadcastOutcomeUnknownError carry
   assert.ok((err as any).cause instanceof RpcTimeoutError);
   assert.equal(Transaction.from(err!.info.raw!).hash, err!.info.hash);
   await realSleep(120);
-  assert.equal(w.chains.cross.rawSent.length, 1, 'exactly one broadcast, never retried');
+  assert.equal(w.chains.one.rawSent.length, 1, 'exactly one broadcast, never retried');
 });
 
 test('Mode W: no default wallet timeout (the prompt may take as long as the user needs); an opt-in walletTimeoutMs => BroadcastOutcomeUnknownError(W)', async () => {
   const { w, wallet, client } = setup();
   const q = await client.quote({ route: Route.ONE_TO_BSC, amount, sender: wallet.address, recipient: RECIPIENT }); // native source: no approve step
-  const hang = new FakeWalletSigner(wallet.address, w.chains.cross);
+  const hang = new FakeWalletSigner(wallet.address, w.chains.one);
   hang.behavior = 'hang';
   const racing = client.send(hang, q).then(() => 'resolved', (e) => `rejected:${(e as Error).name}`);
   const state = await Promise.race([racing, realSleep(150).then(() => 'still-waiting')]);
   assert.equal(state, 'still-waiting', 'no timeout without walletTimeoutMs');
   const w2 = setup();
   const q2 = await w2.client.quote({ route: Route.ONE_TO_BSC, amount, sender: w2.wallet.address, recipient: RECIPIENT });
-  const hang2 = new FakeWalletSigner(w2.wallet.address, w2.w.chains.cross);
+  const hang2 = new FakeWalletSigner(w2.wallet.address, w2.w.chains.one);
   hang2.behavior = 'hang';
   await assert.rejects(() => w2.client.send(hang2, q2, { walletTimeoutMs: 30 }), (e: any) => e instanceof BroadcastOutcomeUnknownError && e.mode === 'W');
   assert.equal(hang2.sent.length, 1);
@@ -64,8 +64,8 @@ test('track(): a hung provider returns within timeoutMs + epsilon as UNKNOWN{rea
   const q = await client.quote(r1(wallet.address));
   const sent = await client.send(wallet, q);
   const handle = await sent.wait();
-  w.finalizeNext.set(`cross:${c.bsc.chainId}`, BigInt(handle.hop1.index) + 1n); // the destination moved on, so the tracker must scan logs
-  w.chains.cross.hang.add('eth_getLogs');
+  w.finalizeNext.set(`one:${c.bsc.chainId}`, BigInt(handle.hop1.index) + 1n); // the destination moved on, so the tracker must scan logs
+  w.chains.one.hang.add('eth_getLogs');
   const t0 = Date.now();
   const r = await client.track(handle, { timeoutMs: 400, pollMs: 20 });
   const took = Date.now() - t0;

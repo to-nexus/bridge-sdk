@@ -24,7 +24,7 @@ func TestEditedLimitsAndRecipientAreRefusedAsModified(t *testing.T) {
 	// loosen the limits, then raise the fees in the fake: the edited limits must NEVER become the requote baseline
 	q.Limits.MaxTotalSpend.Add(q.Limits.MaxTotalSpend, n18(100))
 	q.Limits.MinDelivered.SetInt64(0)
-	w.setFee(ChainBSC, w.net.Chains[ChainCross].ChainID, tok(w, ChainBSC, "ONE"), n18(1), n18(3), new(big.Int))
+	w.setFee(ChainBSC, w.net.Chains[ChainOne].ChainID, tok(w, ChainBSC, "ONE"), n18(1), n18(3), new(big.Int))
 	before := rpcCalls(w)
 	_, err = c.Send(ctx, sg, q, SendOptions{})
 	asSeal(t, err, SealModified, "limits.maxTotalSpend")
@@ -295,7 +295,7 @@ func TestSealVectorsGenerator(t *testing.T) {
 	add("single R1 (erc20 source, approval)", mustQuote(t, c, r1Req(a)))
 	add("single R2 (native source, no approval)", mustQuote(t, c, QuoteRequest{Route: RouteOneToBSC, Amount: n18(10), Sender: a, Recipient: recipient}))
 	add("multihop R5 + X2 (hubForward, core)", mustQuote(t, c, r5Core(a)))
-	add("x3 (swap match, erc20 in)", mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainCross, "USDTx"), ToChain: ChainBSC}}))
+	add("x3 (swap match, erc20 in)", mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainOne, "USDTx"), ToChain: ChainBSC}}))
 	xw, _, xa, xc := x1WorldFor(t)
 	_ = xw
 	add("x1 (swap deadline, amountOutMinimum)", mustQuote(t, xc, x1Req(xa, SwapOptions{})))

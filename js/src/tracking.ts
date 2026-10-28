@@ -191,7 +191,7 @@ async function evalHop(ctx: Ctx, h: TransferHandle, which: 1 | 2): Promise<HopSt
   const chain = ref.destChainKey;
   const cfg = chainOf(ctx.net, chain);
   const bridge = getAddress(cfg.bridge!);
-  const fromChainId = which === 1 ? h.srcChainId : ctx.net.chains.cross.chainId;
+  const fromChainId = which === 1 ? h.srcChainId : ctx.net.chains.one.chainId;
   const index = BigInt(ref.index);
   const base: HopStatus = { chainKey: chain, chainId: cfg.chainId, hop: which, index: ref.index, state: 'UNKNOWN' };
   const rpc = ctx.rpc(chain);
@@ -239,7 +239,7 @@ async function evalHop(ctx: Ctx, h: TransferHandle, which: 1 | 2): Promise<HopSt
       return sel;
     };
     const receiptOf = (hash: string) => withBackoff(() => rpc.send('eth_getTransactionReceipt', [hash]), backoffOf(ctx)) as Promise<RawReceipt | null>;
-    const cls = await classifyHop({ kind, logs: st.logs, selectorOf, receiptOf, hubAddress: bridge, x1OneUsd: ctx.net.chains.cross.tokens.ONEUSD?.address, ...(h.expect.x1 ? { x1: h.expect.x1 } : {}), ...(h.expect.x2 ? { x2: h.expect.x2 } : {}) });
+    const cls = await classifyHop({ kind, logs: st.logs, selectorOf, receiptOf, hubAddress: bridge, x1OneUsd: ctx.net.chains.one.tokens.ONEUSD?.address, ...(h.expect.x1 ? { x1: h.expect.x1 } : {}), ...(h.expect.x2 ? { x2: h.expect.x2 } : {}) });
     const { hop2, ...rest } = cls;
     return { ...base, ...rest, ...(hop2 ? { hop2 } : {}) };
   } catch (e) {

@@ -13,7 +13,7 @@ async function pendingSend() {
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
   const client = new BridgeClient(w.options());
   const q = await client.quote({ route: Route.BSC_TO_ONE, amount, sender: wallet.address, recipient: RECIPIENT });
   w.setAllow('bsc', c.bsc.tokens.ONE!.address, wallet.address, c.bsc.bridge!, 10n ** 30n);
@@ -31,7 +31,7 @@ async function setupPendingAndMined() {
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
   w.setAllow('bsc', c.bsc.tokens.ONE!.address, wallet.address, c.bsc.bridge!, 10n ** 30n);
   const client = new BridgeClient(w.options());
   const req = { route: Route.BSC_TO_ONE, amount, sender: wallet.address, recipient: RECIPIENT } as const;
@@ -40,7 +40,7 @@ async function setupPendingAndMined() {
   w.chains.bsc.sendMode = 'mine';
   const mined = await client.send(wallet, await client.quote(req));
   const handle = await mined.wait();
-  w.finalizeNext.set(`cross:${c.bsc.chainId}`, BigInt(handle.hop1.index) + 1n); // the destination moved on: a healthy tracker would scan logs
+  w.finalizeNext.set(`one:${c.bsc.chainId}`, BigInt(handle.hop1.index) + 1n); // the destination moved on: a healthy tracker would scan logs
   return { w, wallet, pending, mined, handle };
 }
 type T = Awaited<ReturnType<typeof setupPendingAndMined>>;
@@ -119,7 +119,7 @@ test('the other entry points (findSourceTransfer, handleFromTx, track / trackOnc
 });
 
 for (const mode of ['error', 'hang'] as const) {
-  for (const which of ['bsc', 'cross'] as const) { // the SOURCE chain (source receipt) and the DESTINATION chain (evalHop)
+  for (const which of ['bsc', 'one'] as const) { // the SOURCE chain (source receipt) and the DESTINATION chain (evalHop)
     test(`trackOnce / track: eth_chainId ${mode} on the ${which} RPC => UNKNOWN{${mode === 'error' ? 'chain-unverified' : 'timeout'}}, 0 evidence reads on that chain`, async () => {
       const t = await setupPendingAndMined();
       const ch = t.w.chains[which];

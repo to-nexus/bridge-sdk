@@ -14,7 +14,7 @@ export function getNetwork(name: NetworkName, override?: NetworksData): NetworkD
   return n;
 }
 
-/** Resolve a dotted config path such as `hyperevm.bridge` or `cross.swap.swapBridgeRouter` or `bsc.tokens.USDT`. */
+/** Resolve a dotted config path such as `hyperevm.bridge` or `one.swap.swapBridgeRouter` or `bsc.tokens.USDT`. */
 export function configValue(net: NetworkData, path: string): string | null {
   const [chainKey, ...rest] = path.split('.');
   let cur: unknown = net.chains[chainKey as ChainKey];

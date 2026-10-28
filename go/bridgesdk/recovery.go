@@ -49,10 +49,10 @@ func (c *Client) getReceipt(ctx context.Context, key ChainKey, h common.Hash) (*
 	return rec, err
 }
 
-// linkCfg is the CONFIGURED SwapBridgeRouter (cross only) and source bridge of a chain: the only emitters whose logs can be attributed.
+// linkCfg is the CONFIGURED SwapBridgeRouter (ONE chain only) and source bridge of a chain: the only emitters whose logs can be attributed.
 func (c *Client) linkCfg(key ChainKey) (router, bridge common.Address) {
-	if key == ChainCross {
-		if sw := c.net.Chains[ChainCross].Swap; sw != nil && sw.SwapBridgeRouter != nil {
+	if key == ChainOne {
+		if sw := c.net.Chains[ChainOne].Swap; sw != nil && sw.SwapBridgeRouter != nil {
 			router = addr(sw.SwapBridgeRouter)
 		}
 	}

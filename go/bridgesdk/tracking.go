@@ -276,7 +276,7 @@ func (c *Client) evalHop(ctx context.Context, h *TransferHandle, which int) (Hop
 	bridge := addr(cfg.Bridge)
 	fromChainID := h.SrcChainID
 	if which == 2 {
-		fromChainID = c.net.Chains[ChainCross].ChainID
+		fromChainID = c.net.Chains[ChainOne].ChainID
 	}
 	index := parseU(ref.Index)
 	base := HopStatus{Chain: chain, ChainID: cfg.ChainID, Hop: which, Index: ref.Index, State: StateUnknown}
@@ -408,7 +408,7 @@ func (c *Client) evalHop(ctx context.Context, h *TransferHandle, which int) (Hop
 	receiptOf := func(hash string) (*types.Receipt, error) {
 		return c.getReceipt(ctx, chain, common.HexToHash(hash))
 	}
-	cls, err := classifyHop(classifyInput{kind: ref.Kind, logs: st.Logs, selectorOf: selectorOf, receiptOf: receiptOf, hub: bridge, x1OneUSD: tokenAddr(c.net, ChainCross, "ONEUSD"), x1: h.Expect.X1, x2: h.Expect.X2})
+	cls, err := classifyHop(classifyInput{kind: ref.Kind, logs: st.Logs, selectorOf: selectorOf, receiptOf: receiptOf, hub: bridge, x1OneUSD: tokenAddr(c.net, ChainOne, "ONEUSD"), x1: h.Expect.X1, x2: h.Expect.X2})
 	if err != nil {
 		return unknown(err)
 	}

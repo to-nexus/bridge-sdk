@@ -478,7 +478,7 @@ func (v *validator) fee(path string, f wireFee) {
 var (
 	allRoutes = []string{string(RouteBSCToOne), string(RouteOneToBSC), string(RouteOneToHyperEVM), string(RouteHyperEVMToOne), string(RouteBSCToOneToHyperEVM), string(RouteHyperEVMToOneToBSC),
 		string(RouteBSCUSDTToONEUSD), string(RouteOneToHyperCore), string(RouteSwapBridge)}
-	allChains = []string{string(ChainCross), string(ChainBSC), string(ChainHyperEVM)}
+	allChains = []string{string(ChainOne), string(ChainBSC), string(ChainHyperEVM)}
 	allHops   = []string{string(HopPlain), string(HopHubForward), string(HopX1), string(HopX2)}
 )
 

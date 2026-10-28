@@ -250,7 +250,7 @@ func (c *Client) recordDestBlocks(ctx context.Context, q *Quote) map[ChainKey]ui
 		keys[q.Details.HubChain] = true
 	}
 	if q.Kind == KindX1 {
-		keys[ChainCross] = true
+		keys[ChainOne] = true
 	}
 	out := map[ChainKey]uint64{}
 	for k := range keys {

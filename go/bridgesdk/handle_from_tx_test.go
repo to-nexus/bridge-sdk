@@ -16,8 +16,8 @@ func TestHandleFromTxInfersAllNineRoutes(t *testing.T) {
 	w := testnetWorld(t)
 	k, a := w.fundedWallet()
 	c := w.client()
-	usdtx := tok(w, ChainCross, "USDTx")
-	w.setFee(ChainCross, w.net.Chains[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	usdtx := tok(w, ChainOne, "USDTx")
+	w.setFee(ChainOne, w.net.Chains[ChainBSC].ChainID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w.swapOut = n18(100)
 	base := QuoteRequest{Amount: n18(10), Sender: a, Recipient: recipient}
 	with := func(r Route, f func(*QuoteRequest)) QuoteRequest {
@@ -78,7 +78,7 @@ func TestHandleFromTxTrustAndAmbiguity(t *testing.T) {
 	c := w.client()
 	bsc := w.chains[ChainBSC]
 	bridge := common.HexToAddress(*w.net.Chains[ChainBSC].Bridge)
-	hubID := w.net.Chains[ChainCross].ChainID
+	hubID := w.net.Chains[ChainOne].ChainID
 	forger := common.HexToAddress("0x00000000000000000000000000000000f04ce001")
 	var nf *SourceTransferNotFoundError
 	t1 := bsc.mineLogs(forger, nil, []types.Log{biLog(t, hubID, 0, a, nil, forger, n18(10))})
@@ -121,8 +121,8 @@ func TestHandleFromTxUnsupportedMismatchAndFailed(t *testing.T) {
 	bsc := w.chains[ChainBSC]
 	ch := w.net.Chains
 	bridge := common.HexToAddress(*ch[ChainBSC].Bridge)
-	hubID := ch[ChainCross].ChainID
-	hub := common.HexToAddress(*ch[ChainCross].Bridge)
+	hubID := ch[ChainOne].ChainID
+	hub := common.HexToAddress(*ch[ChainOne].Bridge)
 	fwd := func(dest uint64, inner []byte) []byte {
 		ed, err := EncodeForwardExtraData(ForwardInput{Hub: hub, DestChainID: dest, ToDest: recipient, Value2: n18(10), NetworkFee2: new(big.Int), ExFee2Declared: new(big.Int), Inner: inner})
 		if err != nil {

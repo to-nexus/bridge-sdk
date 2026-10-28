@@ -10,11 +10,11 @@ const amount = 10n * E18;
 async function x1WorldAsync() {
   const w = new World('mainnet');
   const c = w.net.chains;
-  const hubId = c.cross.chainId;
-  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.cross.tokens.USDTx!.address, router = c.cross.swap!.v3SwapRouter!;
+  const hubId = c.one.chainId;
+  const usdt = c.bsc.tokens.USDT!.address, usdtx = c.one.tokens.USDTx!.address, router = c.one.swap!.v3SwapRouter!;
   w.setPair('bsc', hubId, usdt, usdtx, true);
   w.setFee('bsc', hubId, usdt, { min: 5n * E18, nf: 0n, rate: 0n });
-  w.execWhitelist.add(`cross:${router.toLowerCase()}`);
+  w.execWhitelist.add(`one:${router.toLowerCase()}`);
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', usdt, wallet.address, 1000n * E18);
   w.x1Out = 100n * E18 + 3_511_957n;
@@ -25,9 +25,9 @@ async function x3WorldAsync() {
   const w = World.testnet();
   const c = w.net.chains;
   const wallet = new Wallet(Wallet.createRandom().privateKey);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  const usdtx = c.cross.tokens.USDTx!.address;
-  w.setFee('cross', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  const usdtx = c.one.tokens.USDTx!.address;
+  w.setFee('one', c.bsc.chainId, usdtx, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   return { w, c, wallet, usdtx, client: new BridgeClient(w.options()) };
 }
@@ -39,14 +39,14 @@ function setup() {
   const wallet = new Wallet(Wallet.createRandom().privateKey);
   w.setBal('bsc', c.bsc.tokens.ONE!.address, wallet.address, 1000n * E18);
   w.setBal('hyperevm', c.hyperevm.tokens.ONE!.address, wallet.address, 1000n * E18);
-  w.setBal('cross', TOKEN_A, wallet.address, 1000n * E18);
-  w.setFee('cross', c.bsc.chainId, c.cross.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
+  w.setBal('one', TOKEN_A, wallet.address, 1000n * E18);
+  w.setFee('one', c.bsc.chainId, c.one.tokens.USDTx!.address, { min: 1n, nf: 0n, rate: 0n });
   w.swapOut = 100n * E18;
   return { w, c, wallet, client: new BridgeClient(w.options()) };
 }
 test('handleFromTx infers the route from the SOURCE receipt for all 9 routes (route omitted) and matches the SDK-built handle', async () => {
   const { w, c, wallet, client } = setup();
-  const usdtx = c.cross.tokens.USDTx!.address;
+  const usdtx = c.one.tokens.USDTx!.address;
   const base = { amount, sender: wallet.address, recipient: RECIPIENT };
   const reqs: any[] = [
     { ...base, route: Route.BSC_TO_ONE },
@@ -88,7 +88,7 @@ test('handleFromTx trust + ambiguity: a forged emitter with identical topics is 
   const bsc = w.chains.bsc;
   const bridge = c.bsc.bridge!;
   const forger = getAddress(hexlify(randomBytes(20)));
-  const hubId = c.cross.chainId;
+  const hubId = c.one.chainId;
   // only a forged log: nothing to build a handle from
   const t1 = bsc.mineLogs(wallet.address, forger, '0x', [BI(hubId, 0, wallet.address, '0x', forger)]);
   await assert.rejects(() => client.handleFromTx(97, t1), (e: any) => e instanceof SourceTransferNotFoundError);
@@ -113,8 +113,8 @@ test('handleFromTx: bad nested hop-2 destination => UnsupportedRouteError; unkno
   const { w, c, wallet, client } = setup();
   const bsc = w.chains.bsc;
   const bridge = c.bsc.bridge!;
-  const hubId = c.cross.chainId;
-  const hub = c.cross.bridge!;
+  const hubId = c.one.chainId;
+  const hub = c.one.bridge!;
   const fwd = (destChainId: number, inner = '0x') => encodeForwardExtraData({ hub, destChainId, toDest: RECIPIENT, value2: amount, networkFee2: 0n, exFee2Declared: 0n, inner });
   const bad = bsc.mineLogs(wallet.address, bridge, '0x', [BI(hubId, 0, wallet.address, fwd(1), bridge)]);
   await assert.rejects(() => client.handleFromTx(97, bad), (e: any) => e instanceof UnsupportedRouteError && /hop-2 destination chain 1/.test(e.message));

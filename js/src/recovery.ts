@@ -24,10 +24,10 @@ function handleInputFor(intent: SubmittedIntent, receipt: RawReceipt, checkpoint
   return quoteHandleInput(intent.adoptedQuote, receipt, checkpoint.destBlocks);
 }
 
-/** the CONFIGURED SwapBridgeRouter (cross only) and source bridge of a chain: the only emitters whose logs can be attributed */
+/** the CONFIGURED SwapBridgeRouter (ONE chain only) and source bridge of a chain: the only emitters whose logs can be attributed */
 function linkCfg(ctx: Ctx, key: ChainKey): { router: string | null; bridge: string } {
   const c = ctx.net.chains[key];
-  const router = key === 'cross' && ctx.net.chains.cross.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.cross.swap.swapBridgeRouter) : null;
+  const router = key === 'one' && ctx.net.chains.one.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.one.swap.swapBridgeRouter) : null;
   return { router, bridge: getAddress(c.bridge!) };
 }
 

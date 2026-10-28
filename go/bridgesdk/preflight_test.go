@@ -28,7 +28,7 @@ func TestPreflightBlocksBeforeApprove(t *testing.T) {
 	t.Run("X1 router not whitelisted", func(t *testing.T) {
 		w, k, a, c := x1WorldFor(t)
 		q := mustQuote(t, c, QuoteRequest{Route: RouteBSCUSDTToONEUSD, Amount: n18(100), Sender: a, Recipient: recipient})
-		delete(w.whitelist, key(ChainCross, common.HexToAddress(*w.net.Chains[ChainCross].Swap.V3SwapRouter)))
+		delete(w.whitelist, key(ChainOne, common.HexToAddress(*w.net.Chains[ChainOne].Swap.V3SwapRouter)))
 		_, err := c.Send(ctx, w.signer(k, ChainBSC), q, SendOptions{})
 		if pe := asPreflight(t, err, StagePreApprove); !hasCode(pe, "EXECUTOR_NOT_WHITELISTED") {
 			t.Fatalf("codes %v", codesOf(pe))
@@ -77,7 +77,7 @@ func TestPreflightBlocksAfterApprove(t *testing.T) {
 	for _, inject := range []string{"bridge", "pair"} {
 		w, k, a, c := r3World(t)
 		q := mustQuote(t, c, r1Req(a))
-		hubID := w.net.Chains[ChainCross].ChainID
+		hubID := w.net.Chains[ChainOne].ChainID
 		w.onApprove = func() {
 			if inject == "bridge" {
 				w.paused[ChainBSC] = true
@@ -128,8 +128,8 @@ func TestPausedDestinationBlocksEveryRouteBeforeApprove(t *testing.T) {
 		req  QuoteRequest
 		dest ChainKey
 	}{
-		{"R1", QuoteRequest{Route: RouteBSCToOne}, ChainCross}, {"R2", QuoteRequest{Route: RouteOneToBSC}, ChainBSC}, {"R3", QuoteRequest{Route: RouteOneToHyperEVM}, ChainHyperEVM},
-		{"R4", QuoteRequest{Route: RouteHyperEVMToOne}, ChainCross}, {"R5", QuoteRequest{Route: RouteBSCToOneToHyperEVM}, ChainHyperEVM},
+		{"R1", QuoteRequest{Route: RouteBSCToOne}, ChainOne}, {"R2", QuoteRequest{Route: RouteOneToBSC}, ChainBSC}, {"R3", QuoteRequest{Route: RouteOneToHyperEVM}, ChainHyperEVM},
+		{"R4", QuoteRequest{Route: RouteHyperEVMToOne}, ChainOne}, {"R5", QuoteRequest{Route: RouteBSCToOneToHyperEVM}, ChainHyperEVM},
 		{"R5+core", QuoteRequest{Route: RouteBSCToOneToHyperEVM, Hypercore: true}, ChainHyperEVM}, {"R6", QuoteRequest{Route: RouteHyperEVMToOneToBSC}, ChainBSC},
 		{"X2", QuoteRequest{Route: RouteOneToHyperCore}, ChainHyperEVM},
 		{"X3", QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), X3: &X3Request{TokenIn: tokenA, ToChain: ChainBSC}}, ChainBSC},
@@ -141,7 +141,7 @@ func TestPausedDestinationBlocksEveryRouteBeforeApprove(t *testing.T) {
 			r.Amount = n18(10)
 		}
 		if r.X3 != nil {
-			r.X3.TokenOut = tok(w, ChainCross, "USDTx")
+			r.X3.TokenOut = tok(w, ChainOne, "USDTx")
 		}
 		r.Sender, r.Recipient = a, recipient
 		q := mustQuote(t, c, r)
@@ -221,7 +221,7 @@ func TestPreflightStructuredIssues(t *testing.T) {
 	if err != nil || !pf.OK {
 		t.Fatalf("clean preflight expected: %+v %v", pf, err)
 	}
-	w.paused[ChainCross] = true
+	w.paused[ChainOne] = true
 	delete(w.whitelist, key(ChainHyperEVM, tok(w, ChainHyperEVM, "ONE")))
 	w.hyperCoreSet = false
 	w.setBal(ChainBSC, tok(w, ChainBSC, "ONE"), a, big.NewInt(1))
@@ -246,7 +246,7 @@ func TestHubLimitAppliesToInnerPayloadSourceLimitToOuter(t *testing.T) {
 	if len(q.Details.ExtraData) != 344 {
 		t.Fatalf("outer extraData is %d B, want 344", len(q.Details.ExtraData))
 	}
-	w.maxExtra[ChainCross] = big.NewInt(128)
+	w.maxExtra[ChainOne] = big.NewInt(128)
 	rep, _ := c.Preflight(ctx, q)
 	for _, i := range rep.Issues {
 		if strings.HasPrefix(i.Code, "EXTRADATA") {
@@ -254,12 +254,12 @@ func TestHubLimitAppliesToInnerPayloadSourceLimitToOuter(t *testing.T) {
 		}
 	}
 	// a canonical X2 inner payload is exactly 88 B (a padded inner is refused by the route rules), so the hub limit is lowered instead of padding
-	w.maxExtra[ChainCross] = big.NewInt(64)
+	w.maxExtra[ChainOne] = big.NewInt(64)
 	rep, _ = c.Preflight(ctx, q)
 	if !hasIssue(rep, "EXTRADATA_TOO_LONG_HUB") {
 		t.Fatalf("inner 88 B, hub limit 64: %+v", rep.Issues)
 	}
-	w.maxExtra[ChainCross] = big.NewInt(1024)
+	w.maxExtra[ChainOne] = big.NewInt(1024)
 	w.maxExtra[ChainBSC] = big.NewInt(100)
 	rep, _ = c.Preflight(ctx, q)
 	if !hasIssue(rep, "EXTRADATA_TOO_LONG_SOURCE") || hasIssue(rep, "EXTRADATA_TOO_LONG_HUB") {
@@ -269,10 +269,10 @@ func TestHubLimitAppliesToInnerPayloadSourceLimitToOuter(t *testing.T) {
 
 func TestX3QuoteStatusIsCheckedBeforeApprove(t *testing.T) {
 	w, k, a, c := r3World(t)
-	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainCross, "USDTx"), ToChain: ChainBSC}})
+	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainOne, "USDTx"), ToChain: ChainBSC}})
 	st := uint8(5) // InvalidSwap
 	w.swapStatus = &st
-	_, err := c.Send(ctx, w.signer(k, ChainCross), q, SendOptions{})
+	_, err := c.Send(ctx, w.signer(k, ChainOne), q, SendOptions{})
 	pe := asPreflight(t, err, StagePreApprove)
 	if !hasCode(pe, "X3_QUOTE_InvalidSwap") {
 		t.Fatalf("codes %v", codesOf(pe))
@@ -284,11 +284,11 @@ func TestX3QuoteStatusIsCheckedBeforeApprove(t *testing.T) {
 
 func TestX3StatusFlippingDuringApproveIsStageRequote(t *testing.T) {
 	w, k, a, c := r3World(t)
-	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainCross, "USDTx"), ToChain: ChainBSC}})
+	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: tok(w, ChainOne, "USDTx"), ToChain: ChainBSC}})
 	w.onApprove = func() { st := uint8(5); w.swapStatus = &st }
-	_, err := c.Send(ctx, w.signer(k, ChainCross), q, SendOptions{})
+	_, err := c.Send(ctx, w.signer(k, ChainOne), q, SendOptions{})
 	pe := asPreflight(t, err, StageRequote)
-	if !hasCode(pe, "X3_QUOTE_InvalidSwap") || len(w.approveCalls) != 1 || len(w.chains[ChainCross].logs) != 0 {
+	if !hasCode(pe, "X3_QUOTE_InvalidSwap") || len(w.approveCalls) != 1 || len(w.chains[ChainOne].logs) != 0 {
 		t.Fatalf("want exactly the approve and a requote-stage refusal: %v approves=%d", codesOf(pe), len(w.approveCalls))
 	}
 }

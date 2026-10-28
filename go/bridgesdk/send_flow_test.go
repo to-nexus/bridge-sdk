@@ -48,7 +48,7 @@ func TestHappyPathR1(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if h.Hop1.Index != "0" || h.Hop1.DestChainID != w.net.Chains[ChainCross].ChainID || h.SrcTxHash != sent.Hash.Hex() {
+	if h.Hop1.Index != "0" || h.Hop1.DestChainID != w.net.Chains[ChainOne].ChainID || h.SrcTxHash != sent.Hash.Hex() {
 		t.Fatalf("handle %+v", h)
 	}
 }
@@ -57,7 +57,7 @@ func TestRequoteFeeIncreaseRefusedAndDecreaseAdopted(t *testing.T) {
 	w := testnetWorld(t)
 	key, a := w.fundedWallet()
 	c := w.client()
-	hubID := w.net.Chains[ChainCross].ChainID
+	hubID := w.net.Chains[ChainOne].ChainID
 	one := tok(w, ChainBSC, "ONE")
 	q := mustQuote(t, c, r1Req(a))
 	w.onApprove = func() { w.setFee(ChainBSC, hubID, one, n18(1), n18(1), new(big.Int)) }
@@ -133,9 +133,9 @@ func TestApprovePolicy(t *testing.T) {
 func TestX3RequoteFloorsAndRecovery(t *testing.T) {
 	w := testnetWorld(t)
 	key, a := w.fundedWallet()
-	usdtx := tok(w, ChainCross, "USDTx")
+	usdtx := tok(w, ChainOne, "USDTx")
 	bscID := w.net.Chains[ChainBSC].ChainID
-	w.setFee(ChainCross, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	w.setFee(ChainOne, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w.swapOut = big.NewInt(100)
 	c := w.client()
 	q := mustQuote(t, c, x3Req(w, a, 100))
@@ -145,9 +145,9 @@ func TestX3RequoteFloorsAndRecovery(t *testing.T) {
 	// output rises 100->110, fee rises 0->5: delivery at the ORIGINAL floor = 94 < 99
 	w.onApprove = func() {
 		w.swapOut = big.NewInt(110)
-		w.setFee(ChainCross, bscID, usdtx, big.NewInt(1), big.NewInt(5), new(big.Int))
+		w.setFee(ChainOne, bscID, usdtx, big.NewInt(1), big.NewInt(5), new(big.Int))
 	}
-	_, err := c.Send(ctx, w.signer(key, ChainCross), q, SendOptions{})
+	_, err := c.Send(ctx, w.signer(key, ChainOne), q, SendOptions{})
 	var rr *RequoteRequiredError
 	if !errors.As(err, &rr) || !contains(rr.Violated, "bridgeDeliveryFloor") {
 		t.Fatalf("want bridgeDeliveryFloor, got %v", err)
@@ -155,23 +155,23 @@ func TestX3RequoteFloorsAndRecovery(t *testing.T) {
 	// price DROP below the original floor
 	w2 := testnetWorld(t)
 	k2, a2 := w2.fundedWallet()
-	w2.setFee(ChainCross, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	w2.setFee(ChainOne, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w2.swapOut = big.NewInt(100)
 	c2 := w2.client()
 	q2 := mustQuote(t, c2, x3Req(w2, a2, 100))
 	w2.onApprove = func() { w2.swapOut = big.NewInt(90) }
-	if _, err := c2.Send(ctx, w2.signer(k2, ChainCross), q2, SendOptions{}); !errors.As(err, &rr) || !contains(rr.Violated, "swapOutputBelowFloor") {
+	if _, err := c2.Send(ctx, w2.signer(k2, ChainOne), q2, SendOptions{}); !errors.As(err, &rr) || !contains(rr.Violated, "swapOutputBelowFloor") {
 		t.Fatalf("want swapOutputBelowFloor, got %v", err)
 	}
 	// price RISE: adopted, calldata keeps the ORIGINAL amountOutMinimum
 	w3 := testnetWorld(t)
 	k3, a3 := w3.fundedWallet()
-	w3.setFee(ChainCross, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	w3.setFee(ChainOne, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	w3.swapOut = big.NewInt(100)
 	c3 := w3.client()
 	q3 := mustQuote(t, c3, x3Req(w3, a3, 100))
 	w3.onApprove = func() { w3.swapOut = big.NewInt(120) }
-	sent, err := c3.Send(ctx, w3.signer(k3, ChainCross), q3, SendOptions{})
+	sent, err := c3.Send(ctx, w3.signer(k3, ChainOne), q3, SendOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,13 +184,13 @@ func TestX3RequoteFloorsAndRecovery(t *testing.T) {
 	// recovery through SwapBridge (bridge-level from is the router)
 	w4 := testnetWorld(t)
 	k4, a4 := w4.fundedWallet()
-	w4.setFee(ChainCross, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
+	w4.setFee(ChainOne, bscID, usdtx, big.NewInt(1), new(big.Int), new(big.Int))
 	c4 := w4.client()
 	q4 := mustQuote(t, c4, x3Req(w4, a4, 50))
-	router := common.HexToAddress(*w4.net.Chains[ChainCross].Swap.SwapBridgeRouter)
-	w4.setAllow(ChainCross, tokenA, a4, router, n18(1000))
-	w4.chains[ChainCross].sendMode = "throw-after-mine"
-	_, err = c4.Send(ctx, w4.signer(k4, ChainCross), q4, SendOptions{})
+	router := common.HexToAddress(*w4.net.Chains[ChainOne].Swap.SwapBridgeRouter)
+	w4.setAllow(ChainOne, tokenA, a4, router, n18(1000))
+	w4.chains[ChainOne].sendMode = "throw-after-mine"
+	_, err = c4.Send(ctx, w4.signer(k4, ChainOne), q4, SendOptions{})
 	var bu *BroadcastOutcomeUnknownError
 	if !errors.As(err, &bu) {
 		t.Fatalf("want unknown outcome, got %v", err)
@@ -209,7 +209,7 @@ func TestNativeSourceNeedsNoApprove(t *testing.T) {
 	if q.Approval != nil || q.Tx.Value.Cmp(add(n18(10), nf18)) != 0 {
 		t.Fatalf("native quote: %+v", q.Approval)
 	}
-	sent, err := c.Send(ctx, w.signer(key, ChainCross), q, SendOptions{})
+	sent, err := c.Send(ctx, w.signer(key, ChainOne), q, SendOptions{})
 	if err != nil || len(w.approveCalls) != 0 || sent.Nonce != 0 {
 		t.Fatalf("native send: %v approves=%d nonce=%d", err, len(w.approveCalls), sent.Nonce)
 	}
@@ -244,7 +244,7 @@ func TestCallerMutationsDoNotReachWhatIsSigned(t *testing.T) {
 			in.Data[0] ^= 0xff
 			in.Value.SetInt64(0)
 			in.AdoptedQuote.Tx.Data[0] ^= 0xff
-			cp.DestBlocks[ChainCross] = 0
+			cp.DestBlocks[ChainOne] = 0
 			return nil
 		},
 		OnSigned: func(info SignedInfo, in *SubmittedIntent) error {
@@ -264,7 +264,7 @@ func TestCallerMutationsDoNotReachWhatIsSigned(t *testing.T) {
 	if err := tx.UnmarshalBinary(sent.Raw); err != nil || !bytes.Equal(tx.Data(), orig) || tx.Hash() != sent.Hash {
 		t.Fatalf("what was signed/broadcast is not the quoted calldata: %v", err)
 	}
-	if sent.Checkpoint.DestBlocks[ChainCross] == 0 && len(sent.Checkpoint.DestBlocks) > 0 && sent.Checkpoint.DestBlocks[ChainCross] != w.chains[ChainCross].block {
+	if sent.Checkpoint.DestBlocks[ChainOne] == 0 && len(sent.Checkpoint.DestBlocks) > 0 && sent.Checkpoint.DestBlocks[ChainOne] != w.chains[ChainOne].block {
 		t.Fatalf("checkpoint DestBlocks were mutated through a callback")
 	}
 	dec, err := bridgeABI.Methods["bridgeToken"].Inputs.Unpack(tx.Data()[4:])

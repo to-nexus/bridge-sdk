@@ -1,6 +1,6 @@
 # bridge-sdk/go
 
-CROSS / ONE 브리지 Go SDK 입니다. BSC · CROSS(ONE) · HyperEVM 사이의 전송을 견적부터 도착 확인까지 처리합니다.
+ONE 브리지 Go SDK 입니다. BSC · ONE · HyperEVM 사이의 전송을 견적부터 도착 확인까지 처리합니다.
 
 - Go 1.24 이상
 - 메인넷 · 테스트넷 설정 내장
@@ -165,7 +165,7 @@ PRIVATE_KEY=... go run ./examples/r1-bsc-to-one -network testnet -send
 | `-tokenIn` · `-tokenOut` · `-fee` · `-to` | X3 옵션 |
 | `-send` | 실제 전송 (`PRIVATE_KEY` 환경변수 필요) |
 
-RPC 는 `RPC_CROSS` · `RPC_BSC` · `RPC_HYPEREVM` 환경변수로 바꿀 수 있습니다.
+RPC 는 `RPC_ONE` · `RPC_BSC` · `RPC_HYPEREVM` 환경변수로 바꿀 수 있습니다.
 
 ## 개발
 

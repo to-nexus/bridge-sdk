@@ -62,7 +62,7 @@ func TestTamperedQuotesAreRejected(t *testing.T) {
 		t.Fatalf("source chain id: %v", err)
 	}
 	// user-supplied recipient swapped inside the calldata only => internal tampering
-	data, _ := EncodeBridgeToken(BridgeTokenCall{ToChainID: uint64(w.net.Chains[ChainCross].ChainID), FromToken: tok(w, ChainBSC, "ONE"), To: otherAdr, Value: q.Value, NetworkFee: new(big.Int), ExFee: new(big.Int)})
+	data, _ := EncodeBridgeToken(BridgeTokenCall{ToChainID: uint64(w.net.Chains[ChainOne].ChainID), FromToken: tok(w, ChainBSC, "ONE"), To: otherAdr, Value: q.Value, NetworkFee: new(big.Int), ExFee: new(big.Int)})
 	bad4 := *q
 	bad4.Tx.Data = data
 	mustSeal(t, &bad4)
@@ -77,9 +77,9 @@ func TestTamperedQuotesAreRejected(t *testing.T) {
 
 func TestX3TokenInOutsideConfigPassesBinding(t *testing.T) {
 	w, k, a, c := r3World(t)
-	usdtx := tok(w, ChainCross, "USDTx")
+	usdtx := tok(w, ChainOne, "USDTx")
 	q := mustQuote(t, c, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: a, Recipient: recipient, X3: &X3Request{TokenIn: tokenA, TokenOut: usdtx, ToChain: ChainBSC}})
-	sent, err := c.Send(ctx, w.signer(k, ChainCross), q, SendOptions{})
+	sent, err := c.Send(ctx, w.signer(k, ChainOne), q, SendOptions{})
 	if err != nil || !bytes.Equal(sent.Intent.Data, q.Tx.Data) {
 		t.Fatalf("a user-supplied tokenIn must pass the binding and keep its calldata: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestX3TokenInOutsideConfigPassesBinding(t *testing.T) {
 	bad.Tx.Data = other
 	mustSeal(t, &bad)
 	var lv *LimitViolationError
-	if _, err := c.Send(ctx, w.signer(k, ChainCross), &bad, SendOptions{}); !errors.As(err, &lv) {
+	if _, err := c.Send(ctx, w.signer(k, ChainOne), &bad, SendOptions{}); !errors.As(err, &lv) {
 		t.Fatalf("tampered X3 calldata: %v", err)
 	}
 }
@@ -135,7 +135,7 @@ func TestOverrideClientAcceptsItsOwnQuotesAndGettersNeedNoClient(t *testing.T) {
 	built, _ := GetNetwork(Testnet)
 	before, _ := json.Marshal(built)
 	e := newOverrideEnv(t)
-	if *e.nd.Chains[ChainCross].Bridge == *built.Chains[ChainCross].Bridge {
+	if *e.nd.Chains[ChainOne].Bridge == *built.Chains[ChainOne].Bridge {
 		t.Fatal("the override must really differ")
 	}
 	for name, q := range e.quotes(t) {
@@ -186,7 +186,7 @@ func TestCrossClientQuoteIsRefusedByTheBindingCheck(t *testing.T) {
 	}
 	// reverse: default-config quotes into the override client
 	dw, _, da, dc := r3World(t)
-	usdtx := tok(dw, ChainCross, "USDTx")
+	usdtx := tok(dw, ChainOne, "USDTx")
 	for name, r := range map[string]QuoteRequest{
 		"X2": {Route: RouteOneToHyperCore, Amount: n18(10)}, "R5": {Route: RouteBSCToOneToHyperEVM, Amount: n18(10)},
 		"X3": {Route: RouteSwapBridge, Amount: n18(50), X3: &X3Request{TokenIn: tokenA, TokenOut: usdtx, ToChain: ChainBSC}},
@@ -206,7 +206,7 @@ func TestCrossClientQuoteIsRefusedByTheBindingCheck(t *testing.T) {
 func TestStructuralVsBindingX1TokenOutAndFee(t *testing.T) {
 	e := newOverrideEnv(t)
 	q := e.quotes(t)["X1"]
-	c := e.nd.Chains[ChainCross]
+	c := e.nd.Chains[ChainOne]
 	mk := func(tokenOut common.Address, fee uint32) *Quote {
 		ed, err := EncodeX1ExtraData(X1Input{Router: addr(c.Swap.V3SwapRouter), TokenIn: common.HexToAddress(c.Tokens["USDTx"].Address), TokenOut: tokenOut, Fee: fee, Recipient: recipient, Deadline: q.Deadline, AmountIn: q.Value, AmountOutMinimum: q.Limits.AmountOutMinimum})
 		if err != nil {
@@ -251,12 +251,12 @@ func TestBuiltInConfigUntouchedByTheOverrideSuite(t *testing.T) {
 func TestPartialClientConfigKeepsRouterAndFillsOnlyOneusdAndPool(t *testing.T) {
 	built, _ := GetNetwork(Testnet)
 	nd := deepCopyNet(t, built)
-	c := nd.Chains[ChainCross]
+	c := nd.Chains[ChainOne]
 	s := func(v string) *string { return &v }
 	c.Tokens["ONEUSD"] = &Token{Address: fakeAdr("a1000000006"), Symbol: s("ONEUSD"), Decimals: 18, Kind: "erc20"}
 	c.Swap.X1Pool = &X1Pool{TokenIn: c.Tokens["USDTx"].Address, TokenOut: fakeAdr("a1000000006"), Fee: 500, Pool: fakeAdr("a1000000007")}
 	e := newEnv(t, nd)
-	if *nd.Chains[ChainCross].Swap.V3SwapRouter != *built.Chains[ChainCross].Swap.V3SwapRouter {
+	if *nd.Chains[ChainOne].Swap.V3SwapRouter != *built.Chains[ChainOne].Swap.V3SwapRouter {
 		t.Fatal("the existing router must be kept")
 	}
 	q := e.quotes(t)["X1"]
@@ -281,7 +281,7 @@ func TestPartialClientConfigKeepsRouterAndFillsOnlyOneusdAndPool(t *testing.T) {
 func TestOneVariantPerMissingConfigComponent(t *testing.T) {
 	e := newOverrideEnv(t)
 	quotes := e.quotes(t)
-	nat := mustQuote(t, e.client, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: e.a, Recipient: recipient, X3: &X3Request{NativeIn: true, TokenOut: tok(e.w, ChainCross, "USDTx"), ToChain: ChainBSC}})
+	nat := mustQuote(t, e.client, QuoteRequest{Route: RouteSwapBridge, Amount: n18(50), Sender: e.a, Recipient: recipient, X3: &X3Request{NativeIn: true, TokenOut: tok(e.w, ChainOne, "USDTx"), ToChain: ChainBSC}})
 	sg := e.w.signer(e.key, ChainBSC)
 	variants := []struct {
 		name string
@@ -289,15 +289,15 @@ func TestOneVariantPerMissingConfigComponent(t *testing.T) {
 		edit func(ch map[ChainKey]*ChainConfig)
 		path string
 	}{
-		{"ONEUSD missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainCross].Tokens, "ONEUSD") }, "chains.cross.tokens.ONEUSD"},
-		{"X1 pool missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { ch[ChainCross].Swap.X1Pool = nil }, "chains.cross.swap.x1Pool"},
-		{"USDTx missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainCross].Tokens, "USDTx") }, "chains.cross.tokens.USDTx"},
-		{"X1 router missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { ch[ChainCross].Swap.V3SwapRouter = nil }, "chains.cross.swap.v3SwapRouter"},
+		{"ONEUSD missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainOne].Tokens, "ONEUSD") }, "chains.one.tokens.ONEUSD"},
+		{"X1 pool missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { ch[ChainOne].Swap.X1Pool = nil }, "chains.one.swap.x1Pool"},
+		{"USDTx missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainOne].Tokens, "USDTx") }, "chains.one.tokens.USDTx"},
+		{"X1 router missing", quotes["X1"], func(ch map[ChainKey]*ChainConfig) { ch[ChainOne].Swap.V3SwapRouter = nil }, "chains.one.swap.v3SwapRouter"},
 		{"X2 dest token missing", quotes["X2"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainHyperEVM].Tokens, "ONE") }, "chains.hyperevm.tokens.ONE"},
 		{"R5+core inner dest token missing", quotes["R5+core"], func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainHyperEVM].Tokens, "ONE") }, "chains.hyperevm.tokens.ONE"},
-		{"X3 router missing", quotes["X3"], func(ch map[ChainKey]*ChainConfig) { ch[ChainCross].Swap.SwapBridgeRouter = nil }, "chains.cross.swap.swapBridgeRouter"},
-		{"X3 native WCROSS missing", nat, func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainCross].Tokens, "WCROSS") }, "chains.cross.tokens.WCROSS"},
-		{"multihop hub missing", quotes["R5"], func(ch map[ChainKey]*ChainConfig) { ch[ChainCross].Bridge = nil }, "chains.cross.bridge"},
+		{"X3 router missing", quotes["X3"], func(ch map[ChainKey]*ChainConfig) { ch[ChainOne].Swap.SwapBridgeRouter = nil }, "chains.one.swap.swapBridgeRouter"},
+		{"X3 native WCROSS missing", nat, func(ch map[ChainKey]*ChainConfig) { delete(ch[ChainOne].Tokens, "WCROSS") }, "chains.one.tokens.WCROSS"},
+		{"multihop hub missing", quotes["R5"], func(ch map[ChainKey]*ChainConfig) { ch[ChainOne].Bridge = nil }, "chains.one.bridge"},
 		{"whole chain missing", quotes["X2"], func(ch map[ChainKey]*ChainConfig) { delete(ch, ChainHyperEVM) }, "chains.hyperevm"},
 	}
 	for _, v := range variants {

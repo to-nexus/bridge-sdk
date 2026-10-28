@@ -155,7 +155,8 @@ test('config: routes with null values are refused at quote() - before any RPC, a
   for (const route of [Route.ONE_TO_HYPEREVM, Route.HYPEREVM_TO_ONE, Route.BSC_TO_ONE_TO_HYPEREVM, Route.HYPEREVM_TO_ONE_TO_BSC, Route.ONE_TO_HYPERCORE]) {
     await assert.rejects(() => c.quote({ ...base, route }), (e: any) => !(e instanceof AddressNotConfiguredError), route);
   }
-  await assert.rejects(() => c.quote({ ...base, route: Route.SWAP_BRIDGE, x3: { tokenIn: 'native', tokenOut: '0x3333333333333333333333333333333333333333', poolFee: 0, toChain: 'bsc' } }), (e: any) => e instanceof AddressNotConfiguredError && /swapBridgeRouter/.test(e.field) && /TODO\(UNCONFIRMED\)/.test(e.todo));
+  // the mainnet SwapBridgeRouter is configured: X3 gets past the config gate and fails only for lack of a provider
+  await assert.rejects(() => c.quote({ ...base, route: Route.SWAP_BRIDGE, x3: { tokenIn: 'native', tokenOut: '0x3333333333333333333333333333333333333333', poolFee: 0, toChain: 'bsc' } }), (e: any) => !(e instanceof AddressNotConfiguredError), 'X3');
   const t = new BridgeClient({ network: 'testnet', providers: {} });
   await assert.rejects(() => t.quote({ ...base, route: Route.BSC_USDT_TO_ONEUSD }), (e: any) => e instanceof AddressNotConfiguredError && /ONEUSD/.test(e.field));
 });
