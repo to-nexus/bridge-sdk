@@ -77,7 +77,7 @@ function guideTables() {
   const md = [];
   const cell = (v, todo) => (v == null ? `⚠️ \`null\` — ${todo || 'TODO(UNCONFIRMED)'}` : `\`${v}\``);
   for (const [netKey, net] of Object.entries(data.networks)) {
-    md.push(`### ${net.label} (확인일 ${data.verifiedAt})`, '');
+    md.push(`### ${net.label}`, '');
     md.push('| 체인 | chainId | RPC (공개) | Explorer | 네이티브 |', '|---|---|---|---|---|');
     for (const [, c] of Object.entries(net.chains)) {
       md.push(`| ${c.name} | \`${c.chainId}\` | \`${c.rpc}\` | ${cell(c.explorer, c.todo?.explorer)} | ${c.nativeSymbol ? '`' + c.nativeSymbol + '`' : '⚠️ ' + (c.todo?.nativeSymbol || 'TODO(UNCONFIRMED)')} |`);
