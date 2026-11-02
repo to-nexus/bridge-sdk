@@ -1,7 +1,7 @@
 # SOURCES — 값의 출처와 확인 방법
 
 `networks.json` 의 모든 값은 아래 표의 행(`S-…`)에 연결된다. 재현은 `bash tools/probe.sh` (읽기 전용 `cast call` / `cast code` /
-`cast storage` / `cast chain-id`, 공개 RPC 만 사용). 확인일: **2026-10-27** (HyperEVM 메인넷 브리지·ONE 체인 메인넷 explorer/네이티브 심볼·ONE 체인 테스트넷 네이티브 심볼·메인넷 SwapBridgeRouter 는 **2026-10-28**).
+`cast storage` / `cast chain-id`, 공개 RPC 만 사용). 확인일: **2026-10-27** (HyperEVM 메인넷 브리지·ONE 체인 메인넷 explorer/네이티브 심볼·ONE 체인 테스트넷 네이티브 심볼·메인넷 SwapBridgeRouter 는 **2026-10-28**, HyperEVM 메인넷 HyperCore 링크는 **2026-11-02**).
 
 출처 종류: `onchain` = 온체인 읽기로 확인(명령·결과 기록) · `repo+onchain` = `bridge-contracts` 레포의 값이 온체인과 일치 ·
 `public-official` = 운영 주체의 공식 공개 문서(RPC·explorer·네이티브 심볼 한정) ·
@@ -37,11 +37,12 @@
 | S-M13 | BSC BridgeVerifier `0x101c…A2A9` (참고용) | onchain | `bridge.bridgeVerifier()` 일치; `calculateFee(612055, ONE 토큰, 10e18)` → `(5e18, 0, 0)` |
 | S-M14 | BSC 의 ONE 토큰 `0x6bf6…A510` (컨트랙트 심볼 `CROSS`, 18 dec) | onchain | `symbol()` `"CROSS"`; `getTokenPair(612055, ONE 토큰)` → remote NATIVE, isOrigin true |
 | S-M15 | BSC USDT `0x55d3…7955` (18 dec) | onchain | `symbol()` `"USDT"`, `decimals()` 18; `getTokenPair(612055, USDT)` → remote USDTx, isOrigin true |
-| S-M16 | HyperEVM 메인넷 ONE 토큰 `0xFaA9…Ebe5` (18 dec) | onchain | `name()` `"ONEchain"`, `symbol()` `"ONE"`, 18 dec, `isCoreTokenIndexSet()` false; ONE 허브 `getTokenPair(999, NATIVE)` → remote `0xFaA9…Ebe5`, isOrigin true; HyperEVM 브리지 `getTokenPair(612055, 0xFaA9…Ebe5)` → remote NATIVE, isOrigin false, 미정지 |
+| S-M16 | HyperEVM 메인넷 ONE 토큰 `0xFaA9…Ebe5` (18 dec) | onchain | `name()` `"ONEchain"`, `symbol()` `"ONE"`, 18 dec, `isCoreTokenIndexSet()` true, `coreTokenIndex()` 867, `coreUnit()` 1e10 (2026-11-02); ONE 허브 `getTokenPair(999, NATIVE)` → remote `0xFaA9…Ebe5`, isOrigin true; HyperEVM 브리지 `getTokenPair(612055, 0xFaA9…Ebe5)` → remote NATIVE, isOrigin false, 미정지 |
 | S-M17 | HyperEVM 메인넷 브리지(프록시) `0xd8A8…97E5` | onchain | `cast chain-id` 999; `allChainIDs()` → `[612055]`; `paused()` false; ERC-1967 impl 슬롯 → `0x71D9…8D8E`; `maxExtraDataLength()` 1024; ONE 허브 `allChainIDs()` 에 999 포함 (2026-10-28) |
 | S-M18 | HyperEVM 메인넷 BridgeVerifier `0x7566…DcFC` (참고용) | onchain | `bridge.bridgeVerifier()` 일치; 코드 11,538 B; `calculateFee(612055, ONE, 10e18)` → `(5e18, 0, 0)` |
-| S-M19 | HyperEVM 메인넷 BridgeExecutor `0x4c3b…707b` (참고용) | onchain | `bridge.bridgeExecutor()` 일치; 코드 4,977 B. 도착 후 후속 호출(X2) 화이트리스트는 아직 비어 있다 |
+| S-M19 | HyperEVM 메인넷 BridgeExecutor `0x4c3b…707b` (참고용) | onchain | `bridge.bridgeExecutor()` 일치; 코드 4,977 B; `isWhitelistedTarget(ONE 토큰)` true, `isMethodCheckEnabled(ONE 토큰)` true, `isWhitelistedMethod(ONE 토큰, transferToCoreFor 0x9438568d)` true (2026-11-02) |
 | S-M20 | 메인넷 SwapBridgeRouter `0xB298…e357` (X3) | onchain | 체인 612055 읽기 전용 확인 (2026-10-28): 런타임 코드 12,628 B; `bridge()` = 허브 `0xb81d…C0de`; `swapRouter()` = S-M08 `0x0e36…39Ba`, `quoter()` = S-M09 `0x9FBa…07eb` (설정된 v3SwapRouter / quoterV2 와 일치); `swapBridgeExactInputSingle` · `swapBridgeExactInputSingleETH` · `getAmountSwapBridgeOut` selector 존재; 최근 500k 블록에서 이 주소가 낸 `SwapBridge` 이벤트 83건; `getAmountSwapBridgeOut(56, ONEUSD, USDTx, 0, 10e18)` → status 1 |
+| S-M21 | HyperCore 시스템 주소 `0x2000…0363` (메인넷 ONE, X2) | onchain | 토큰 S-M16 `coreSystemAddress()` 일치 (2026-11-02); HyperCore info API `spotMeta` 의 ONE: index 867, `evmContract` = S-M16, `weiDecimals` 8 + `evm_extra_wei_decimals` 10 = 18 |
 
 ## 3. 테스트넷 주소
 
@@ -81,7 +82,6 @@
 
 | 값 | 마커 | 이유 / 필요한 것 |
 |---|---|---|
-| `mainnet.hyperevm.coreSystemAddress` | `TODO(PENDING)` | 메인넷 ONE 토큰이 아직 HyperCore 에 링크되지 않았다(`isCoreTokenIndexSet()` false, executor 화이트리스트 비어 있음) → Core 시스템 주소 없음. X2 메인넷 비활성(`preflight` 가 `CORE_NOT_LINKED` 로 막는다) |
 | `testnet.one.explorer` | `TODO(UNCONFIRMED)` | ONE 체인 테스트넷 explorer URL 미확인 |
 | `testnet.hyperevm.explorer` | `TODO(UNCONFIRMED)` | HyperEVM 테스트넷 explorer 공식 URL 미확인 |
 | `testnet.hyperevm.coreInfoApi` | `TODO(UNCONFIRMED)` | 공식 문서에서 테스트넷 info API URL 을 확인하지 못함 |
@@ -113,4 +113,4 @@ bash tools/fork-test/x1-executor.sh
 
 - 온체인 값을 다시 확인하려면 `bash tools/probe.sh` (읽기 전용 `cast call` / `cast code` / `cast storage` / `cast chain-id`).
 - X3: 메인넷 라우터(S-M20)는 설정되어 있다. 테스트넷 라우터에는 유동성 있는 V3 풀이 없어 테스트넷 X3 견적은 대개 실패한다(status 0). 종단 전송은 이 키트에서 실행하지 않고, 견적·인코딩은 단위 테스트와 골든 벡터로 검증한다.
-- HyperEVM 메인넷 경로 R3·R4·R5·R6 은 설정이 채워져 있다. X2(HyperCore 입금)는 메인넷 ONE 토큰이 HyperCore 에 링크되기 전이라 `preflight` 가 `CORE_NOT_LINKED` 로 막는다.
+- HyperEVM 메인넷 경로 R3·R4·R5·R6 과 X2(HyperCore 입금, R3·R5 모두)는 설정이 채워져 있다.

@@ -130,14 +130,16 @@ fee $N $R $B56 612055 $BSC_USDT_M 10000000000000000000
 N=hyperevm-mainnet; R=$RPC_HYPE_MAIN; H_TOK_M=0xFaA92e0e9BF90102ff1F731e7DeBD89CD7D1Ebe5
 tok $N $R $H_TOK_M
 p $N $R "token.totalSupply()" $H_TOK_M "totalSupply()(uint256)"
-p $N $R "token.isCoreTokenIndexSet()" $H_TOK_M "isCoreTokenIndexSet()(bool)"
-p $N $R "token.coreUnit()" $H_TOK_M "coreUnit()(uint256)"
+for f in "isCoreTokenIndexSet()(bool)" "coreTokenIndex()(uint64)" "coreUnit()(uint256)" "coreSystemAddress()(address)"; do p $N $R "token.$f" $H_TOK_M "$f"; done
 code $N $R "token" $H_TOK_M
 B999_M=0xd8A89e931E504Bdf7775640F800fe46528D097E5
 bridge_probe $N $R $B999_M
 impl $N $R $B999_M
 p $N $R "getTokenPair(612055,ONE)" $B999_M "getTokenPair(uint256,address)($PAIR_T)" 612055 $H_TOK_M
 fee $N $R $B999_M 612055 $H_TOK_M 10000000000000000000
+EXEC_HM=$(cast call $B999_M "bridgeExecutor()(address)" --rpc-url $R)
+exec_probe $N $R $B999_M $H_TOK_M
+p $N $R "executor.isWhitelistedMethod(ONE,transferToCoreFor 0x9438568d)" $EXEC_HM "isWhitelistedMethod(address,bytes4)(bool)" $H_TOK_M 0x9438568d
 
 # ================================================================ ONE testnet 612044
 N=one-testnet; R=$RPC_ONE_TEST

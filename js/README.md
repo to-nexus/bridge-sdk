@@ -15,7 +15,7 @@ See the [root README](../README.md) for the supported routes and an overview.
 The package is not published to the npm registry yet, so build it from source:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack
 
@@ -140,6 +140,7 @@ The recovery procedure and the table of revert codes are in [GUIDE.md §8](../GU
 ```bash
 npm run build && npm run examples:build
 node dist-examples/examples/r1-bsc-to-one.js --network testnet --sender 0xYourAddress
+node dist-examples/examples/x2-bsc-to-hypercore.js --network testnet --sender 0xYourAddress   # BSC -> ONE -> HyperEVM -> HyperCore (R5 + HyperCore deposit)
 PRIVATE_KEY=... node dist-examples/examples/r1-bsc-to-one.js --network testnet --send
 ```
 

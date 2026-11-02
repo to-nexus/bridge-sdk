@@ -19,12 +19,12 @@ Chain IDs: ONE 612055 (testnet 612044), BSC 56 (97), HyperEVM 999 (998). Contrac
 
 - **TypeScript**: the package is **not on the npm registry**. `npm install @to-nexus/bridge-sdk` fails. Build a tarball from a release tag:
   ```bash
-  git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
+  git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
   cd bridge-sdk/js && npm ci && npm run build && npm pack
   # then, in the target project:
   npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
   ```
-- **Go**: `go get github.com/to-nexus/bridge-sdk/go@v0.1.0`. The tag in git is `go/v0.1.0`, because the module lives in `go/`; `go get` takes the version without the prefix.
+- **Go**: `go get github.com/to-nexus/bridge-sdk/go@v0.1.1`. The tag in git is `go/v0.1.1`, because the module lives in `go/`; `go get` takes the version without the prefix.
 
 ## Choosing a route
 
@@ -37,10 +37,11 @@ Chain IDs: ONE 612055 (testnet 612044), BSC 56 (97), HyperEVM 999 (998). Contrac
 | BSC → HyperEVM in one request (through the hub) | R5 | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` |
 | HyperEVM → BSC in one request (through the hub) | R6 | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` |
 | USDT on BSC → ONEUSD on the ONE chain | X1 | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` |
-| ONE → a HyperCore spot account (option of R3, or `hypercore: true` on R5) | X2 | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` |
+| Native ONE → a HyperCore spot account | X2 | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` |
+| ONE token on BSC → a HyperCore spot account in one request (BSC → ONE → HyperEVM → HyperCore) | X2 on R5 | `BSC_TO_ONE_TO_HYPEREVM` + `hypercore: true` | `RouteBSCToOneToHyperEVM` + `Hypercore: true` |
 | Swap on the ONE chain, then bridge to BSC or HyperEVM | X3 | `SWAP_BRIDGE` | `RouteSwapBridge` |
 
-X2 is not open on mainnet yet; the SDK rejects it before anything is signed. On testnet, X3 quotes can fail because few pools have liquidity.
+X1 is not open on testnet; the SDK rejects it before anything is signed. On testnet, X3 quotes can also fail because few pools have liquidity.
 
 ## Minimal integration
 

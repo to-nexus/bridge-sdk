@@ -15,12 +15,12 @@ Ask which language the project uses if it is not obvious from the codebase.
 
 - **TypeScript** (Node ≥ 18, ethers v6, ESM). The package is **not on the npm registry**, so `npm install @to-nexus/bridge-sdk` fails. Build a tarball:
   ```bash
-  git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
+  git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
   cd bridge-sdk/js && npm ci && npm run build && npm pack
   # in the project:
   npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
   ```
-- **Go** (≥ 1.24): `go get github.com/to-nexus/bridge-sdk/go@v0.1.0`, then `import "github.com/to-nexus/bridge-sdk/go/bridgesdk"`.
+- **Go** (≥ 1.24): `go get github.com/to-nexus/bridge-sdk/go@v0.1.1`, then `import "github.com/to-nexus/bridge-sdk/go/bridgesdk"`.
 
 ## 2. Pick the route
 
@@ -33,10 +33,12 @@ Ask which language the project uses if it is not obvious from the codebase.
 | BSC → HyperEVM in one request | R5 | `Route.BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | `recipients.onHub`, optional `hop2FeeBuffer`, `hypercore` |
 | HyperEVM → BSC in one request | R6 | `Route.HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | `recipients.onHub`, optional `hop2FeeBuffer` |
 | USDT on BSC → ONEUSD on the ONE chain | X1 | `Route.BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | optional `swap: { slippageBps, deadlineSec }` |
-| ONE → HyperCore spot account | X2 | `Route.ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | `recipients.core` |
+| Native ONE → HyperCore spot account | X2 | `Route.ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | optional `recipients.core` |
+| ONE token on BSC → HyperCore spot account in one request (BSC → ONE → HyperEVM → HyperCore) | X2 on R5 | `Route.BSC_TO_ONE_TO_HYPEREVM` + `hypercore: true` | `RouteBSCToOneToHyperEVM` + `Hypercore: true` | `recipients.onHub`, optional `recipients.core`, `hop2FeeBuffer` |
 | Swap on the ONE chain, then bridge | X3 | `Route.SWAP_BRIDGE` | `RouteSwapBridge` | `x3: { tokenIn, tokenOut, poolFee, toChain }`, optional `swap` |
 
-- X2 is **not open on mainnet** yet. The SDK refuses it before signing (`AddressNotConfiguredError` / `PreflightError`). Say so instead of working around it.
+- X1 is not open on testnet. A route that is not open is refused before signing (`AddressNotConfiguredError` / `PreflightError`); say so instead of working around it.
+- `recipients.core` (the HyperCore account) defaults to `recipient`. If the HyperCore deposit fails, the ONE token stays on HyperEVM (`DELIVERED_FALLBACK`); a successful one ends in `CORE_DEPOSIT_SUBMITTED`.
 - For X3, read token addresses from the built-in settings: `getNetwork('mainnet').chains.one.tokens.ONEUSD.address` (JS), `Client.Network()` (Go). `tokenIn: 'native'` (JS) or `X3Request.NativeIn` (Go) swaps native ONE.
 - **`amount` (wei)**: the delivered amount for R1–R4, the **minimum** final delivered amount for R5/R6, the USDT amount sent for X1, the swap input for X3. Use `parseUnits('10')` (JS) / `bridgesdk.ParseUnits("10", 18)` (Go). All bridge tokens have 18 decimals.
 

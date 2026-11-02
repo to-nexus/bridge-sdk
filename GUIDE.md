@@ -29,7 +29,7 @@ cd js && npm ci && npm run build            # dist/ 생성
 npm install /경로/js                         # 내 프로젝트에서 설치 (패키지 이름: @to-nexus/bridge-sdk)
 
 # Go  (릴리스는 `go/vX.Y.Z` 태그 — 서브디렉터리 모듈)
-#   go get github.com/to-nexus/bridge-sdk/go@v0.1.0
+#   go get github.com/to-nexus/bridge-sdk/go@v0.1.1
 #   로컬 소스를 쓰려면 go.mod 에:  replace github.com/to-nexus/bridge-sdk/go => /경로/go
 
 # cast
@@ -90,7 +90,7 @@ client.quote({ route: Route.BSC_TO_ONE_TO_HYPEREVM, amount: minDelivered, sender
 client.quote({ route: Route.HYPEREVM_TO_ONE_TO_BSC, amount: minDelivered, sender, recipient });
 // X1  BSC USDT → ONE 체인 ONEUSD  (executor 스왑)   ⚠️ 테스트넷: TODO(UNCONFIRMED)
 client.quote({ route: Route.BSC_USDT_TO_ONEUSD, amount, sender, recipient, swap: { slippageBps: 50, deadlineSec: 1800 } });
-// X2  HyperCore 입금 옵션  (R3: Route.ONE_TO_HYPERCORE / R5: hypercore: true)   ⚠️ 메인넷: HyperCore 링크 전 (TODO(PENDING))
+// X2  HyperCore 입금 옵션  (R3: Route.ONE_TO_HYPERCORE / R5: hypercore: true)
 client.quote({ route: Route.ONE_TO_HYPERCORE, amount, sender, recipient, recipients: { core } });
 // X3  ONE 체인에서 스왑 후 브리지 (SwapBridgeRouter)
 client.quote({ route: Route.SWAP_BRIDGE, amount: amountIn, sender, recipient, x3: { tokenIn, tokenOut, poolFee: 0, toChain: 'bsc' } });
@@ -126,6 +126,7 @@ BSC 의 USDT 를 보내면 ONE 체인에서 USDTx 로 도착해 Uniswap V3 로 *
 | BSC ↔ HyperEVM 을 **브릿지 요청 한 번으로 두 홉 처리 (ERC20 이면 최초 approve 는 별도)** (허브 경유) | R5 (BSC→HyperEVM) / R6 (HyperEVM→BSC) |
 | BSC 의 USDT 를 ONE 체인 ONEUSD 로 | X1 |
 | HyperEVM 에 도착한 ONE 을 곧바로 HyperCore 계정에 | X2 (R3/R5 옵션) |
+| BSC 의 ONE 토큰을 요청 한 번으로 HyperCore 계정까지 (BSC → ONE → HyperEVM → HyperCore) | R5 + X2 (`hypercore: true`) |
 | ONE 체인에서 토큰을 스왑하면서 다른 체인으로 | X3 |
 
 ---
@@ -193,7 +194,7 @@ inner      = 0x                                  (평범한 도착)
 | BSC | (참고) BridgeExecutor — SDK 는 라이브 조회 | — (리프 체인, 없음) |
 | HYPEREVM | 브리지 (프록시) — 직접 호출 | `0xd8A89e931E504Bdf7775640F800fe46528D097E5` |
 | HYPEREVM | 토큰 ONE (ONE, 18 dec) | `0xFaA92e0e9BF90102ff1F731e7DeBD89CD7D1Ebe5` |
-| HYPEREVM | HyperCore 시스템 주소 (ONE) | ⚠️ `null` — TODO(PENDING) the mainnet ONE token is not linked to HyperCore yet (isCoreTokenIndexSet=false); X2 is unavailable on mainnet |
+| HYPEREVM | HyperCore 시스템 주소 (ONE) | `0x2000000000000000000000000000000000000363` |
 | HYPEREVM | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x75665acd4B5C94c0E865f6ba92FbA266338ADcFC` |
 | HYPEREVM | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x4c3bd7914F9d2bDA7C67233D320953a0976f707b` |
 
@@ -295,6 +296,7 @@ JS `r4-hyperevm-to-one.ts` · Go `r4-hyperevm-to-one` · cast `cast/r4.sh`.
 
 사전 조건(SDK `preflight()`): 세 체인 브리지 pause 아님 · 페어 pause 아님 · 허브 `bridgeExecutor() != 0` · executor 가 허브와 `0x55fd0776` 를 허용 · `extraData` 길이 ≤ `maxExtraDataLength`(소스·허브 둘 다; 0 은 무제한). 참고 길이(테스트넷, X2 포함 시): `extraData2` 88 B, `extraData1` 344 B.
 JS `r5-bsc-to-hyperevm.ts` · Go `r5-bsc-to-hyperevm` · cast `cast/r5.sh`.
+HyperCore 까지 보내려면(R5 + X2) `hypercore: true` 와 `recipients.core`(생략 시 `recipient`) — JS `x2-bsc-to-hypercore.ts` · Go `x2-bsc-to-hypercore` · cast `CORE_RECIPIENT=0x… ./cast/r5.sh`.
 
 ### R6 · HyperEVM → ONE → BSC
 
@@ -315,7 +317,7 @@ JS `x1-usdt-to-oneusd.ts` · Go `x1-usdt-to-oneusd` · cast `cast/x1.sh`.
 
 가장 안쪽 extraData = `HyperEVM-ONE(20B) ‖ transferToCoreFor(coreRecipient, value)`. executor 의 approve spender 가 토큰 자신이라 감사 후 요구되는 allowance 조건을 만족한다.
 **`transferToCore(uint256)`(수령자 인자 없음)를 extraData 에 절대 넣지 말 것** — 토큰이 executor 의 Core 계정에 크레딧되어 **영구 동결**된다.
-`coreUnit`(ONE 은 10¹⁰ wei) 배수로 **내림**하고 나머지는 `toDest` 로 돌아온다. 사전 조건(SDK): `isCoreTokenIndexSet()`, executor 가 토큰+`transferToCoreFor`(`0x9438568d`) 허용, `coreTransferableAmount(value) > 0`. ⚠️ 메인넷은 `isCoreTokenIndexSet=false` + `TODO(PENDING)` 라 비활성.
+`coreUnit`(ONE 은 10¹⁰ wei) 배수로 **내림**하고 나머지는 `toDest` 로 돌아온다. 사전 조건(SDK): `isCoreTokenIndexSet()`, executor 가 토큰+`transferToCoreFor`(`0x9438568d`) 허용, `coreTransferableAmount(value) > 0`.
 **extraData 검증·약정 금액**: SDK 는 `transferToCoreFor(coreRecipient, amount)` 도 디코드해 핸들에 `expect.x2 = {token, coreRecipient, encodedAmount}` 로 저장한다. **추론**(소스 영수증만)은 `encodedAmount` 가 소스에서 **약정한 금액**과 다르면 `UnsupportedRouteError` — 직접 X2 는 `BridgeInitiated.value`, R5 의 중첩 X2 는 forward payload 의 `bridgeTokenForwarded` `value`(v2). **추적**(도착 쪽)은 컨트랙트 규칙을 따른다(`src/BridgeExecutor.sol`, `src/token/HyperMintableERC20.sol`): executor 가 finalize 된 `value` 를 당겨 approve 하고, 토큰이 `coreTransferableAmount(encodedAmount)`(coreUnit 내림) 만 보내며 그 값이 `ExtraCallExecuted.returnData` 이고, 남은 `finalized − consumed` 는 `BridgeFinalized.to` 에게 돌아간다. 보고: `CORE_DEPOSIT_SUBMITTED{coreRecipient, coreAmount(EVM wei 단위, 내림된 값), returnedToDest, finalizedValue}` — hop 2 수수료가 내려 finalize 된 값이 v2 보다 크면 그 차이가 `returnedToDest` 에 보인다. `encodedAmount > finalized` 등으로 `ExtraCallExecuted(false)` 면 `DELIVERED_FALLBACK`. 실행된 call 의 target/selector 가 기대와 다르거나 핸들에 디코드 결과가 없으면 `PROCESSED_UNVERIFIED`.
 도착 확인은 HyperEVM 쪽 `ExtraCallExecuted(success=true)` = **`CORE_DEPOSIT_SUBMITTED`** 까지만 증명한다(EVM 에서 시스템 주소로 보낸 것). Core 크레딧은 비동기이므로 공개 info API `spotClearinghouseState`(사용자=coreRecipient)로 확인한다(SDK `checkCoreBalance`, 최선 노력).
 
@@ -497,7 +499,6 @@ extraCall 실패의 흔한 원인: executor whitelist 누락, `coreTokenIndex` �
 
 | 항목 | 마커 |
 |---|---|
-| HyperEVM 메인넷 Core 시스템 주소 (X2 메인넷 — ONE 토큰 HyperCore 링크 전) | `TODO(PENDING)` — 체인에 설정되면 갱신 |
 | ONE 체인 테스트넷 explorer, HyperEVM 테스트넷 explorer / info API | `TODO(UNCONFIRMED)` |
 | 테스트넷 ONEUSD / USDTx-ONEUSD 풀 (X1 테스트넷) | `TODO(UNCONFIRMED)` |
 

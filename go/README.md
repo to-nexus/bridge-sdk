@@ -13,7 +13,7 @@ See the [root README](../README.md) for the supported routes and an overview.
 ## Installation
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.0
+go get github.com/to-nexus/bridge-sdk/go@v0.1.1
 ```
 
 Version tags have the form `go/vX.Y.Z`, because this module lives in the repository's `go/` directory. With `go get`, write the version without the prefix (`@vX.Y.Z`).
@@ -155,7 +155,7 @@ The recovery procedure and the table of revert codes are in [GUIDE.md §8](../GU
 
 ```bash
 go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
-go run ./examples/r5-bsc-to-hyperevm -network testnet -sender 0xYourAddress -recipient-core 0xYourAddress   # R5 + HyperCore deposit
+go run ./examples/x2-bsc-to-hypercore -network testnet -sender 0xYourAddress   # BSC -> ONE -> HyperEVM -> HyperCore (R5 + HyperCore deposit)
 PRIVATE_KEY=... go run ./examples/r1-bsc-to-one -network testnet -send
 ```
 

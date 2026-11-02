@@ -36,7 +36,7 @@ FROM=0xYourAddress AMOUNT=10 NETWORK=testnet SEND=1 PRIVATE_KEY=... ./r1.sh
 | `r2.sh` | R2 ONE → BSC |
 | `r3.sh` | R3 ONE → HyperEVM (`CORE_RECIPIENT` 를 주면 X2 HyperCore 입금) |
 | `r4.sh` | R4 HyperEVM → ONE |
-| `r5.sh` | R5 BSC → ONE → HyperEVM (`CORE_RECIPIENT` 를 주면 X2) |
+| `r5.sh` | R5 BSC → ONE → HyperEVM (`CORE_RECIPIENT` 를 주면 X2: BSC → ONE → HyperEVM → HyperCore) |
 | `r6.sh` | R6 HyperEVM → ONE → BSC |
 | `x1.sh` | X1 BSC USDT → ONEUSD |
 | `x3.sh` | X3 ONE 체인에서 스왑 후 브리지 |

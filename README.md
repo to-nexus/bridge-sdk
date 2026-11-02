@@ -22,7 +22,8 @@ Network settings (chain IDs, RPC endpoints, contract addresses) are built into t
 | R5 | BSC → ONE → HyperEVM | Two hops in a single request (multihop) | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | ✅ | ✅ |
 | R6 | HyperEVM → ONE → BSC | Two hops in a single request (multihop) | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | ✅ | ✅ |
 | X1 | BSC USDT → ONEUSD | Swaps to ONEUSD automatically on arrival on the ONE chain | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
-| X2 | ONE → HyperCore | Deposits into a HyperCore spot account after arriving on HyperEVM (option of R3 and R5) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | Coming soon | ✅ |
+| X2 | ONE → HyperCore | Deposits into a HyperCore spot account after arriving on HyperEVM (R3 with the deposit) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | ✅ | ✅ |
+| X2 | BSC → ONE → HyperEVM → HyperCore | R5 with the HyperCore deposit: one request on BSC ends in a HyperCore spot account | `BSC_TO_ONE_TO_HYPEREVM` + `hypercore: true` | `RouteBSCToOneToHyperEVM` + `Hypercore: true` | ✅ | ✅ |
 | X3 | Swap and bridge | Swaps on the ONE chain and bridges the result to BSC or HyperEVM | `SWAP_BRIDGE` | `RouteSwapBridge` | ✅ | ✅¹ |
 
 ¹ Testnet has few swap pools with liquidity, so quotes may fail.
@@ -46,7 +47,7 @@ Contract addresses and RPC endpoints are listed in [GUIDE.md §3](GUIDE.md#3-네
 Requires Node.js 18 or later. The package is not published to the npm registry yet, so build it from source:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack     # creates to-nexus-bridge-sdk-<version>.tgz
 
@@ -59,7 +60,7 @@ npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
 Requires Go 1.24 or later.
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.0
+go get github.com/to-nexus/bridge-sdk/go@v0.1.1
 ```
 
 ### cast
@@ -209,6 +210,7 @@ cd go && go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
 | `r3-one-to-hyperevm` · `r4-hyperevm-to-one` | R3 · R4 |
 | `r5-bsc-to-hyperevm` · `r6-hyperevm-to-bsc` | R5 · R6 (multihop) |
 | `x1-usdt-to-oneusd` · `x2-one-to-hypercore` · `x3-swap-bridge` | X1 · X2 · X3 |
+| `x2-bsc-to-hypercore` | X2 on R5 (BSC → ONE → HyperEVM → HyperCore) |
 
 ## Documentation
 

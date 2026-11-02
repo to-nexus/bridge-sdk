@@ -2,7 +2,7 @@
 
 > TypeScript and Go SDKs for the ONE Bridge. They move ONE and USDT between BSC, the ONE chain (the hub) and HyperEVM, from a fee quote to a confirmed delivery: quote → send → wait for a handle → track. Network settings are built in. Never re-send a transfer whose broadcast outcome is unknown; use findSourceTransfer instead.
 
-The TypeScript package (@to-nexus/bridge-sdk) is not on the npm registry: build it from a release tag with `npm ci && npm run build && npm pack` in `js/`. The Go module is `github.com/to-nexus/bridge-sdk/go` (`go get github.com/to-nexus/bridge-sdk/go@v0.1.0`).
+The TypeScript package (@to-nexus/bridge-sdk) is not on the npm registry: build it from a release tag with `npm ci && npm run build && npm pack` in `js/`. The Go module is `github.com/to-nexus/bridge-sdk/go` (`go get github.com/to-nexus/bridge-sdk/go@v0.1.1`).
 
 ## Start here
 

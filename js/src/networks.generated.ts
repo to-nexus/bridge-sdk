@@ -3,7 +3,7 @@ import type { NetworksData } from './networks-types.js';
 
 export const networksData: NetworksData = {
   "schemaVersion": 1,
-  "verifiedAt": "2026-10-28",
+  "verifiedAt": "2026-11-02",
   "notes": [
     "SINGLE SOURCE OF TRUTH. Edit only this file, then run `node tools/gen.mjs` and `node tools/check-consistency.mjs`.",
     "Unconfirmed values are null with a greppable marker in `todo` (TODO(PENDING) = not set up on chain yet, TODO(UNCONFIRMED) = no official source found).",
@@ -107,11 +107,10 @@ export const networksData: NetworksData = {
               "kind": "erc20"
             }
           },
-          "coreSystemAddress": null,
+          "coreSystemAddress": "0x2000000000000000000000000000000000000363",
           "coreInfoApi": "https://api.hyperliquid.xyz/info",
           "swap": null,
           "todo": {
-            "coreSystemAddress": "TODO(PENDING) the mainnet ONE token is not linked to HyperCore yet (isCoreTokenIndexSet=false); X2 is unavailable on mainnet",
             "explorer": "hyperevmscan.io is listed among the explorers in the official Hyperliquid docs (the list does not name a network)"
           }
         }
@@ -270,6 +269,7 @@ export const networksData: NetworksData = {
     "testnet.hyperevm.nativeSymbol": "S-E02",
     "testnet.one.nativeSymbol": "S-E05",
     "mainnet.hyperevm.coreInfoApi": "S-E04",
+    "mainnet.hyperevm.coreSystemAddress": "S-M21",
     "mainnet.hyperevm.bridge": "S-M17",
     "mainnet.hyperevm.bridgeVerifier": "S-M18",
     "mainnet.hyperevm.bridgeExecutor": "S-M19",

@@ -22,7 +22,8 @@ BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 S
 | R5 | BSC → ONE → HyperEVM | 한 번의 요청으로 두 홉 이동 (멀티홉) | `BSC_TO_ONE_TO_HYPEREVM` | `RouteBSCToOneToHyperEVM` | ✅ | ✅ |
 | R6 | HyperEVM → ONE → BSC | 한 번의 요청으로 두 홉 이동 (멀티홉) | `HYPEREVM_TO_ONE_TO_BSC` | `RouteHyperEVMToOneToBSC` | ✅ | ✅ |
 | X1 | BSC USDT → ONEUSD | 도착 후 ONE 체인에서 ONEUSD 로 자동 스왑 | `BSC_USDT_TO_ONEUSD` | `RouteBSCUSDTToONEUSD` | ✅ | — |
-| X2 | ONE → HyperCore | HyperEVM 도착 후 HyperCore 스팟 계정으로 입금 (R3 · R5 옵션) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | 준비 중 | ✅ |
+| X2 | ONE → HyperCore | HyperEVM 도착 후 HyperCore 스팟 계정으로 입금 (R3 + 입금) | `ONE_TO_HYPERCORE` | `RouteOneToHyperCore` | ✅ | ✅ |
+| X2 | BSC → ONE → HyperEVM → HyperCore | R5 + HyperCore 입금: BSC 에서 요청 한 번으로 HyperCore 스팟 계정까지 | `BSC_TO_ONE_TO_HYPEREVM` + `hypercore: true` | `RouteBSCToOneToHyperEVM` + `Hypercore: true` | ✅ | ✅ |
 | X3 | 스왑 후 브리지 | ONE 체인에서 스왑한 토큰을 BSC / HyperEVM 으로 전송 | `SWAP_BRIDGE` | `RouteSwapBridge` | ✅ | ✅¹ |
 
 ¹ 테스트넷에는 유동성 있는 스왑 풀이 거의 없어 견적이 실패할 수 있습니다.
@@ -46,7 +47,7 @@ BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 S
 Node.js 18 이상이 필요합니다. 아직 npm 레지스트리에 배포하지 않았으므로 소스에서 패키지를 만들어 설치합니다.
 
 ```bash
-git clone --branch v0.1.0 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack     # to-nexus-bridge-sdk-<버전>.tgz 생성
 
@@ -59,7 +60,7 @@ npm install /path/to/to-nexus-bridge-sdk-<버전>.tgz ethers
 Go 1.24 이상이 필요합니다.
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.0
+go get github.com/to-nexus/bridge-sdk/go@v0.1.1
 ```
 
 ### cast
@@ -209,6 +210,7 @@ cd go && go run ./examples/r1-bsc-to-one -network testnet -sender 0xYourAddress
 | `r3-one-to-hyperevm` · `r4-hyperevm-to-one` | R3 · R4 |
 | `r5-bsc-to-hyperevm` · `r6-hyperevm-to-bsc` | R5 · R6 (멀티홉) |
 | `x1-usdt-to-oneusd` · `x2-one-to-hypercore` · `x3-swap-bridge` | X1 · X2 · X3 |
+| `x2-bsc-to-hypercore` | R5 의 X2 (BSC → ONE → HyperEVM → HyperCore) |
 
 ## 문서
 
