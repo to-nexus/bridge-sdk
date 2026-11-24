@@ -10,6 +10,8 @@
 #   PRIVATE_KEY=<hex>  or  CAST_SIGNER_ARGS="--account <name>" | "--ledger"   (signer for SEND=1; never printed)
 #   GAS_PRICE=<wei or 3gwei>  used for --legacy sends on BSC testnet (chain 97) (default 3gwei)
 #   RPC_ONE / RPC_BSC / RPC_HYPEREVM   optional RPC overrides (same names as the SDKs; used to point the scripts at local forks)
+#   DEX=v3|cl                 ONE chain DEX for X1 / X3 (default: ONE_DEX from the env file, else v3). cl = Slipstream concentrated liquidity:
+#                             pools are keyed by int24 tickSpacing (X3: TICK_SPACING=<int24>), never by fee
 # Nothing in this kit sends a transaction unless SEND=1.
 # Exit codes: 0 ok | 1 error | 2 usage | 3 value not configured (unconfirmed) | 4 PREFLIGHT REFUSED (nothing approved or sent)
 #             | 5 known testnet limitation (x3.sh with QUOTE_ONLY=1 only: the testnet router has no V3 pool for the pair)
@@ -25,6 +27,16 @@ case "$NETWORK" in mainnet|testnet) ;; *) echo "NETWORK must be mainnet or testn
 source "$KIT_DIR/env.$NETWORK.sh"
 # RPC overrides (the generated env file sets <CHAIN>_RPC unconditionally, so the override is applied AFTER it)
 for _p in ONE BSC HYPEREVM; do _o="RPC_$_p"; if [ -n "${!_o:-}" ]; then export "${_p}_RPC=${!_o}"; fi; done
+
+# ---- ONE chain DEX: names of the env variables of the active DEX (X1 / X3 read the values through ${!VAR}) --------------------
+DEX=${DEX:-${ONE_DEX:-v3}}
+case "$DEX" in
+  v3) DEX_ROUTER_VAR=ONE_V3_ROUTER; DEX_QUOTER_VAR=ONE_QUOTER_V2; DEX_FACTORY_VAR=ONE_V3_FACTORY; DEX_SBR_VAR=ONE_SWAP_BRIDGE_ROUTER
+      DEX_X1_POOL_VAR=ONE_X1_POOL; DEX_X1_KEY_VAR=ONE_X1_POOL_FEE; DEX_KEY_TYPE=uint24; DEX_X1_SELECTOR=0x414bf389; DEX_LABEL="V3";;
+  cl) DEX_ROUTER_VAR=ONE_CL_SWAP_ROUTER; DEX_QUOTER_VAR=ONE_CL_QUOTER_V2; DEX_FACTORY_VAR=ONE_CL_FACTORY; DEX_SBR_VAR=ONE_CL_SWAP_BRIDGE_ROUTER
+      DEX_X1_POOL_VAR=ONE_CL_X1_POOL; DEX_X1_KEY_VAR=ONE_CL_X1_TICK_SPACING; DEX_KEY_TYPE=int24; DEX_X1_SELECTOR=0xa026383e; DEX_LABEL="Slipstream CL";;
+  *) echo "DEX must be v3 or cl" >&2; exit 2;;
+esac
 
 command -v cast >/dev/null || { echo "cast (foundry) is required" >&2; exit 2; }
 command -v python3 >/dev/null || { echo "python3 is required (wei arithmetic exceeds bash 64-bit)" >&2; exit 2; }
@@ -97,9 +109,10 @@ forward_extra() {
 }
 # core_extra <heToken> <coreRecipient> <value> : token || transferToCoreFor(coreRecipient,value)   (never transferToCore(uint256))
 core_extra() { cast concat-hex "$1" "$(cast calldata "transferToCoreFor(address,uint256)" "$2" "$3")"; }
-# x1_extra <router> <tokenIn> <tokenOut> <fee> <recipient> <deadline> <amountIn> <amountOutMin>
+# x1_extra <router> <tokenIn> <tokenOut> <fee | tickSpacing> <recipient> <deadline> <amountIn> <amountOutMin>
+# V3: exactInputSingle 0x414bf389 (uint24 fee); DEX=cl: 0xa026383e (int24 tickSpacing)
 x1_extra() {
-  cast concat-hex "$1" "$(cast calldata "exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))" "($2,$3,$4,$5,$6,$7,$8,0)")"
+  cast concat-hex "$1" "$(cast calldata "exactInputSingle((address,address,$DEX_KEY_TYPE,address,uint256,uint256,uint256,uint160))" "($2,$3,$4,$5,$6,$7,$8,0)")"
 }
 
 # ---- signer ---------------------------------------------------------------------------------------------------------------
@@ -160,7 +173,7 @@ CORE_AMOUNT=""; HOP2_INNER=0x   # set by the route scripts that build an X2 / mu
 # An RPC error / chain mismatch on any check is itself a refusal (PREFLIGHT_INCOMPLETE / NETWORK_MISMATCH): an unverified check never passes.
 # Inputs (set by the route script / quote_route): ROUTE SRC_PREFIX [DEST_PREFIX] SRC_TOKEN TO_CHAIN_ID VALUE TOTAL MSG_VALUE EXTRA
 #   [CORE_AMOUNT = the amount encoded in the transferToCoreFor payload] [HOP2_INNER = the inner extraData of a multihop forward]
-#   X3: ROUTER TO_ID TOKEN_IN_ADDR NATIVE_IN TOKEN_OUT POOL_FEE AMOUNT_IN.
+#   X3: ROUTER TO_ID TOKEN_IN_ADDR NATIVE_IN TOKEN_OUT POOL_KEY (V3 fee | CL tickSpacing) AMOUNT_IN.
 # Not checked here on purpose: the DESTINATION pair (needs a per-hop pair table); only the destination bridge pause is required.
 PF_CODES=()
 pf_issue() { PF_CODES+=("$1"); say "  preflight REFUSE $1: $2"; }
@@ -244,7 +257,7 @@ preflight_route() { # <route> [pre-approve|post-approve]
       pf_read "x3 router.bridge()" "$PF_RPC" "$ROUTER" "bridge()(address)" && {
         if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$hub" | tr 'A-F' 'a-f')" ]; then pf_note "router.bridge() == hub"; else pf_issue ROUTER_BRIDGE_MISMATCH "SwapBridgeRouter.bridge() is $PF_OUT, expected the hub $hub"; fi; }
       PF_FROM=$FROM
-      pf_read "x3 quote status" "$PF_RPC" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,uint24,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_FEE" "$AMOUNT_IN" && {
+      pf_read "x3 quote status" "$PF_RPC" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,$DEX_KEY_TYPE,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_KEY" "$AMOUNT_IN" && {
         local st; st=$(echo "$PF_OUT" | line 1)
         if [ "$st" = 1 ]; then pf_note "router quote status == Success"; else pf_issue "X3_QUOTE_STATUS_$st" "SwapBridgeRouter quote status $st (1=Success 2=NoPair 3=InsufficientForFee 4=InsufficientValue 5=InvalidSwap)"; fi; }
       PF_FROM=""
@@ -270,13 +283,14 @@ preflight_route() { # <route> [pre-approve|post-approve]
       pf_maxlen ONE "$(( (${#HOP2_INNER} - 2) / 2 ))" EXTRADATA_TOO_LONG_HUB "hub inner extraData"
       [ -z "$hexec" ] || pf_whitelist ONE "$hexec" "$hub" 0x55fd0776 "hub + bridgeTokenForwarded"
     else
-      if [ -n "$hexec" ]; then pf_whitelist ONE "$hexec" "$ONE_V3_ROUTER" 0x414bf389 "V3 SwapRouter + exactInputSingle"; fi
+      local x1router="${!DEX_ROUTER_VAR}" x1factory="${!DEX_FACTORY_VAR:-}" x1pool="${!DEX_X1_POOL_VAR}" x1key="${!DEX_X1_KEY_VAR}"
+      if [ -n "$hexec" ]; then pf_whitelist ONE "$hexec" "$x1router" "$DEX_X1_SELECTOR" "$DEX_LABEL SwapRouter + exactInputSingle"; fi
       if pf_chain ONE; then
         pf_cv ONE
-        if [ -n "${ONE_V3_FACTORY:-}" ] && pf_read "x1 factory.getPool" "$PF_RPC" "$ONE_V3_FACTORY" "getPool(address,address,uint24)(address)" "$ONE_USDTX" "$ONE_ONEUSD" "$ONE_X1_POOL_FEE"; then
-          if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$ONE_X1_POOL" | tr 'A-F' 'a-f')" ]; then pf_note "factory.getPool(USDTx, ONEUSD, fee) == configured pool"; else pf_issue POOL_NOT_FOUND "factory has no pool $ONE_X1_POOL for (USDTx, ONEUSD, fee $ONE_X1_POOL_FEE): got $PF_OUT"; fi
+        if [ -n "$x1factory" ] && pf_read "x1 factory.getPool" "$PF_RPC" "$x1factory" "getPool(address,address,$DEX_KEY_TYPE)(address)" "$ONE_USDTX" "$ONE_ONEUSD" "$x1key"; then
+          if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$x1pool" | tr 'A-F' 'a-f')" ]; then pf_note "factory.getPool(USDTx, ONEUSD, $DEX_KEY_TYPE $x1key) == configured pool"; else pf_issue POOL_NOT_FOUND "factory has no pool $x1pool for (USDTx, ONEUSD, $DEX_KEY_TYPE $x1key): got $PF_OUT"; fi
         fi
-        if pf_read "x1 pool liquidity" "$PF_RPC" "$ONE_X1_POOL" "liquidity()(uint128)"; then
+        if pf_read "x1 pool liquidity" "$PF_RPC" "$x1pool" "liquidity()(uint128)"; then
           if gt_wei "$(echo "$PF_OUT" | first)" 0; then pf_note "pool liquidity > 0"; else pf_issue POOL_NO_LIQUIDITY "the swap pool has no liquidity"; fi
         fi
       fi

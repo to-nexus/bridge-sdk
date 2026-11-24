@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# X3  Swap on the ONE chain (Uniswap V3 via SwapBridgeRouter) and bridge the output in ONE tx. Atomic: any failure reverts everything.
-#   AMOUNT = amountIn.  TOKEN_IN=<address>|native  TOKEN_OUT=<address>  POOL_FEE=<uint24, default 0>  TO_CHAIN=bsc|hyperevm (default bsc)
+# X3  Swap on the ONE chain (Uniswap V3 via SwapBridgeRouter, or Slipstream CL via SwapBridgeRouterCL with DEX=cl) and bridge the output in ONE tx. Atomic: any failure reverts everything.
+#   AMOUNT = amountIn.  TOKEN_IN=<address>|native  TOKEN_OUT=<address>  POOL_FEE=<uint24, default 0> (V3) | TICK_SPACING=<int24, required> (DEX=cl)  TO_CHAIN=bsc|hyperevm (default bsc)
 #   SLIPPAGE_BPS (default 50), DEADLINE_SEC (default 1800).
 #   Defaults (assumption A6, when configured): ONEUSD -> USDTx -> BSC USDT.
 # Two floors, both printed: the SWAP-OUTPUT floor (amountOutMinimum, enforced on chain) and the BRIDGE-DELIVERY floor (minBridgeValue,
 # shown to you; it holds as long as bridge fees do not rise between quote and inclusion).
 source "$(dirname "$0")/lib.sh"
 ROUTE=X3
-need ONE_BRIDGE; need ONE_SWAP_BRIDGE_ROUTER
+need ONE_BRIDGE; need "$DEX_SBR_VAR"
 need_env FROM
 TO_CHAIN=${TO_CHAIN:-bsc}
 case "$TO_CHAIN" in bsc) TO_ID=$BSC_CHAIN_ID; need BSC_BRIDGE;; hyperevm) TO_ID=$HYPEREVM_CHAIN_ID; need HYPEREVM_BRIDGE;; *) die "TO_CHAIN must be bsc or hyperevm";; esac
@@ -16,18 +16,25 @@ TOKEN_IN=${TOKEN_IN:-${ONE_ONEUSD:-}}; TOKEN_OUT=${TOKEN_OUT:-${ONE_USDTX:-}}
 if [ -z "$TOKEN_IN" ] && [ "${QUOTE_ONLY:-0}" = "1" ]; then TOKEN_IN=native; fi
 [ -n "$TOKEN_IN" ] || die "TOKEN_IN is required on $NETWORK (no default: ONEUSD is not configured)"
 [ -n "$TOKEN_OUT" ] || die "TOKEN_OUT is required"
-POOL_FEE=${POOL_FEE:-0}
+if [ "$DEX" = cl ]; then
+  [ -n "${TICK_SPACING:-}" ] || die "TICK_SPACING (int24 pool tick spacing) is required with DEX=cl; Slipstream pools are not keyed by fee"
+  [ -z "${POOL_FEE:-}" ] || die "POOL_FEE is not used with DEX=cl (set TICK_SPACING)"
+  POOL_KEY=$TICK_SPACING
+else
+  [ -z "${TICK_SPACING:-}" ] || die "TICK_SPACING is only valid with DEX=cl"
+  POOL_FEE=${POOL_FEE:-0}; POOL_KEY=$POOL_FEE
+fi
 NATIVE_IN=0; TOKEN_IN_ADDR=$TOKEN_IN
 if [ "$TOKEN_IN" = "native" ]; then need ONE_WCROSS; NATIVE_IN=1; TOKEN_IN_ADDR=$ONE_WCROSS; fi
-check_chain ONE; chain_vars ONE; RPC=$C_RPC; ROUTER=$ONE_SWAP_BRIDGE_ROUTER
+check_chain ONE; chain_vars ONE; RPC=$C_RPC; ROUTER=${!DEX_SBR_VAR}
 AMOUNT_IN=$(amount_wei)
-SBR_STRUCT_SIG="swapBridgeExactInputSingle((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
-[ $NATIVE_IN = 1 ] && SBR_STRUCT_SIG="swapBridgeExactInputSingleETH((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
+SBR_STRUCT_SIG="swapBridgeExactInputSingle((address,address,$DEX_KEY_TYPE,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
+[ $NATIVE_IN = 1 ] && SBR_STRUCT_SIG="swapBridgeExactInputSingleETH((address,address,$DEX_KEY_TYPE,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
 FROZEN_MIN=""; FROZEN_BRIDGE_MIN=""; DEADLINE=""
 
 quote_route() {
   local out status
-  out=$(cast call --from "$FROM" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,uint24,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_FEE" "$AMOUNT_IN" --rpc-url "$RPC") || die "SwapBridgeRouter quote reverted"
+  out=$(cast call --from "$FROM" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,$DEX_KEY_TYPE,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_KEY" "$AMOUNT_IN" --rpc-url "$RPC") || die "SwapBridgeRouter quote reverted"
   status=$(echo "$out" | line 1); SWAP_OUT=$(echo "$out" | line 2); BRIDGE_VALUE=$(echo "$out" | line 3); NF=$(echo "$out" | line 4); EF=$(echo "$out" | line 5)
   [[ "$status" =~ ^[0-9]+$ ]] || die "router quote status could not be decoded: '$status'"
   if [ "$status" != "1" ]; then
@@ -53,7 +60,7 @@ quote_route() {
     ge_wei "$DELIVERY_AT_FLOOR" "$FROZEN_BRIDGE_MIN" || die "re-quote: delivery at the ORIGINAL floor is now $DELIVERY_AT_FLOOR < approved $FROZEN_BRIDGE_MIN (bridge fees rose). Nothing was sent."
     MIN_BRIDGE=$FROZEN_BRIDGE_MIN
   fi
-  PARAMS="($TOKEN_IN_ADDR,$TOKEN_OUT,$POOL_FEE,$AMOUNT_IN,$OUT_MIN,0,($TO_ID,$(rec_dest),0x))"
+  PARAMS="($TOKEN_IN_ADDR,$TOKEN_OUT,$POOL_KEY,$AMOUNT_IN,$OUT_MIN,0,($TO_ID,$(rec_dest),0x))"
 }
 quote_route
 say "X3 on $NETWORK: amountIn=$AMOUNT_IN swapOut=$SWAP_OUT -> bridge value=$BRIDGE_VALUE networkFee=$NF exFee=$EF"
