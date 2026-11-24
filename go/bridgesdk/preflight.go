@@ -140,11 +140,13 @@ func (c *Client) preflightAt(ctx context.Context, q *Quote, stage string) (*Pref
 		// fresh quote status through the timed RPC: a status other than Success (1) blocks at every stage, before any approve
 		guard("x3 quote status", func() error {
 			sender := q.Sender
-			var poolFee uint32
-			if q.Request.X3 != nil {
-				poolFee = q.Request.X3.PoolFee
+			routerABI, poolKey := sbrABI, new(big.Int)
+			if x3 := q.Request.X3; x3 != nil && x3.TickSpacing != nil {
+				routerABI, poolKey = sbrCLABI, big.NewInt(int64(*x3.TickSpacing)) // SwapBridgeRouterCL: int24 tickSpacing
+			} else if x3 != nil {
+				poolKey = u(uint64(x3.PoolFee))
 			}
-			out, err := c.callABI(ctx, ChainOne, sbrABI, q.SourceContract, "getAmountSwapBridgeOut", &sender, u(q.Match.ToChainID), q.Match.TokenIn, q.Match.TokenOut, u(uint64(poolFee)), q.Match.AmountIn)
+			out, err := c.callABI(ctx, ChainOne, routerABI, q.SourceContract, "getAmountSwapBridgeOut", &sender, u(q.Match.ToChainID), q.Match.TokenIn, q.Match.TokenOut, poolKey, q.Match.AmountIn)
 			if err != nil {
 				return err
 			}
@@ -250,23 +252,39 @@ func (c *Client) preflightAt(ctx context.Context, q *Quote, stage string) (*Pref
 				guard("executor whitelist (hub forward)", func() error { return whitelist("hub + bridgeTokenForwarded", hub, ForwardSelector) })
 			}
 			if q.Kind == KindX1 {
-				router := addr(chains[ChainOne].Swap.V3SwapRouter)
-				guard("executor whitelist (V3 router)", func() error { return whitelist("V3 SwapRouter + exactInputSingle", router, ExactInputSingleSelector) })
+				sv := swapViewOf(c.net)
+				router := addr(sv.router)
+				if sv.dex == DexCL {
+					guard("executor whitelist (CL router)", func() error {
+						return whitelist("Slipstream CL SwapRouter + exactInputSingle", router, CLExactInputSingleSelector)
+					})
+				} else {
+					guard("executor whitelist (V3 router)", func() error { return whitelist("V3 SwapRouter + exactInputSingle", router, ExactInputSingleSelector) })
+				}
 				guard("x1 pool exists", func() error {
-					sw := chains[ChainOne].Swap
-					if sw.V3Factory == nil {
+					if sv.factory == nil {
 						return nil
 					}
-					out, err := c.callABI(ctx, ChainOne, v3FactoryABI, addr(sw.V3Factory), "getPool", nil, common.HexToAddress(chains[ChainOne].Tokens["USDTx"].Address), common.HexToAddress(chains[ChainOne].Tokens["ONEUSD"].Address), u(uint64(sw.X1Pool.Fee)))
+					usdtx, oneusd := common.HexToAddress(chains[ChainOne].Tokens["USDTx"].Address), common.HexToAddress(chains[ChainOne].Tokens["ONEUSD"].Address)
+					if sv.dex == DexCL { // Slipstream pools are keyed by int24 tickSpacing (the pool fee is dynamic)
+						out, err := c.callABI(ctx, ChainOne, clFactoryABI, addr(sv.factory), "getPool", nil, usdtx, oneusd, big.NewInt(int64(sv.tickSpacing)))
+						if err != nil {
+							return err
+						}
+						got := out[0].(common.Address)
+						add("factory.getPool(USDTx, ONEUSD, tickSpacing) == configured pool", got == addr(sv.pool), got.Hex(), &PreflightIssue{Level: "error", Code: "POOL_NOT_FOUND", Message: fmt.Sprintf("CL factory has no pool %s for (USDTx, ONEUSD, tickSpacing %d)", *sv.pool, sv.tickSpacing)})
+						return nil
+					}
+					out, err := c.callABI(ctx, ChainOne, v3FactoryABI, addr(sv.factory), "getPool", nil, usdtx, oneusd, u(uint64(sv.fee)))
 					if err != nil {
 						return err
 					}
 					got := out[0].(common.Address)
-					add("factory.getPool(USDTx, ONEUSD, fee) == configured pool", got == common.HexToAddress(sw.X1Pool.Pool), got.Hex(), &PreflightIssue{Level: "error", Code: "POOL_NOT_FOUND", Message: fmt.Sprintf("factory has no pool %s for (USDTx, ONEUSD, fee %d)", sw.X1Pool.Pool, sw.X1Pool.Fee)})
+					add("factory.getPool(USDTx, ONEUSD, fee) == configured pool", got == addr(sv.pool), got.Hex(), &PreflightIssue{Level: "error", Code: "POOL_NOT_FOUND", Message: fmt.Sprintf("factory has no pool %s for (USDTx, ONEUSD, fee %d)", *sv.pool, sv.fee)})
 					return nil
 				})
 				guard("x1 pool liquidity", func() error {
-					out, err := c.callABI(ctx, ChainOne, v3PoolABI, common.HexToAddress(chains[ChainOne].Swap.X1Pool.Pool), "liquidity", nil)
+					out, err := c.callABI(ctx, ChainOne, v3PoolABI, addr(sv.pool), "liquidity", nil)
 					if err != nil {
 						return err
 					}

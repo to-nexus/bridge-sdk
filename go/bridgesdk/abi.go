@@ -39,7 +39,8 @@ func loadExtra(k string) *abi.ABI {
 	return &a
 }
 
-// ABIs come from the public binding module (generated at release v1.1.0); the Uniswap V3 fragments from abi_extra.json.
+// ABIs come from the public binding module (generated at release v1.1.0); the Uniswap V3 / Slipstream CL fragments and SwapBridgeRouterCL from
+// abi_extra.json.
 var (
 	bridgeABI      = mustMeta(binding.CrossBridgeMetaData) // CrossBridge (superset of BaseBridge/BSCBridgeV2)
 	forwardLibABI  = mustMeta(binding.ForwardLibMetaData)  // ForwardInitiated / ForwardFailed (emitted by the hub via delegatecall)
@@ -53,6 +54,10 @@ var (
 	v3PoolABI      = loadExtra("v3Pool")
 	v3FactoryABI   = loadExtra("v3Factory")
 	v3PeripheryABI = loadExtra("v3Periphery")
+	clRouterABI    = loadExtra("clRouter")
+	clQuoterABI    = loadExtra("clQuoterV2")
+	clFactoryABI   = loadExtra("clFactory")
+	sbrCLABI       = loadExtra("swapBridgeRouterCL") // SwapBridgeRouterCL: SwapBridgeRouter with int24 tickSpacing in the single-pool functions
 )
 
 // Selectors (verified by tests against `cast sig`).
@@ -60,6 +65,10 @@ var (
 	ForwardSelector          = selectorOf("bridgeTokenForwarded(uint256,address,uint256,uint256,uint256,bytes)")                // 0x55fd0776
 	CoreSelector             = selectorOf("transferToCoreFor(address,uint256)")                                                 // 0x9438568d
 	ExactInputSingleSelector = selectorOf("exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))") // 0x414bf389
+	// CLExactInputSingleSelector is exactInputSingle on the Slipstream CL SwapRouter (int24 tickSpacing in place of uint24 fee).
+	CLExactInputSingleSelector = selectorOf("exactInputSingle((address,address,int24,address,uint256,uint256,uint256,uint160))") // 0xa026383e
+	// CLQuoteExactInputSingleSelector is quoteExactInputSingle on the Slipstream CL QuoterV2.
+	CLQuoteExactInputSingleSelector = selectorOf("quoteExactInputSingle((address,address,uint256,int24,uint160))") // 0x9e7defe6
 )
 
 func topicOf(a *abi.ABI, event string) common.Hash { return a.Events[event].ID }

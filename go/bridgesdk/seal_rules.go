@@ -14,9 +14,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	binding "github.com/to-nexus/bridge-contracts/binding/go/src"
 )
 
 // maxDurationMs is the largest ms value that fits a time.Duration without wrapping (checked BEFORE any multiplication).
@@ -239,19 +237,15 @@ func x3Rules(w *quoteWireV1, q *Quote, req *QuoteRequest, dest common.Address) *
 		return bad("deadlineSec", "required for an X3 quote")
 	}
 	x3 := req.X3
-	name := "swapBridgeExactInputSingle"
-	if x3.NativeIn {
-		name = "swapBridgeExactInputSingleETH"
+	// the wrapper ABI follows the request: tickSpacing = SwapBridgeRouterCL, poolFee = SwapBridgeRouter (the client binding check ties it to the client's dex)
+	dex := DexV3
+	if x3.TickSpacing != nil {
+		dex = DexCL
 	}
-	m := sbrABI.Methods[name]
-	if len(q.Tx.Data) < 4 || !bytes.Equal(q.Tx.Data[:4], m.ID) {
-		return bad("tx.data", "unexpected swap function")
+	p, err := decodeSwapBridgeCall(q.Tx.Data, x3.NativeIn, dex)
+	if err != nil {
+		return bad("tx.data", "%s", err.Error())
 	}
-	out, err := m.Inputs.Unpack(q.Tx.Data[4:])
-	if err != nil || len(out) != 2 {
-		return bad("tx.data", "not a SwapBridgeRouter call")
-	}
-	p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 	val := new(big.Int)
 	if x3.NativeIn {
 		val = req.Amount
@@ -261,8 +255,10 @@ func x3Rules(w *quoteWireV1, q *Quote, req *QuoteRequest, dest common.Address) *
 		return bad("tx.data", "tokenIn differs from request.x3.tokenIn")
 	case p.TokenOut != x3.TokenOut:
 		return bad("tx.data", "tokenOut differs from request.x3.tokenOut")
-	case !p.Fee.IsUint64() || p.Fee.Uint64() != uint64(x3.PoolFee):
+	case dex == DexV3 && (!p.Fee.IsUint64() || p.Fee.Uint64() != uint64(x3.PoolFee)):
 		return bad("tx.data", "fee differs from request.x3.poolFee")
+	case dex == DexCL && (!p.TickSpacing.IsInt64() || p.TickSpacing.Int64() != int64(*x3.TickSpacing)):
+		return bad("tx.data", "tickSpacing differs from request.x3.tickSpacing")
 	case p.AmountIn.Cmp(req.Amount) != 0:
 		return bad("tx.data", "amountIn differs from request.amount")
 	case p.AmountOutMinimum.Cmp(q.Limits.AmountOutMinimum) != 0:
@@ -273,7 +269,7 @@ func x3Rules(w *quoteWireV1, q *Quote, req *QuoteRequest, dest common.Address) *
 		return bad("tx.data", "recipient differs from the resolved destination recipient")
 	case len(p.BridgeParams.ExtraData) != 0:
 		return bad("tx.data", "X3 supports extraData = 0x only")
-	case out[1].(*big.Int).Cmp(u(q.Deadline)) != 0:
+	case p.Deadline.Cmp(u(q.Deadline)) != 0:
 		return bad("tx.data", "deadline differs from deadlineSec")
 	case q.Tx.Value.Cmp(val) != 0:
 		return bad("tx.value", "must equal amountIn for a native input, 0 otherwise")

@@ -44,6 +44,9 @@ func cloneRequest(r QuoteRequest) QuoteRequest {
 	r.MinDelivered = cloneBig(r.MinDelivered)
 	r.Swap = SwapOptions{SlippageBps: clonePtr(r.Swap.SlippageBps), DeadlineSec: clonePtr(r.Swap.DeadlineSec)}
 	r.X3 = clonePtr(r.X3)
+	if r.X3 != nil {
+		r.X3.TickSpacing = clonePtr(r.X3.TickSpacing)
+	}
 	return r
 }
 

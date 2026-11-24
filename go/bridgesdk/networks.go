@@ -52,6 +52,38 @@ type X1Pool struct {
 	Pool     string `json:"pool"`
 }
 
+// DexKind names the ONE chain DEX that X1 and X3 use.
+type DexKind string
+
+const (
+	DexV3 DexKind = "v3" // Uniswap V3 (single-pool calls carry uint24 fee); the default when SwapConfig.Dex is empty
+	DexCL DexKind = "cl" // Slipstream concentrated liquidity (single-pool calls carry int24 tickSpacing)
+)
+
+// Int24 range of a Slipstream tick spacing in the ABI.
+const (
+	MinInt24 = -(1 << 23)
+	MaxInt24 = 1<<23 - 1
+)
+
+// CLX1Pool is the Slipstream CL pool used by X1. TickSpacing is the pool key (read from pool.tickSpacing()); the CL pool fee is dynamic and is
+// never used to derive it.
+type CLX1Pool struct {
+	TokenIn     string `json:"tokenIn"`
+	TokenOut    string `json:"tokenOut"`
+	TickSpacing int32  `json:"tickSpacing"`
+	Pool        string `json:"pool"`
+}
+
+// CLSwapConfig holds the Slipstream CL contracts of a chain (used when SwapConfig.Dex is "cl"). A nil field means not configured.
+type CLSwapConfig struct {
+	SwapRouter       *string   `json:"swapRouter"`
+	QuoterV2         *string   `json:"quoterV2"`
+	Factory          *string   `json:"factory"`
+	SwapBridgeRouter *string   `json:"swapBridgeRouter"` // SwapBridgeRouterCL (X3)
+	X1Pool           *CLX1Pool `json:"x1Pool"`
+}
+
 // SwapConfig holds the swap contracts of a chain. A nil field means the contract is not configured on this network; routes that need it are
 // refused with *AddressNotConfiguredError.
 type SwapConfig struct {
@@ -60,6 +92,17 @@ type SwapConfig struct {
 	V3Factory        *string `json:"v3Factory"`
 	SwapBridgeRouter *string `json:"swapBridgeRouter"`
 	X1Pool           *X1Pool `json:"x1Pool"`
+	// Dex selects the DEX for X1 and X3: "" or "v3" = the V3 fields above, "cl" = the contracts in CL.
+	Dex DexKind       `json:"dex,omitempty"`
+	CL  *CLSwapConfig `json:"cl,omitempty"`
+}
+
+// DexKind returns the configured DEX ("v3" when unset). It does not validate the value; see NetworkData.Dex.
+func (s *SwapConfig) DexKind() DexKind {
+	if s == nil || s.Dex == "" {
+		return DexV3
+	}
+	return s.Dex
 }
 
 // ChainConfig is the configuration of one chain. Pointer fields are nil when the value is not configured on this network.
@@ -127,10 +170,93 @@ func GetNetwork(name NetworkName) (*NetworkData, error) {
 	return n, nil
 }
 
+// Dex returns the DEX of the ONE chain ("v3" when unset or when the chain has no swap block). An unknown value is an error.
+func (n *NetworkData) Dex() (DexKind, error) {
+	one := n.Chains[ChainOne]
+	if one == nil || one.Swap == nil {
+		return DexV3, nil
+	}
+	switch d := one.Swap.DexKind(); d {
+	case DexV3, DexCL:
+		return d, nil
+	default:
+		return "", fmt.Errorf("one.swap.dex must be %q or %q, got %q", DexV3, DexCL, d)
+	}
+}
+
+// dexPath maps a V3 swap config path to the path of the same role under the configured DEX (identity for V3 and for every other path).
+func dexPath(dex DexKind, p string) string {
+	if dex != DexCL {
+		return p
+	}
+	switch p {
+	case "one.swap.v3SwapRouter":
+		return "one.swap.cl.swapRouter"
+	case "one.swap.quoterV2":
+		return "one.swap.cl.quoterV2"
+	case "one.swap.v3Factory":
+		return "one.swap.cl.factory"
+	case "one.swap.swapBridgeRouter":
+		return "one.swap.cl.swapBridgeRouter"
+	case "one.swap.x1Pool":
+		return "one.swap.cl.x1Pool"
+	}
+	return p
+}
+
+// swapView is the ONE chain swap configuration of the ACTIVE DEX: the V3 fields, or the CL block. Nil pointers = not configured.
+type swapView struct {
+	dex         DexKind
+	router      *string // V3 SwapRouter | CL SwapRouter (the X1 extraCall target)
+	quoter      *string
+	factory     *string
+	sbr         *string // SwapBridgeRouter | SwapBridgeRouterCL (X3)
+	pool        *string // X1 pool address
+	fee         uint32  // V3 X1 pool fee
+	tickSpacing int32   // CL X1 pool tick spacing
+}
+
+// swapViewOf resolves the active DEX of a network configuration. An invalid dex value yields a view with no contracts (every route that needs
+// one is then refused), so callers that must report the reason call NetworkData.Dex first.
+func swapViewOf(n *NetworkData) swapView {
+	dex, err := n.Dex()
+	v := swapView{dex: dex}
+	if err != nil {
+		return v
+	}
+	one := n.Chains[ChainOne]
+	if one == nil || one.Swap == nil {
+		return v
+	}
+	sw := one.Swap
+	if dex == DexCL {
+		if sw.CL != nil {
+			v.router, v.quoter, v.factory, v.sbr = sw.CL.SwapRouter, sw.CL.QuoterV2, sw.CL.Factory, sw.CL.SwapBridgeRouter
+			if sw.CL.X1Pool != nil {
+				v.pool, v.tickSpacing = &sw.CL.X1Pool.Pool, sw.CL.X1Pool.TickSpacing
+			}
+		}
+		return v
+	}
+	v.router, v.quoter, v.factory, v.sbr = sw.V3SwapRouter, sw.QuoterV2, sw.V3Factory, sw.SwapBridgeRouter
+	if sw.X1Pool != nil {
+		v.pool, v.fee = &sw.X1Pool.Pool, sw.X1Pool.Fee
+	}
+	return v
+}
+
+// exactInputSelector is the exactInputSingle selector of the DEX's swap router.
+func exactInputSelector(dex DexKind) [4]byte {
+	if dex == DexCL {
+		return CLExactInputSingleSelector
+	}
+	return ExactInputSingleSelector
+}
+
 // Chain returns the chain configuration.
 func (n *NetworkData) Chain(k ChainKey) *ChainConfig { return n.Chains[k] }
 
-// ConfigValue resolves a dotted path such as "hyperevm.bridge", "one.swap.swapBridgeRouter" or "bsc.tokens.USDT".
+// ConfigValue resolves a dotted path such as "hyperevm.bridge", "one.swap.swapBridgeRouter", "one.swap.cl.swapRouter" or "bsc.tokens.USDT".
 // It returns nil when the value is null/unconfigured.
 func (n *NetworkData) ConfigValue(path string) *string {
 	parts := strings.Split(path, ".")
@@ -167,6 +293,25 @@ func (n *NetworkData) ConfigValue(path string) *string {
 		case "x1Pool":
 			if c.Swap.X1Pool != nil {
 				return &c.Swap.X1Pool.Pool
+			}
+		}
+	case len(rest) == 3 && rest[0] == "swap" && rest[1] == "cl":
+		if c.Swap == nil || c.Swap.CL == nil {
+			return nil
+		}
+		cl := c.Swap.CL
+		switch rest[2] {
+		case "swapRouter":
+			return cl.SwapRouter
+		case "quoterV2":
+			return cl.QuoterV2
+		case "factory":
+			return cl.Factory
+		case "swapBridgeRouter":
+			return cl.SwapBridgeRouter
+		case "x1Pool":
+			if cl.X1Pool != nil {
+				return &cl.X1Pool.Pool
 			}
 		}
 	}

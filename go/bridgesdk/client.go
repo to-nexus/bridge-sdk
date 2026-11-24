@@ -45,7 +45,7 @@ type Client struct {
 
 // NewClient creates a client for the built-in "mainnet" or "testnet" configuration. opts may be nil. It performs no network access: each chain's
 // RPC is dialled on first use and its eth_chainId is checked against the configuration once (a mismatch fails with *NetworkMismatchError before
-// anything is read or sent). It fails only if the network name is unknown.
+// anything is read or sent). It fails only if the network name is unknown or the configuration's one.swap.dex is neither "v3" nor "cl".
 func NewClient(ctx context.Context, network NetworkName, opts *ClientOptions) (*Client, error) {
 	o := ClientOptions{}
 	if opts != nil {
@@ -57,6 +57,9 @@ func NewClient(ctx context.Context, network NetworkName, opts *ClientOptions) (*
 		if nd, err = GetNetwork(network); err != nil {
 			return nil, err
 		}
+	}
+	if _, err := nd.Dex(); err != nil {
+		return nil, err
 	}
 	c := &Client{network: network, net: nd, opts: o, rpcs: map[ChainKey]RPC{}, verified: map[ChainKey]bool{}}
 	for k, r := range o.RPCs {

@@ -2,12 +2,11 @@ package bridgesdk
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	binding "github.com/to-nexus/bridge-contracts/binding/go/src"
 )
 
 // The ONE way the binding check reads a config-owned value (same pattern as the JS requireCfg): a component this client's config does not have raises
@@ -45,23 +44,39 @@ func (c *Client) cfgToken(key ChainKey, name, quoteValue string) (string, error)
 	return "", cfgMissing("chains."+string(key)+".tokens."+name+".address", quoteValue)
 }
 
-// cfgSwap returns one.swap.<field> ("v3SwapRouter" | "swapBridgeRouter").
+// cfgDex returns this client's DEX; an invalid dex value is a configuration mismatch for every swap quote.
+func (c *Client) cfgDex(quoteValue string) (DexKind, error) {
+	d, err := c.net.Dex()
+	if err != nil {
+		return "", &NetworkMismatchError{Scope: "chains.one.swap.dex", ExpectedValue: err.Error(), Actual: quoteValue}
+	}
+	return d, nil
+}
+
+// cfgSwap returns the swap contract of the configured DEX for a V3 role name ("v3SwapRouter" | "swapBridgeRouter"): one.swap.<field> for V3,
+// one.swap.cl.<swapRouter | swapBridgeRouter> for CL.
 func (c *Client) cfgSwap(field, quoteValue string) (string, error) {
 	ch, err := c.cfgChain(ChainOne, quoteValue)
 	if err != nil {
 		return "", err
 	}
+	dex, err := c.cfgDex(quoteValue)
+	if err != nil {
+		return "", err
+	}
+	path := dexPath(dex, "one.swap."+field)
 	var v *string
 	if ch.Swap != nil {
+		sv := swapViewOf(c.net)
 		switch field {
 		case "v3SwapRouter":
-			v = ch.Swap.V3SwapRouter
+			v = sv.router
 		case "swapBridgeRouter":
-			v = ch.Swap.SwapBridgeRouter
+			v = sv.sbr
 		}
 	}
 	if v == nil || *v == "" {
-		return "", cfgMissing("chains.one.swap."+field, quoteValue)
+		return "", cfgMissing("chains."+path, quoteValue)
 	}
 	return *v, nil
 }
@@ -75,6 +90,17 @@ func (c *Client) cfgPoolFee(quoteValue string) (uint32, error) {
 		return 0, cfgMissing("chains.one.swap.x1Pool.fee", quoteValue)
 	}
 	return ch.Swap.X1Pool.Fee, nil
+}
+
+func (c *Client) cfgPoolTickSpacing(quoteValue string) (int32, error) {
+	ch, err := c.cfgChain(ChainOne, quoteValue)
+	if err != nil {
+		return 0, err
+	}
+	if ch.Swap == nil || ch.Swap.CL == nil || ch.Swap.CL.X1Pool == nil {
+		return 0, cfgMissing("chains.one.swap.cl.x1Pool.tickSpacing", quoteValue)
+	}
+	return ch.Swap.CL.X1Pool.TickSpacing, nil
 }
 
 // assertQuoteBelongs is the quote -> client binding check (config equality against THIS client's own networks config, c.net); (it runs FIRST in Send, before signer checks and before any approve; a re-quote
@@ -160,19 +186,23 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if x3 == nil {
 			return tamper("x3 request")
 		}
-		name := "swapBridgeExactInputSingle"
-		if x3.NativeIn {
-			name = "swapBridgeExactInputSingleETH"
+		quoteDex := DexV3
+		if x3.TickSpacing != nil {
+			quoteDex = DexCL
 		}
-		m := sbrABI.Methods[name]
-		if len(q.Tx.Data) < 4 || !bytes.Equal(q.Tx.Data[:4], m.ID) {
+		dex, err := c.cfgDex(string(quoteDex))
+		if err != nil {
+			return err
+		}
+		if dex != quoteDex {
+			return mism("request.x3(dex)", string(dex), string(quoteDex))
+		}
+		p, err := decodeSwapBridgeCall(q.Tx.Data, x3.NativeIn, dex)
+		if errors.Is(err, errSwapFunction) {
 			return tamper("swap function")
-		}
-		out, err := m.Inputs.Unpack(q.Tx.Data[4:])
-		if err != nil || len(out) != 2 {
+		} else if err != nil {
 			return tamper("calldata is not a SwapBridgeRouter call")
 		}
-		p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 		if x3.NativeIn {
 			wcross, err := c.cfgToken(ChainOne, "WCROSS", p.TokenIn.Hex())
 			if err != nil {
@@ -188,7 +218,11 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if p.TokenOut != x3.TokenOut {
 			return tamper("tokenOut")
 		}
-		if p.Fee.Uint64() != uint64(x3.PoolFee) {
+		if dex == DexCL {
+			if !p.TickSpacing.IsInt64() || p.TickSpacing.Int64() != int64(*x3.TickSpacing) {
+				return tamper("tickSpacing")
+			}
+		} else if p.Fee.Uint64() != uint64(x3.PoolFee) {
 			return tamper("poolFee")
 		}
 		if p.AmountIn.Cmp(req.Amount) != 0 {
@@ -291,14 +325,21 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 			}
 		}
 	case spec.kind == KindX1:
-		v3, err := c.cfgSwap("v3SwapRouter", target.Hex())
+		dex, err := c.cfgDex(target.Hex())
 		if err != nil {
 			return err
 		}
-		if !same(target, v3) || sel != ExactInputSingleSelector {
-			return mism("extraData.target(V3 router)", v3, target.Hex())
+		router, err := c.cfgSwap("v3SwapRouter", target.Hex())
+		if err != nil {
+			return err
 		}
-		_, p, err := decodeX1Call(ed)
+		if want := exactInputSelector(dex); sel != want && (sel == ExactInputSingleSelector || sel == CLExactInputSingleSelector) {
+			return mism("extraData.selector(dex "+string(dex)+")", fmt.Sprintf("0x%x", want[:]), fmt.Sprintf("0x%x", sel[:]))
+		}
+		if !same(target, router) || sel != exactInputSelector(dex) {
+			return mism("extraData.target("+dexLabel(dex)+" router)", router, target.Hex())
+		}
+		p, err := decodeX1Call(ed)
 		if err != nil {
 			return tamper("x1 extraData")
 		}
@@ -319,12 +360,22 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if !same(p.TokenOut, oneusd) {
 			return mism("x1.tokenOut(ONEUSD)", oneusd, p.TokenOut.Hex())
 		}
-		poolFee, err := c.cfgPoolFee(p.Fee.String())
-		if err != nil {
-			return err
-		}
-		if p.Fee.Uint64() != uint64(poolFee) {
-			return mism("x1.fee", fmt.Sprint(poolFee), p.Fee.String())
+		if dex == DexCL {
+			ts, err := c.cfgPoolTickSpacing(p.TickSpacing.String())
+			if err != nil {
+				return err
+			}
+			if !p.TickSpacing.IsInt64() || p.TickSpacing.Int64() != int64(ts) {
+				return mism("x1.tickSpacing", fmt.Sprint(ts), p.TickSpacing.String())
+			}
+		} else {
+			poolFee, err := c.cfgPoolFee(p.Fee.String())
+			if err != nil {
+				return err
+			}
+			if p.Fee.Uint64() != uint64(poolFee) {
+				return mism("x1.fee", fmt.Sprint(poolFee), p.Fee.String())
+			}
 		}
 		if p.Recipient != recDest {
 			return tamper("x1 swap recipient")

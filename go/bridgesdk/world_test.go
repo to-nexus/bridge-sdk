@@ -54,6 +54,7 @@ type world struct {
 	coreUnit     *big.Int
 	x1Out        *big.Int
 	swapOut      *big.Int
+	clTicks      []int64 // int24 tickSpacing values received by the CL quoter / factory / SwapBridgeRouterCL (in call order)
 	approveFails bool
 	approveCalls []*big.Int
 	onApprove    func()
@@ -325,48 +326,114 @@ func (w *world) deployOneExtras() {
 		}})
 	}
 	if sw.SwapBridgeRouter != nil {
-		router := common.HexToAddress(*sw.SwapBridgeRouter)
-		status := func(s string) uint8 {
-			switch s {
-			case "Success":
-				return 1
-			case "InsufficientForFee":
-				return 3
-			}
-			return 4
-		}
-		ch.deploy(router, &fakeContract{abi: sbrABI,
-			call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
-				"bridge": func([]interface{}, callCtx) ([]interface{}, error) {
-					if w.routerBridge != nil {
-						return []interface{}{*w.routerBridge}, nil
-					}
-					return []interface{}{common.HexToAddress(*w.net.Chains[ChainOne].Bridge)}, nil
-				},
-				"getAmountSwapBridgeOut": func(args []interface{}, c callCtx) ([]interface{}, error) {
-					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[2].(common.Address))
-					eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
-					st := status(eb.Status)
-					if w.swapStatus != nil {
-						st = *w.swapStatus
-					}
-					return []interface{}{st, w.swapOut, eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
-				},
-				"getExpectedBridgeAmount": func(args []interface{}, c callCtx) ([]interface{}, error) {
-					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[1].(common.Address))
-					eb := ExpectedBridgeAmount(args[2].(*big.Int), f.nf, f.rate, f.min)
-					return []interface{}{status(eb.Status), eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
-				},
-			},
-			tx: map[string]func([]interface{}, txCtx) ([]types.Log, error){
-				"swapBridgeExactInputSingle": func(args []interface{}, c txCtx) ([]types.Log, error) {
-					return w.execSwapBridge(router, args, c, false)
-				},
-				"swapBridgeExactInputSingleETH": func(args []interface{}, c txCtx) ([]types.Log, error) {
-					return w.execSwapBridge(router, args, c, true)
+		w.deploySwapBridgeRouter(common.HexToAddress(*sw.SwapBridgeRouter), DexV3)
+	}
+	if cl := sw.CL; cl != nil { // Slipstream CL periphery: int24 tickSpacing everywhere V3 has uint24 fee
+		if cl.QuoterV2 != nil {
+			ch.deploy(common.HexToAddress(*cl.QuoterV2), &fakeContract{abi: clQuoterABI, call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
+				"quoteExactInputSingle": func(args []interface{}, _ callCtx) ([]interface{}, error) {
+					p := abi.ConvertType(args[0], new(clQuoteArgs)).(*clQuoteArgs)
+					w.clTicks = append(w.clTicks, p.TickSpacing.Int64())
+					return []interface{}{w.x1Out, new(big.Int), uint32(0), big.NewInt(100000)}, nil
 				},
 			}})
+		}
+		if cl.Factory != nil && cl.X1Pool != nil {
+			pool, ts := common.HexToAddress(cl.X1Pool.Pool), int64(cl.X1Pool.TickSpacing)
+			ch.deploy(common.HexToAddress(*cl.Factory), &fakeContract{abi: clFactoryABI, call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
+				"getPool": func(args []interface{}, _ callCtx) ([]interface{}, error) {
+					got := args[2].(*big.Int).Int64()
+					w.clTicks = append(w.clTicks, got)
+					if w.poolMissing || got != ts {
+						return []interface{}{common.Address{}}, nil
+					}
+					return []interface{}{pool}, nil
+				},
+			}})
+		}
+		if cl.X1Pool != nil {
+			ch.deploy(common.HexToAddress(cl.X1Pool.Pool), &fakeContract{abi: v3PoolABI, call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
+				"liquidity": func([]interface{}, callCtx) ([]interface{}, error) {
+					return []interface{}{new(big.Int).Lsh(big.NewInt(1), 90)}, nil
+				},
+			}})
+		}
+		if cl.SwapBridgeRouter != nil {
+			w.deploySwapBridgeRouter(common.HexToAddress(*cl.SwapBridgeRouter), DexCL)
+		}
 	}
+}
+
+// clQuoteArgs is ICLQuoterV2.QuoteExactInputSingleParams as received by the fake quoter.
+type clQuoteArgs struct {
+	TokenIn           common.Address
+	TokenOut          common.Address
+	AmountIn          *big.Int
+	TickSpacing       *big.Int
+	SqrtPriceLimitX96 *big.Int
+}
+
+// deploySwapBridgeRouter deploys a fake SwapBridgeRouter (V3: uint24 fee) or SwapBridgeRouterCL (CL: int24 tickSpacing) on the ONE chain.
+func (w *world) deploySwapBridgeRouter(router common.Address, dex DexKind) {
+	ch := w.chains[ChainOne]
+	routerABI := sbrABI
+	if dex == DexCL {
+		routerABI = sbrCLABI
+	}
+	status := func(s string) uint8 {
+		switch s {
+		case "Success":
+			return 1
+		case "InsufficientForFee":
+			return 3
+		}
+		return 4
+	}
+	ch.deploy(router, &fakeContract{abi: routerABI,
+		call: map[string]func([]interface{}, callCtx) ([]interface{}, error){
+			"bridge": func([]interface{}, callCtx) ([]interface{}, error) {
+				if w.routerBridge != nil {
+					return []interface{}{*w.routerBridge}, nil
+				}
+				return []interface{}{common.HexToAddress(*w.net.Chains[ChainOne].Bridge)}, nil
+			},
+			"getAmountSwapBridgeOut": func(args []interface{}, c callCtx) ([]interface{}, error) {
+				if dex == DexCL {
+					w.clTicks = append(w.clTicks, args[3].(*big.Int).Int64())
+				}
+				f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[2].(common.Address))
+				eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
+				st := status(eb.Status)
+				if w.swapStatus != nil {
+					st = *w.swapStatus
+				}
+				return []interface{}{st, w.swapOut, eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
+			},
+			"getExpectedBridgeAmount": func(args []interface{}, c callCtx) ([]interface{}, error) {
+				f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[1].(common.Address))
+				eb := ExpectedBridgeAmount(args[2].(*big.Int), f.nf, f.rate, f.min)
+				return []interface{}{status(eb.Status), eb.BridgeValue, eb.NetworkFee, eb.ExFee}, nil
+			},
+		},
+		tx: map[string]func([]interface{}, txCtx) ([]types.Log, error){
+			"swapBridgeExactInputSingle": func(args []interface{}, c txCtx) ([]types.Log, error) {
+				return w.execSwapBridge(router, clToV3Args(dex, args), c, false)
+			},
+			"swapBridgeExactInputSingleETH": func(args []interface{}, c txCtx) ([]types.Log, error) {
+				return w.execSwapBridge(router, clToV3Args(dex, args), c, true)
+			},
+		}})
+}
+
+// clToV3Args converts SwapBridgeRouterCL params to the V3 wrapper struct (fee = 0) so execSwapBridge can process both.
+func clToV3Args(dex DexKind, args []interface{}) []interface{} {
+	if dex != DexCL {
+		return args
+	}
+	p := abi.ConvertType(args[0], new(swapBridgeCLParams)).(*swapBridgeCLParams)
+	v3 := binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams{TokenIn: p.TokenIn, TokenOut: p.TokenOut, Fee: new(big.Int), AmountIn: p.AmountIn,
+		AmountOutMinimum: p.AmountOutMinimum, SqrtPriceLimitX96: p.SqrtPriceLimitX96, BridgeParams: p.BridgeParams}
+	return []interface{}{v3, args[1]}
 }
 
 func (w *world) checkBridge(k ChainKey, args []interface{}, from common.Address, msgValue *big.Int) (feeCfg, error) {

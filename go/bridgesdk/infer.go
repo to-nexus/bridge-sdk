@@ -46,8 +46,8 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 	srcBridge := addr(src.Bridge)
 	var router common.Address
 	if srcKey == ChainOne {
-		if sw := c.net.Chains[ChainOne].Swap; sw != nil && sw.SwapBridgeRouter != nil {
-			router = addr(sw.SwapBridgeRouter)
+		if sbr := swapViewOf(c.net).sbr; sbr != nil {
+			router = addr(sbr)
 		}
 	}
 	var bridgeLogs []*parsedInitiated
@@ -144,13 +144,15 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 		copy(sel[:], e.ExtraData[20:24])
 		selHex := fmt.Sprintf("0x%x", sel)
 		oneChain := c.net.Chains[ChainOne]
-		var hub, v3, heTok common.Address
+		var hub, swapRouter, heTok common.Address
 		if oneChain.Bridge != nil {
 			hub = addr(oneChain.Bridge)
 		}
-		if oneChain.Swap != nil && oneChain.Swap.V3SwapRouter != nil {
-			v3 = addr(oneChain.Swap.V3SwapRouter)
+		sv := swapViewOf(c.net)
+		if sv.router != nil {
+			swapRouter = addr(sv.router) // the X1 target of the configured DEX
 		}
+		x1Sel := exactInputSelector(sv.dex)
 		if t := c.net.Chains[ChainHyperEVM].Tokens["ONE"]; t != nil {
 			heTok = common.HexToAddress(t.Address)
 		}
@@ -184,7 +186,9 @@ func (c *Client) inferFromReceipt(srcKey ChainKey, rec *types.Receipt, o HandleO
 					return nil, unsupported("unsupported nested hop-2 extraData", it, is)
 				}
 			}
-		case v3 != (common.Address{}) && target == v3 && sel == ExactInputSingleSelector && srcKey == ChainBSC && destKey == ChainOne:
+		case swapRouter != (common.Address{}) && target == swapRouter && sel != x1Sel && (sel == ExactInputSingleSelector || sel == CLExactInputSingleSelector):
+			return nil, unsupported(fmt.Sprintf("exactInputSingle selector %s does not match the configured dex %q (expected 0x%x)", selHex, sv.dex, x1Sel[:]), target.Hex(), selHex)
+		case swapRouter != (common.Address{}) && target == swapRouter && sel == x1Sel && srcKey == ChainBSC && destKey == ChainOne:
 			if _, err := c.checkX1(e.ExtraData, e.Value); err != nil {
 				return nil, err
 			}

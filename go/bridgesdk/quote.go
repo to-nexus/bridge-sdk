@@ -71,6 +71,27 @@ func specFor(req *QuoteRequest) (routeSpec, error) {
 	return routeSpec{}, fmt.Errorf("unknown route %q", req.Route)
 }
 
+// checkX3Pool validates the X3 pool key against the network's DEX: PoolFee for V3 (TickSpacing must be nil); TickSpacing (int24, > 0) with
+// PoolFee 0 for Slipstream CL.
+func checkX3Pool(dex DexKind, x3 *X3Request) error {
+	if dex == DexCL {
+		if x3.TickSpacing == nil {
+			return &InvalidOptionError{Msg: `X3.TickSpacing is required on a network whose dex is "cl" (Slipstream pools are keyed by tick spacing, not fee)`}
+		}
+		if err := checkPoolTickSpacing(int64(*x3.TickSpacing)); err != nil {
+			return &InvalidOptionError{Msg: fmt.Sprintf("X3.TickSpacing: %v", err)}
+		}
+		if x3.PoolFee != 0 {
+			return &InvalidOptionError{Msg: `X3.PoolFee must be 0 on a network whose dex is "cl" (set X3.TickSpacing)`}
+		}
+		return nil
+	}
+	if x3.TickSpacing != nil {
+		return &InvalidOptionError{Msg: fmt.Sprintf(`X3.TickSpacing is only valid on a network whose dex is "cl" (this network uses %q: set X3.PoolFee)`, dex)}
+	}
+	return nil
+}
+
 func randID() string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
@@ -136,8 +157,23 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 	if err != nil {
 		return nil, err
 	}
+	// the swap routes follow the network's DEX: its required config paths are those of the active DEX (one.swap.* for V3, one.swap.cl.* for CL)
+	dex := DexV3
+	if spec.kind == KindX1 || spec.kind == KindX3 {
+		if dex, err = c.net.Dex(); err != nil {
+			return nil, err
+		}
+		for i, p := range spec.required {
+			spec.required[i] = dexPath(dex, p)
+		}
+	}
 	if err := c.net.requireConfigured(req.Route, spec.required); err != nil {
 		return nil, err
+	}
+	if spec.kind == KindX3 {
+		if err := checkX3Pool(dex, req.X3); err != nil {
+			return nil, err
+		}
 	}
 	if req.Amount == nil || req.Amount.Sign() <= 0 {
 		return nil, fmt.Errorf("amount must be > 0")
@@ -182,7 +218,12 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 	// ---------------------------------------------------------------------------------------- X3
 	if spec.kind == KindX3 {
 		x3 := req.X3
-		router := addr(chains[ChainOne].Swap.SwapBridgeRouter)
+		sv := swapViewOf(c.net)
+		router := addr(sv.sbr)
+		routerABI, poolKey := sbrABI, u(uint64(x3.PoolFee))
+		if dex == DexCL {
+			routerABI, poolKey = sbrCLABI, big.NewInt(int64(*x3.TickSpacing))
+		}
 		toChainID := uint64(chains[spec.dest].ChainID)
 		tokenIn := x3.TokenIn
 		if x3.NativeIn {
@@ -193,7 +234,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			deadline = fz.deadline
 		}
 		sender := req.Sender
-		out, err := c.callABI(ctx, ChainOne, sbrABI, router, "getAmountSwapBridgeOut", &sender, u(toChainID), tokenIn, x3.TokenOut, u(uint64(x3.PoolFee)), req.Amount)
+		out, err := c.callABI(ctx, ChainOne, routerABI, router, "getAmountSwapBridgeOut", &sender, u(toChainID), tokenIn, x3.TokenOut, poolKey, req.Amount)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +257,7 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		if fz != nil {
 			amountOutMin = fz.amountOutMinimum
 		}
-		eb, err := c.callABI(ctx, ChainOne, sbrABI, router, "getExpectedBridgeAmount", nil, u(toChainID), x3.TokenOut, amountOutMin)
+		eb, err := c.callABI(ctx, ChainOne, routerABI, router, "getExpectedBridgeAmount", nil, u(toChainID), x3.TokenOut, amountOutMin)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +276,11 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		if fz != nil {
 			minBridge = fz.minBridgeValue
 		}
-		data, err := EncodeSwapBridge(SwapBridgeInput{TokenIn: tokenIn, TokenOut: x3.TokenOut, Fee: x3.PoolFee, AmountIn: req.Amount, AmountOutMinimum: amountOutMin, ToChainID: toChainID, Recipient: dest, ExtraData: nil, Deadline: deadline, Native: x3.NativeIn})
+		sbi := SwapBridgeInput{TokenIn: tokenIn, TokenOut: x3.TokenOut, Fee: x3.PoolFee, AmountIn: req.Amount, AmountOutMinimum: amountOutMin, ToChainID: toChainID, Recipient: dest, ExtraData: nil, Deadline: deadline, Native: x3.NativeIn}
+		if dex == DexCL {
+			sbi.Dex, sbi.TickSpacing = DexCL, *x3.TickSpacing
+		}
+		data, err := EncodeSwapBridge(sbi)
 		if err != nil {
 			return nil, err
 		}
@@ -364,8 +409,13 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 		hop1Kind = HopHubForward
 	case spec.kind == KindX1:
 		oneChain := chains[ChainOne]
-		pool := oneChain.Swap.X1Pool
-		router := addr(oneChain.Swap.V3SwapRouter)
+		sv := swapViewOf(c.net)
+		router := addr(sv.router)
+		if dex == DexCL {
+			if err := checkPoolTickSpacing(int64(sv.tickSpacing)); err != nil {
+				return nil, fmt.Errorf("one.swap.cl.x1Pool: %w", err)
+			}
+		}
 		deadline = uint64(c.now().Unix()) + deadlineSec
 		if fz != nil {
 			deadline = fz.deadline
@@ -381,7 +431,19 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			Fee               *big.Int
 			SqrtPriceLimitX96 *big.Int
 		}
-		qo, err := c.callABI(ctx, ChainOne, quoterABI, addr(oneChain.Swap.QuoterV2), "quoteExactInputSingle", nil, quoteParams{usdtx, oneusd, value, u(uint64(pool.Fee)), new(big.Int)})
+		type clQuoteParams struct {
+			TokenIn           common.Address
+			TokenOut          common.Address
+			AmountIn          *big.Int
+			TickSpacing       *big.Int
+			SqrtPriceLimitX96 *big.Int
+		}
+		var qo []interface{}
+		if dex == DexCL {
+			qo, err = c.callABI(ctx, ChainOne, clQuoterABI, addr(sv.quoter), "quoteExactInputSingle", nil, clQuoteParams{usdtx, oneusd, value, big.NewInt(int64(sv.tickSpacing)), new(big.Int)})
+		} else {
+			qo, err = c.callABI(ctx, ChainOne, quoterABI, addr(sv.quoter), "quoteExactInputSingle", nil, quoteParams{usdtx, oneusd, value, u(uint64(sv.fee)), new(big.Int)})
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -393,7 +455,11 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 				violated = append(violated, "swapOutputBelowFloor")
 			}
 		}
-		extraData, err = EncodeX1ExtraData(X1Input{Router: router, TokenIn: usdtx, TokenOut: oneusd, Fee: pool.Fee, Recipient: dest, Deadline: deadline, AmountIn: value, AmountOutMinimum: amountOutMin})
+		x1in := X1Input{Router: router, TokenIn: usdtx, TokenOut: oneusd, Fee: sv.fee, Recipient: dest, Deadline: deadline, AmountIn: value, AmountOutMinimum: amountOutMin}
+		if dex == DexCL {
+			x1in.Dex, x1in.TickSpacing = DexCL, sv.tickSpacing
+		}
+		extraData, err = EncodeX1ExtraData(x1in)
 		if err != nil {
 			return nil, err
 		}

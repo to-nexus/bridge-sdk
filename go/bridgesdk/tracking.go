@@ -243,7 +243,8 @@ func classifyHop(in classifyInput) (*classified, error) {
 		return unsupported(fmt.Sprintf("finalized value %s != the decoded exactInputSingle amountIn %s", value, in.x1.AmountIn))
 	}
 	if ec != nil && ec.Success {
-		if !callIs(in.x1.Router, fmt.Sprintf("0x%x", ExactInputSingleSelector[:])) {
+		x1Sel := exactInputSelector(in.x1.Dex) // the DEX the handle's decoded call was built for
+		if !callIs(in.x1.Router, fmt.Sprintf("0x%x", x1Sel[:])) {
 			return unsupported(fmt.Sprintf("ExtraCallExecuted target/method (%s, 0x%x) is not exactInputSingle on %s", ec.TargetContract, ec.MethodID[:], in.x1.Router))
 		}
 		amount := "unknown"

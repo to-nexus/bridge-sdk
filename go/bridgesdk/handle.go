@@ -204,8 +204,8 @@ func (c *Client) buildHandle(h handleInput) (*TransferHandle, error) {
 	srcContract := srcBridge
 	var router common.Address
 	if shape.swap {
-		if sw := c.net.Chains[ChainOne].Swap; sw != nil && sw.SwapBridgeRouter != nil {
-			router = addr(sw.SwapBridgeRouter)
+		if sbr := swapViewOf(c.net).sbr; sbr != nil {
+			router = addr(sbr)
 			srcContract = router
 		}
 	}

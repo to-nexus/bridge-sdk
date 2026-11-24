@@ -42,12 +42,15 @@ type SwapOptions struct {
 }
 
 // X3Request describes the swap for RouteSwapBridge. TokenIn "native" (NativeIn=true) swaps native ONE through WCROSS.
+// The pool is chosen by the network's DEX: PoolFee (uint24) for "v3"; TickSpacing (int24, > 0, PoolFee 0) for "cl". Setting the field of the
+// other DEX is refused with *InvalidOptionError.
 type X3Request struct {
-	NativeIn bool
-	TokenIn  common.Address
-	TokenOut common.Address
-	PoolFee  uint32
-	ToChain  ChainKey // bsc | hyperevm
+	NativeIn    bool
+	TokenIn     common.Address
+	TokenOut    common.Address
+	PoolFee     uint32
+	TickSpacing *int32   // Slipstream CL pool tick spacing (required when the network's dex is "cl", must be nil for "v3")
+	ToChain     ChainKey // bsc | hyperevm
 	// X3 supports extraData = 0x only (no extraData option): the SwapBridgeRouter extraCall path is not a supported product path.
 }
 
@@ -347,16 +350,19 @@ type ScanState struct {
 	Logs        []RawLog `json:"logs"`        // the relevant logs found so far; duplicates are ignored on resume
 }
 
-// X1Expect is the decoded X1 exactInputSingle call stored in the handle (numbers as decimal strings).
+// X1Expect is the decoded X1 exactInputSingle call stored in the handle (numbers as decimal strings). A Slipstream CL call sets Dex "cl" and
+// TickSpacing (Fee is then 0); both are omitted for a V3 call, so V3 handles keep their JSON shape.
 type X1Expect struct {
-	Router           string `json:"router"`
-	TokenIn          string `json:"tokenIn"`
-	TokenOut         string `json:"tokenOut"`
-	Fee              uint32 `json:"fee"`
-	Recipient        string `json:"recipient"`
-	Deadline         string `json:"deadline"`
-	AmountIn         string `json:"amountIn"`
-	AmountOutMinimum string `json:"amountOutMinimum"`
+	Router           string  `json:"router"`
+	TokenIn          string  `json:"tokenIn"`
+	TokenOut         string  `json:"tokenOut"`
+	Fee              uint32  `json:"fee"`
+	Recipient        string  `json:"recipient"`
+	Deadline         string  `json:"deadline"`
+	AmountIn         string  `json:"amountIn"`
+	AmountOutMinimum string  `json:"amountOutMinimum"`
+	Dex              DexKind `json:"dex,omitempty"`
+	TickSpacing      *int32  `json:"tickSpacing,omitempty"`
 }
 
 // X2Expect is the decoded X2 transferToCoreFor call stored in the handle. EncodedAmount is the amount the extraData asks for.

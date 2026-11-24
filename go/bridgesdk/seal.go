@@ -63,10 +63,11 @@ type wireSwap struct {
 }
 
 type wireX3 struct {
-	TokenIn  string `json:"tokenIn"` // address or "native"
-	TokenOut string `json:"tokenOut"`
-	PoolFee  uint32 `json:"poolFee"`
-	ToChain  string `json:"toChain"`
+	TokenIn     string `json:"tokenIn"` // address or "native"
+	TokenOut    string `json:"tokenOut"`
+	PoolFee     uint32 `json:"poolFee"`
+	TickSpacing *int32 `json:"tickSpacing,omitempty"` // Slipstream CL only: absent for V3, so V3 payloads stay byte-identical
+	ToChain     string `json:"toChain"`
 }
 
 type wireRequest struct {
@@ -259,7 +260,7 @@ func encodeQuoteWire(q *Quote) (*quoteWireV1, error) {
 		if r.X3.NativeIn {
 			tin = "native"
 		}
-		w.Request.X3 = &wireX3{TokenIn: tin, TokenOut: e.addr(r.X3.TokenOut), PoolFee: r.X3.PoolFee, ToChain: e.str("request.x3.toChain", string(r.X3.ToChain))}
+		w.Request.X3 = &wireX3{TokenIn: tin, TokenOut: e.addr(r.X3.TokenOut), PoolFee: r.X3.PoolFee, TickSpacing: clonePtr(r.X3.TickSpacing), ToChain: e.str("request.x3.toChain", string(r.X3.ToChain))}
 	}
 	w.Request.Hop2FeeBuffer = e.optDec("request.hop2FeeBuffer", r.Hop2FeeBuffer)
 	w.Request.MaxTotalSpend = e.optDec("request.maxTotalSpend", r.MaxTotalSpend)
@@ -508,6 +509,13 @@ func (v *validator) quote(w *quoteWireV1) {
 		}
 		v.addr("request.x3.tokenOut", r.X3.TokenOut)
 		v.enum("request.x3.toChain", r.X3.ToChain, string(ChainBSC), string(ChainHyperEVM))
+		if r.X3.TickSpacing != nil {
+			if checkPoolTickSpacing(int64(*r.X3.TickSpacing)) != nil {
+				v.fail("request.x3.tickSpacing", "out of range (int24, > 0)")
+			} else if r.X3.PoolFee != 0 {
+				v.fail("request.x3.poolFee", "must be 0 with tickSpacing (Slipstream CL)")
+			}
+		}
 	}
 	v.optDec("request.hop2FeeBuffer", r.Hop2FeeBuffer)
 	v.optDec("request.maxTotalSpend", r.MaxTotalSpend)
@@ -654,7 +662,7 @@ func restoreQuote(w *quoteWireV1, seal QuoteSeal) *Quote {
 		}
 	}
 	if r.X3 != nil {
-		x := &X3Request{TokenOut: addrOf(r.X3.TokenOut), PoolFee: r.X3.PoolFee, ToChain: ChainKey(r.X3.ToChain)}
+		x := &X3Request{TokenOut: addrOf(r.X3.TokenOut), PoolFee: r.X3.PoolFee, TickSpacing: clonePtr(r.X3.TickSpacing), ToChain: ChainKey(r.X3.ToChain)}
 		if r.X3.TokenIn == "native" {
 			x.NativeIn = true
 		} else {
