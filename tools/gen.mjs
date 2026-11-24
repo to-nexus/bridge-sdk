@@ -65,6 +65,17 @@ function envFile(netKey) {
       add(`${P}_SWAP_BRIDGE_ROUTER`, c.swap.swapBridgeRouter, c.todo?.['swap.swapBridgeRouter']);
       add(`${P}_X1_POOL`, c.swap.x1Pool ? c.swap.x1Pool.pool : null, c.todo?.['swap.x1Pool']);
       add(`${P}_X1_POOL_FEE`, c.swap.x1Pool ? c.swap.x1Pool.fee : null, c.todo?.['swap.x1Pool']);
+      // Slipstream CL (optional): emitted only when the network declares a dex or a cl block, so V3-only env files stay unchanged
+      if (c.swap.dex !== undefined || c.swap.cl !== undefined) {
+        const cl = c.swap.cl ?? null;
+        add(`${P}_DEX`, c.swap.dex ?? 'v3');
+        add(`${P}_CL_SWAP_ROUTER`, cl?.swapRouter ?? null, c.todo?.['swap.cl.swapRouter']);
+        add(`${P}_CL_QUOTER_V2`, cl?.quoterV2 ?? null, c.todo?.['swap.cl.quoterV2']);
+        add(`${P}_CL_FACTORY`, cl?.factory ?? null, c.todo?.['swap.cl.factory']);
+        add(`${P}_CL_SWAP_BRIDGE_ROUTER`, cl?.swapBridgeRouter ?? null, c.todo?.['swap.cl.swapBridgeRouter']);
+        add(`${P}_CL_X1_POOL`, cl?.x1Pool ? cl.x1Pool.pool : null, c.todo?.['swap.cl.x1Pool']);
+        add(`${P}_CL_X1_TICK_SPACING`, cl?.x1Pool ? cl.x1Pool.tickSpacing : null, c.todo?.['swap.cl.x1Pool']);
+      }
     }
   }
   return lines.join('\n') + '\n';
@@ -94,6 +105,15 @@ function guideTables() {
         md.push(`| ${CH[ck]} | QuoterV2 | ${cell(c.swap.quoterV2)} |`);
         md.push(`| ${CH[ck]} | SwapBridgeRouter (X3) | ${cell(c.swap.swapBridgeRouter, c.todo?.['swap.swapBridgeRouter'])} |`);
         md.push(`| ${CH[ck]} | USDTx/ONEUSD 풀 (fee 0) | ${cell(c.swap.x1Pool ? c.swap.x1Pool.pool : null, c.todo?.['swap.x1Pool'])} |`);
+        if (c.swap.dex !== undefined || c.swap.cl !== undefined) {
+          const cl = c.swap.cl ?? null;
+          md.push(`| ${CH[ck]} | 사용 DEX (\`swap.dex\`) | \`${c.swap.dex ?? 'v3'}\` |`);
+          md.push(`| ${CH[ck]} | Slipstream CL SwapRouter | ${cell(cl?.swapRouter ?? null, c.todo?.['swap.cl.swapRouter'])} |`);
+          md.push(`| ${CH[ck]} | Slipstream CL QuoterV2 | ${cell(cl?.quoterV2 ?? null, c.todo?.['swap.cl.quoterV2'])} |`);
+          md.push(`| ${CH[ck]} | Slipstream CL Factory | ${cell(cl?.factory ?? null, c.todo?.['swap.cl.factory'])} |`);
+          md.push(`| ${CH[ck]} | SwapBridgeRouterCL (X3, dex=cl) | ${cell(cl?.swapBridgeRouter ?? null, c.todo?.['swap.cl.swapBridgeRouter'])} |`);
+          md.push(`| ${CH[ck]} | CL USDTx/ONEUSD 풀${cl?.x1Pool ? ` (tickSpacing ${cl.x1Pool.tickSpacing})` : ''} | ${cell(cl?.x1Pool ? cl.x1Pool.pool : null, c.todo?.['swap.cl.x1Pool'])} |`);
+        }
       }
       if (ck === 'hyperevm') md.push(`| ${CH[ck]} | HyperCore 시스템 주소 (ONE) | ${cell(c.coreSystemAddress, c.todo?.coreSystemAddress)} |`);
       md.push(`| ${CH[ck]} | (참고) BridgeVerifier — SDK 는 라이브 조회 | ${cell(c.bridgeVerifier, c.todo?.bridgeVerifier)} |`);

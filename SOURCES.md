@@ -67,6 +67,10 @@
 | S-T17 | HyperEVM BridgeExecutor `0x1ec3…764f` | onchain | `bridgeExecutor()` 일치; token + `transferToCoreFor`(`0x9438568d`) whitelist true |
 | S-T18 | HyperEVM 테스트넷 ONE `0xDD93…66bB` | onchain | `symbol()` `"ONE"`; `isCoreTokenIndexSet()` true; `coreUnit()` 1e10; pair(612044) 등록·미정지 |
 | S-T19 | HyperCore 시스템 주소 `0x2000…0Bda` | onchain | 토큰 `coreSystemAddress()` 일치 |
+| S-T20 | Slipstream CL SwapRouter `0x5F6B…A107` (`swap.cl.swapRouter`) | onchain | 체인 612044 읽기 전용 확인 (2026-11-24): 코드 9,657 B; `factory()`=S-T22, `WETH9()`=S-T06; 코드에 CL `exactInputSingle` selector `0xa026383e` 존재(V3 `0x414bf389` 없음); executor S-T03 `isWhitelistedTarget`=true / `isMethodCheckEnabled`=false |
+| S-T21 | Slipstream CL QuoterV2 `0x0Ab6…851b` (`swap.cl.quoterV2`) | onchain | 2026-11-24: 코드 7,427 B; `factory()`=S-T22, `WETH9()`=S-T06; `quoteExactInputSingle((USDTx, 0x9364…55Fb, 1e18, tickSpacing 200, 0))` (selector `0x9e7defe6`) → `9.99999e17` |
+| S-T22 | Slipstream CL Factory `0x38C3…9A3c` (`swap.cl.factory`) | onchain | 2026-11-24: 코드 4,887 B; router/quoter 의 `factory()`; `getPool(address,address,int24)` (`0x28af8d0b`) 로 S-T23 반환 |
+| S-T23 | CL USDTx/ONEUSD 풀 `0x83c0…8842`, tickSpacing 200 (`swap.cl.x1Pool`) | onchain | 2026-11-24: 최소 프록시(45 B); `factory.getPool(USDTx, 0x9364…55Fb, 200)` 일치(토큰 순서 무관); `token0()` `0x9364…55Fb`(`symbol()` `"ONEUSD"`, 18 dec), `token1()` USDTx S-T05; `tickSpacing()` 200; `fee()` 0 (CL 풀의 fee 는 동적이므로 tickSpacing 을 fee 에서 유도하지 않는다); `factory()`=S-T22; `liquidity()` `1.005e24` |
 
 ## 4. explorer · 네이티브 심볼 · info API (공식 문서)
 
@@ -85,7 +89,8 @@
 | `testnet.one.explorer` | `TODO(UNCONFIRMED)` | ONE 체인 테스트넷 explorer URL 미확인 |
 | `testnet.hyperevm.explorer` | `TODO(UNCONFIRMED)` | HyperEVM 테스트넷 explorer 공식 URL 미확인 |
 | `testnet.hyperevm.coreInfoApi` | `TODO(UNCONFIRMED)` | 공식 문서에서 테스트넷 info API URL 을 확인하지 못함 |
-| `testnet.one.tokens.ONEUSD`, `testnet.one.swap.x1Pool` | `TODO(UNCONFIRMED)` | 테스트넷 ONEUSD / USDTx-ONEUSD 풀 미발견 → X1 테스트넷 비활성 |
+| `testnet.one.tokens.ONEUSD`, `testnet.one.swap.x1Pool` | `TODO(UNCONFIRMED)` | 테스트넷 V3 USDTx-ONEUSD 풀 미발견 → X1 테스트넷 비활성. CL 풀(S-T23)의 상대 토큰 `0x9364…55Fb`(심볼 `ONEUSD`)는 후보로만 기록하고, X1 을 테스트넷에서 열지 않으므로 `tokens.ONEUSD` 는 비워 둔다 |
+| `testnet.one.swap.cl.swapBridgeRouter` | `TODO(PENDING)` | SwapBridgeRouterCL(X3, `dex: "cl"`) 미배포. 배포 후 `bridge()`·`swapRouter()`=S-T20·`quoter()`=S-T21·`WETH9()`=S-T06 을 확인해 채운다 |
 
 ## 6. 테스트 방법
 

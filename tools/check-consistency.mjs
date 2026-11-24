@@ -41,7 +41,17 @@ for (const [net, nd] of Object.entries(nets.networks)) {
     const need = [];
     for (const f of ['bridge', 'bridgeVerifier', 'bridgeExecutor', 'coreSystemAddress']) if (c[f]) need.push(`${net}.${ck}.${f}`);
     for (const [tk, t] of Object.entries(c.tokens || {})) if (t) need.push(`${net}.${ck}.tokens.${tk}`);
-    for (const [sk, sv] of Object.entries(c.swap || {})) if (sv) need.push(`${net}.${ck}.swap.${sk}`);
+    for (const [sk, sv] of Object.entries(c.swap || {})) {
+      if (sk === 'dex') {
+        if (sv !== 'v3' && sv !== 'cl') fail(`${net}.${ck}.swap.dex must be "v3" or "cl", got ${JSON.stringify(sv)}`);
+        continue;
+      }
+      if (sk === 'cl') { // optional Slipstream CL block: every non-null entry needs its own provenance
+        if (sv && typeof sv === 'object') for (const [k2, v2] of Object.entries(sv)) if (v2) need.push(`${net}.${ck}.swap.cl.${k2}`);
+        continue;
+      }
+      if (sv) need.push(`${net}.${ck}.swap.${sk}`);
+    }
     for (const f of ['rpc', 'explorer', 'nativeSymbol', 'coreInfoApi']) if (c[f]) need.push(`${net}.${ck}.${f}`);
     for (const p of need) {
       const id = nets.provenance[p];

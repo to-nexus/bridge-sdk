@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Extracts ABIs from the forge artifacts (out/) of a checkout of github.com/to-nexus/bridge-contracts and generates:
 //   js/src/abi/*.ts, js/src/errors.generated.ts   (ABIs + selector -> error table, all custom errors)
-//   go/bridgesdk/abi_extra.json                   (Uniswap V3 fragments + forward-lib events, not in binding/go)
+//   go/bridgesdk/abi_extra.json                   (Uniswap V3 + Slipstream CL fragments, SwapBridgeRouterCL, forward-lib events: not in binding/go)
 //   go/bridgesdk/errors_table.json                (same error table for the Go SDK)
 // BRIDGE_CONTRACTS_DIR (required) = that checkout, already built (`forge build`). Selectors are computed with `cast sig`.
 import { execFileSync } from 'node:child_process';
@@ -47,8 +47,16 @@ const abis = {
     fn: ['swapBridgeExactInputSingle', 'swapBridgeExactInputSingleETH', 'getAmountSwapBridgeOut', 'getExpectedBridgeAmount', 'calculateBridgeFees', 'bridge', 'swapRouter', 'quoter', 'WETH9'],
     ev: ['SwapBridge'],
   }),
+  // SwapBridgeRouterCL: same API as SwapBridgeRouter, but the single-pool functions take `int24 tickSpacing` instead of `uint24 fee`
+  swapBridgeRouterCL: pick(art('SwapBridgeRouterCL.sol', 'SwapBridgeRouterCL'), {
+    fn: ['swapBridgeExactInputSingle', 'swapBridgeExactInputSingleETH', 'getAmountSwapBridgeOut', 'getExpectedBridgeAmount', 'calculateBridgeFees', 'bridge', 'swapRouter', 'quoter', 'WETH9'],
+    ev: ['SwapBridge'],
+  }),
   v3Router: pick(art('ISwapRouter.sol', 'ISwapRouter'), { fn: ['exactInputSingle'], errors: false }),
   quoterV2: pick(art('IQuoterV2.sol', 'IQuoterV2'), { fn: ['quoteExactInputSingle'], errors: false }),
+  // Slipstream CL periphery (minimal interfaces compiled by bridge-contracts)
+  clRouter: pick(art('ICLSwapRouter.sol', 'ICLSwapRouter'), { fn: ['exactInputSingle'], errors: false }),
+  clQuoterV2: pick(art('ICLSwapRouter.sol', 'ICLQuoterV2'), { fn: ['quoteExactInputSingle'], errors: false }),
   // not shipped as artifacts (the v3-core interfaces are not compiled by bridge-contracts): minimal fragments, verified by selector below
   v3Factory: [{ type: 'function', name: 'getPool', stateMutability: 'view', inputs: [{ name: 'tokenA', type: 'address' }, { name: 'tokenB', type: 'address' }, { name: 'fee', type: 'uint24' }], outputs: [{ name: 'pool', type: 'address' }] }],
   v3Pool: [
@@ -57,6 +65,9 @@ const abis = {
     { type: 'function', name: 'token0', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
     { type: 'function', name: 'token1', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
   ],
+  // Slipstream CL core: minimal fragments, verified by selector below. The pool fee is dynamic: tickSpacing is the pool key, never derived from fee().
+  clFactory: [{ type: 'function', name: 'getPool', stateMutability: 'view', inputs: [{ name: 'tokenA', type: 'address' }, { name: 'tokenB', type: 'address' }, { name: 'tickSpacing', type: 'int24' }], outputs: [{ name: 'pool', type: 'address' }] }],
+  clPool: [{ type: 'function', name: 'tickSpacing', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'int24' }] }],
   v3Periphery: [
     { type: 'function', name: 'factory', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
     { type: 'function', name: 'WETH9', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
@@ -70,6 +81,14 @@ const expectSel = [
   ['bridge', 'bridgeTokenForwarded', '0x55fd0776'],
   ['hyperToken', 'transferToCoreFor', '0x9438568d'],
   ['v3Periphery', 'factory', '0xc45a0155'],
+  ['quoterV2', 'quoteExactInputSingle', '0xc6a5026a'],
+  ['clRouter', 'exactInputSingle', '0xa026383e'],
+  ['clQuoterV2', 'quoteExactInputSingle', '0x9e7defe6'],
+  ['clFactory', 'getPool', '0x28af8d0b'],
+  ['clPool', 'tickSpacing', '0xd0c93a7c'],
+  ['swapBridgeRouterCL', 'swapBridgeExactInputSingle', '0x49d9a7f7'],
+  ['swapBridgeRouterCL', 'swapBridgeExactInputSingleETH', '0xa26337a6'],
+  ['swapBridgeRouterCL', 'getAmountSwapBridgeOut', '0xdf7da91c'],
 ];
 for (const [k, n, sel] of expectSel) {
   const f = abis[k].find((x) => x.type === 'function' && x.name === n);
@@ -81,7 +100,7 @@ for (const [k, n, sel] of expectSel) {
 const hints = JSON.parse(readFileSync(resolve(here, 'error-hints.json'), 'utf8'));
 const errSources = [
   ['CrossBridge.sol', 'CrossBridge'], ['BridgeExecutor.sol', 'BridgeExecutor'], ['BridgeVerifier.sol', 'BridgeVerifier'],
-  ['HyperMintableERC20.sol', 'HyperMintableERC20'], ['SwapBridgeRouter.sol', 'SwapBridgeRouter'], ['ForwardLib.sol', 'ForwardLib'],
+  ['HyperMintableERC20.sol', 'HyperMintableERC20'], ['SwapBridgeRouter.sol', 'SwapBridgeRouter'], ['SwapBridgeRouterCL.sol', 'SwapBridgeRouterCL'], ['ForwardLib.sol', 'ForwardLib'],
   ['ERC20.sol', 'ERC20'], ['BSCBridgeV2.sol', 'BSCBridgeV2'],
 ];
 const table = {};
@@ -103,7 +122,10 @@ writeFileSync(resolve(kit, 'js/src/abi/index.ts'), header + names.map((k) => `ex
 writeFileSync(resolve(kit, 'js/src/errors.generated.ts'), `${header}export interface ErrorTableEntry { name: string; signature: string; inputs: { name: string; type: string }[]; hint: string | null }\nexport const errorTable: Record<string, ErrorTableEntry> = ${JSON.stringify(table, null, 2)};\n`);
 
 // ---- write Go
-const goExtra = { v3Router: abis.v3Router, quoterV2: abis.quoterV2, v3Factory: abis.v3Factory, v3Pool: abis.v3Pool, v3Periphery: abis.v3Periphery, forwardLibEvents: pick(forwardLib, { ev: ['ForwardInitiated', 'ForwardFailed'], errors: false }) };
+const goExtra = {
+  v3Router: abis.v3Router, quoterV2: abis.quoterV2, v3Factory: abis.v3Factory, v3Pool: abis.v3Pool, v3Periphery: abis.v3Periphery,
+  clRouter: abis.clRouter, clQuoterV2: abis.clQuoterV2, clFactory: abis.clFactory, clPool: abis.clPool, swapBridgeRouterCL: abis.swapBridgeRouterCL,
+  forwardLibEvents: pick(forwardLib, { ev: ['ForwardInitiated', 'ForwardFailed'], errors: false }) };
 writeFileSync(resolve(kit, 'go/bridgesdk/abi_extra.json'), JSON.stringify(goExtra, null, 2) + '\n');
 writeFileSync(resolve(kit, 'go/bridgesdk/errors_table.json'), JSON.stringify(table, null, 2) + '\n');
 console.log(`abis: ${names.join(', ')}; error selectors: ${Object.keys(table).length}`);

@@ -211,12 +211,18 @@ inner      = 0x                                  (평범한 도착)
 | ONE | 브리지 (프록시) — 직접 호출 | `0xb81d6e000000000000000000000000000000C0de` |
 | ONE | 네이티브 토큰 센티넬 (ONE) | `0x0000000000000000000000000000000000000001` |
 | ONE | 토큰 USDTx (USDTx, 18 dec) | `0x9F85c7B5D7637E18f946cc8AF9C131318c6833d9` |
-| ONE | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) no testnet ONEUSD address found |
+| ONE | 토큰 ONEUSD | ⚠️ `null` — TODO(UNCONFIRMED) no testnet ONEUSD address is configured (the Slipstream CL pool swap.cl.x1Pool pairs USDTx with token 0x9364...55Fb, symbol ONEUSD; it stays unset while X1 is closed on testnet) |
 | ONE | 토큰 WCROSS (WCROSS, 18 dec) | `0xda37a3B60E6b97E8CB44b460130d40331efc566b` |
 | ONE | Uniswap V3 SwapRouter (X1 extraCall 타깃) | `0x61745D6Dc4342cF01bE2C145218CE1952260cd05` |
 | ONE | QuoterV2 | `0x19D62F16FbFc200F8a1eFc521f10b54A3801D10A` |
 | ONE | SwapBridgeRouter (X3) | `0xc9B23a5E14747Cc2Acc3Dca7237D3174CE1BCf5B` |
 | ONE | USDTx/ONEUSD 풀 (fee 0) | ⚠️ `null` — TODO(UNCONFIRMED) no testnet USDTx/ONEUSD pool found (X1 unavailable on testnet) |
+| ONE | 사용 DEX (`swap.dex`) | `v3` |
+| ONE | Slipstream CL SwapRouter | `0x5F6B5E31E329700176d531333E6B9fc1eC7BA107` |
+| ONE | Slipstream CL QuoterV2 | `0x0Ab6d60565158F791CA08eFc6F95333F0f10851b` |
+| ONE | Slipstream CL Factory | `0x38C3a5c6f5A1607f0438420B44f9a197940f9A3c` |
+| ONE | SwapBridgeRouterCL (X3, dex=cl) | ⚠️ `null` — TODO(PENDING) SwapBridgeRouterCL not deployed yet |
+| ONE | CL USDTx/ONEUSD 풀 (tickSpacing 200) | `0x83c082f35EAb5BF910E241DA1e745f41362a8842` |
 | ONE | (참고) BridgeVerifier — SDK 는 라이브 조회 | `0x31104F827Ac2AE6C5a1A5315C7D7D8b8dFa61c37` |
 | ONE | (참고) BridgeExecutor — SDK 는 라이브 조회 | `0x6147FA2602699dE1eb0141959d93bFE06dEF2279` |
 | BSC | 브리지 (프록시) — 직접 호출 | `0x192FFaCAf26A53b439C33F3d2C166ceB0A26bf2d` |

@@ -5,7 +5,8 @@
     "SINGLE SOURCE OF TRUTH. Edit only this file, then run `node tools/gen.mjs` and `node tools/check-consistency.mjs`.",
     "Unconfirmed values are null with a greppable marker in `todo` (TODO(PENDING) = not set up on chain yet, TODO(UNCONFIRMED) = no official source found).",
     "bridgeVerifier / bridgeExecutor are informational: the SDKs always resolve them live from bridge.bridgeVerifier() / bridge.bridgeExecutor().",
-    "Every non-null address has an entry in `provenance` that points at a row id in SOURCES.md."
+    "Every non-null address has an entry in `provenance` that points at a row id in SOURCES.md.",
+    "swap.dex selects the ONE chain DEX the SDKs use for X1 and X3: \"v3\" (Uniswap V3, the default when absent) or \"cl\" (Slipstream concentrated liquidity, addresses under swap.cl)."
   ],
   "networks": {
     "mainnet": {
@@ -152,12 +153,26 @@
             "quoterV2": "0x19D62F16FbFc200F8a1eFc521f10b54A3801D10A",
             "v3Factory": "0xCB5cd0C36F7233f213F9FA646f8e5017e6B5449B",
             "swapBridgeRouter": "0xc9B23a5E14747Cc2Acc3Dca7237D3174CE1BCf5B",
-            "x1Pool": null
+            "x1Pool": null,
+            "dex": "v3",
+            "cl": {
+              "swapRouter": "0x5F6B5E31E329700176d531333E6B9fc1eC7BA107",
+              "quoterV2": "0x0Ab6d60565158F791CA08eFc6F95333F0f10851b",
+              "factory": "0x38C3a5c6f5A1607f0438420B44f9a197940f9A3c",
+              "swapBridgeRouter": null,
+              "x1Pool": {
+                "tokenIn": "USDTx",
+                "tokenOut": "ONEUSD",
+                "tickSpacing": 200,
+                "pool": "0x83c082f35EAb5BF910E241DA1e745f41362a8842"
+              }
+            }
           },
           "todo": {
             "explorer": "TODO(UNCONFIRMED) no official ONE chain testnet explorer URL found",
-            "tokens.ONEUSD": "TODO(UNCONFIRMED) no testnet ONEUSD address found",
-            "swap.x1Pool": "TODO(UNCONFIRMED) no testnet USDTx/ONEUSD pool found (X1 unavailable on testnet)"
+            "tokens.ONEUSD": "TODO(UNCONFIRMED) no testnet ONEUSD address is configured (the Slipstream CL pool swap.cl.x1Pool pairs USDTx with token 0x9364...55Fb, symbol ONEUSD; it stays unset while X1 is closed on testnet)",
+            "swap.x1Pool": "TODO(UNCONFIRMED) no testnet USDTx/ONEUSD pool found (X1 unavailable on testnet)",
+            "swap.cl.swapBridgeRouter": "TODO(PENDING) SwapBridgeRouterCL not deployed yet"
           }
         },
         "bsc": {
@@ -249,6 +264,10 @@
     "testnet.one.swap.quoterV2": "S-T08",
     "testnet.one.swap.v3Factory": "S-T09",
     "testnet.one.swap.swapBridgeRouter": "S-T10",
+    "testnet.one.swap.cl.swapRouter": "S-T20",
+    "testnet.one.swap.cl.quoterV2": "S-T21",
+    "testnet.one.swap.cl.factory": "S-T22",
+    "testnet.one.swap.cl.x1Pool": "S-T23",
     "testnet.bsc.bridge": "S-T11",
     "testnet.bsc.bridgeVerifier": "S-T12",
     "testnet.bsc.tokens.ONE": "S-T13",
