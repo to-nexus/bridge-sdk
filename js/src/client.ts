@@ -3,7 +3,7 @@ import type { ClientOptions, Ctx } from './ctx.js';
 import { NetworkMismatchError, SourceTxFailedError } from './errors.js';
 import { buildHandle, type RawReceipt } from './handle.js';
 import { inferFromReceipt, type InferOptions } from './infer.js';
-import { chainOf, getNetwork } from './networks.js';
+import { chainOf, dexOf, getNetwork } from './networks.js';
 import type { ChainKey } from './networks-types.js';
 import { preflight } from './preflight.js';
 import { assertQuoteBelongs } from './binding.js';
@@ -33,6 +33,7 @@ export class BridgeClient {
   constructor(opts: ClientOptions) {
     this.network = opts.network;
     const net = getNetwork(opts.network, opts.networksData);
+    dexOf(net); // an unknown one.swap.dex is refused up front (RangeError)
     this.ctx = this.makeCtx(opts, net, undefined);
   }
 

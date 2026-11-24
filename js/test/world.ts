@@ -1,6 +1,6 @@
 // A tiny deterministic "world": three FakeChains with just enough contract behaviour for the SDK state machine.
 import { Interface, getAddress } from 'ethers';
-import { bridgeAbi, erc20Abi, executorAbi, quoterV2Abi, swapBridgeRouterAbi, verifierAbi, hyperTokenAbi, v3PoolAbi } from '../src/abi/index.js';
+import { bridgeAbi, clFactoryAbi, clQuoterV2Abi, erc20Abi, executorAbi, quoterV2Abi, swapBridgeRouterAbi, swapBridgeRouterCLAbi, verifierAbi, hyperTokenAbi, v3PoolAbi } from '../src/abi/index.js';
 import type { ClientOptions } from '../src/ctx.js';
 import { expectedBridgeAmount } from '../src/math.js';
 import { getNetworksData } from '../src/networks.js';
@@ -14,6 +14,9 @@ export const erc20I = new Interface(erc20Abi as any);
 export const executorI = new Interface(executorAbi as any);
 export const quoterI = new Interface(quoterV2Abi as any);
 export const sbrI = new Interface(swapBridgeRouterAbi as any);
+export const sbrCLI = new Interface(swapBridgeRouterCLAbi as any);
+export const clQuoterI = new Interface(clQuoterV2Abi as any);
+export const clFactoryI = new Interface(clFactoryAbi as any);
 export const hyperI = new Interface(hyperTokenAbi as any);
 export const v3RouterI = new Interface([]);
 export const poolI = new Interface(v3PoolAbi as any);
@@ -49,6 +52,7 @@ export class World {
   coreUnit = 10n ** 10n;
   x1Out = 1_000_000_000_000_000_000n; // quoter output per call (set per test)
   swapOut = 100n * E18; // SwapBridgeRouter quote swap output
+  clTicks: number[] = []; // int24 tickSpacing values received by the CL quoter / factory / SwapBridgeRouterCL (in call order)
   approveFails = false;
   approveCalls: bigint[] = [];
   onApprove: (() => void) | null = null;
@@ -189,30 +193,47 @@ export class World {
       this.chains.one.deploy(sw.v3Factory, { iface: v3FactoryI, call: { getPool: () => (w.poolMissing ? '0x0000000000000000000000000000000000000000' : pool.pool) } });
     }
     if (sw?.x1Pool) this.chains.one.deploy(sw.x1Pool.pool, { iface: poolI, call: { liquidity: () => 10n ** 27n, fee: () => 0, token0: () => NATIVE, token1: () => NATIVE } });
-    if (sw?.swapBridgeRouter) {
-      const router = sw.swapBridgeRouter;
-      this.chains.one.deploy(router, {
-        iface: sbrI,
-        call: {
-          bridge: () => w.routerBridgeOverride ?? w.net.chains.one.bridge!,
-          getAmountSwapBridgeOut: ([to, , tokenOut, , amountIn]) => {
-            const f = w.getFee('one', Number(to), tokenOut);
-            const eb = expectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min);
-            const st = w.swapStatus !== null ? BigInt(w.swapStatus) : eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n;
-            return [st, w.swapOut, eb.bridgeValue, eb.networkFee, eb.exFee, amountIn].slice(0, 5);
-          },
-          getExpectedBridgeAmount: ([to, token, total]) => {
-            const f = w.getFee('one', Number(to), token);
-            const eb = expectedBridgeAmount(total, f.nf, f.rate, f.min);
-            return [eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n, eb.bridgeValue, eb.networkFee, eb.exFee];
-          },
-        },
-        tx: {
-          swapBridgeExactInputSingle: ([params], c) => w.execSwapBridge(router, params, c, false),
-          swapBridgeExactInputSingleETH: ([params], c) => w.execSwapBridge(router, params, c, true),
-        },
-      });
+    if (sw?.swapBridgeRouter) this.deploySwapBridgeRouter(sw.swapBridgeRouter, false);
+    const cl = sw?.cl;
+    if (cl) { // Slipstream CL periphery: int24 tickSpacing everywhere V3 has uint24 fee
+      if (cl.quoterV2) this.chains.one.deploy(cl.quoterV2, { iface: clQuoterI, call: { quoteExactInputSingle: ([p]) => { w.clTicks.push(Number(p[3])); return [w.x1Out, 0n, 0, 100000n]; } } });
+      if (cl.factory && cl.x1Pool) {
+        const pool = cl.x1Pool;
+        this.chains.one.deploy(cl.factory, {
+          iface: clFactoryI,
+          call: { getPool: ([, , ts]) => { w.clTicks.push(Number(ts)); return w.poolMissing || Number(ts) !== pool.tickSpacing ? '0x0000000000000000000000000000000000000000' : pool.pool; } },
+        });
+      }
+      if (cl.x1Pool) this.chains.one.deploy(cl.x1Pool.pool, { iface: poolI, call: { liquidity: () => 10n ** 27n, fee: () => 0, token0: () => NATIVE, token1: () => NATIVE } });
+      if (cl.swapBridgeRouter) this.deploySwapBridgeRouter(cl.swapBridgeRouter, true);
     }
+  }
+
+  /** a fake SwapBridgeRouter (uint24 fee) or SwapBridgeRouterCL (int24 tickSpacing) on the ONE chain */
+  private deploySwapBridgeRouter(router: string, cl: boolean) {
+    const w = this;
+    this.chains.one.deploy(router, {
+      iface: cl ? sbrCLI : sbrI,
+      call: {
+        bridge: () => w.routerBridgeOverride ?? w.net.chains.one.bridge!,
+        getAmountSwapBridgeOut: ([to, , tokenOut, poolKey, amountIn]) => {
+          if (cl) w.clTicks.push(Number(poolKey));
+          const f = w.getFee('one', Number(to), tokenOut);
+          const eb = expectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min);
+          const st = w.swapStatus !== null ? BigInt(w.swapStatus) : eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n;
+          return [st, w.swapOut, eb.bridgeValue, eb.networkFee, eb.exFee, amountIn].slice(0, 5);
+        },
+        getExpectedBridgeAmount: ([to, token, total]) => {
+          const f = w.getFee('one', Number(to), token);
+          const eb = expectedBridgeAmount(total, f.nf, f.rate, f.min);
+          return [eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n, eb.bridgeValue, eb.networkFee, eb.exFee];
+        },
+      },
+      tx: {
+        swapBridgeExactInputSingle: ([params], c) => w.execSwapBridge(router, params, c, false),
+        swapBridgeExactInputSingleETH: ([params], c) => w.execSwapBridge(router, params, c, true),
+      },
+    });
   }
 
   // ---- bridge behaviour ---------------------------------------------------------------------------------------

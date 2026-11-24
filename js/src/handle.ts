@@ -4,7 +4,7 @@ import { FORWARD_SELECTOR } from './encoding.js';
 import { checkX1, checkX2, decodeForward } from './extra.js';
 export { decodeForward } from './extra.js';
 import { AmbiguousSourceError, BridgeSdkError, UnsupportedRouteError } from './errors.js';
-import { chainOf } from './networks.js';
+import { chainOf, swapView } from './networks.js';
 import type { ChainKey } from './networks-types.js';
 import { bridgeI, sbrI } from './quote.js';
 import { Route } from './types.js';
@@ -205,7 +205,8 @@ export function buildHandle(ctx: Ctx, h: HandleInput): TransferHandle {
   const src = chainOf(ctx.net, h.srcKey);
   if (h.srcKey !== shape.src) throw new BridgeSdkError(`route ${h.route} starts on ${shape.src}, not ${h.srcKey}`);
   const srcBridge = getAddress(src.bridge!);
-  const router = ctx.net.chains.one.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.one.swap.swapBridgeRouter) : null;
+  const sbr = swapView(ctx.net).sbr;
+  const router = sbr ? getAddress(sbr) : null;
   const srcContract = shape.swap ? router! : srcBridge;
   const bridgeAddr = srcBridge;
 

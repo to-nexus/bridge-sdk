@@ -1,19 +1,20 @@
 import { Interface, getAddress } from 'ethers';
 import { executorAbi } from './abi/index.js';
 import type { Ctx } from './ctx.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR } from './encoding.js';
+import { CL_EXACT_INPUT_SINGLE_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR } from './encoding.js';
 import { NetworkMismatchError, PreflightError } from './errors.js';
-import { NATIVE_TOKEN, chainOf } from './networks.js';
+import { NATIVE_TOKEN, chainOf, swapView } from './networks.js';
 import type { ChainKey } from './networks-types.js';
 import { decodeForward } from './handle.js';
-import { QUOTE_STATUS, bridgeI, erc20I, hyperTokenI, maxExtraData, poolI, sbrI } from './quote.js';
-import { v3FactoryAbi } from './abi/index.js';
+import { QUOTE_STATUS, bridgeI, erc20I, hyperTokenI, maxExtraData, poolI, sbrCLI, sbrI } from './quote.js';
+import { clFactoryAbi, v3FactoryAbi } from './abi/index.js';
 import { readContract } from './rpc.js';
 import { Route } from './types.js';
 import type { PreflightIssue, PreflightReport, Quote } from './types.js';
 
 const executorI = new Interface(executorAbi as any);
 const v3FactoryI = new Interface(v3FactoryAbi as any);
+const clFactoryI = new Interface(clFactoryAbi as any);
 
 export type PreflightStage = 'pre-approve' | 'post-approve';
 
@@ -91,7 +92,9 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
     const m = q.match;
     // fresh quote status through the timed RPC: a status other than Success (1) blocks at every stage, before any approve
     await guard('x3 quote status', async () => {
-      const r: any = await readContract(ctx.rpc('one'), sbrI, q.sourceContract, 'getAmountSwapBridgeOut', [m.toChainID, m.tokenIn, m.tokenOut, q.request.x3!.poolFee, m.amountIn], { from: q.sender });
+      const x3 = q.request.x3!;
+      const cl = x3.tickSpacing !== undefined; // SwapBridgeRouterCL: int24 tickSpacing
+      const r: any = await readContract(ctx.rpc('one'), cl ? sbrCLI : sbrI, q.sourceContract, 'getAmountSwapBridgeOut', [m.toChainID, m.tokenIn, m.tokenOut, cl ? x3.tickSpacing : x3.poolFee, m.amountIn], { from: q.sender });
       const status = Number(r[0]);
       const name = QUOTE_STATUS[status] ?? String(status);
       add('router quote status == Success', status === 1, name, { level: 'error', code: `X3_QUOTE_${name}`, message: `SwapBridgeRouter quote status ${name}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' });
@@ -144,18 +147,24 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
       };
       if (q.kind === 'multihop') await guard('executor whitelist (hub forward)', () => whitelist('hub + bridgeTokenForwarded', hub, FORWARD_SELECTOR));
       if (q.kind === 'x1') {
-        const router = getAddress(chains.one.swap!.v3SwapRouter!);
-        await guard('executor whitelist (V3 router)', () => whitelist('V3 SwapRouter + exactInputSingle', router, EXACT_INPUT_SINGLE_SELECTOR));
+        const sv = swapView(ctx.net);
+        const router = getAddress(sv.router!);
+        if (sv.dex === 'cl') await guard('executor whitelist (CL router)', () => whitelist('Slipstream CL SwapRouter + exactInputSingle', router, CL_EXACT_INPUT_SINGLE_SELECTOR));
+        else await guard('executor whitelist (V3 router)', () => whitelist('V3 SwapRouter + exactInputSingle', router, EXACT_INPUT_SINGLE_SELECTOR));
         await guard('x1 pool exists', async () => {
-          const cfgPool = chains.one.swap!.x1Pool!;
-          const factory = chains.one.swap!.v3Factory;
-          if (factory) {
-            const got = await readContract<string>(ctx.rpc('one'), v3FactoryI, getAddress(factory), 'getPool', [chains.one.tokens.USDTx!.address, chains.one.tokens.ONEUSD!.address, cfgPool.fee]);
-            add('factory.getPool(USDTx, ONEUSD, fee) == configured pool', got.toLowerCase() === cfgPool.pool.toLowerCase(), got, { level: 'error', code: 'POOL_NOT_FOUND', message: `factory has no pool ${cfgPool.pool} for (USDTx, ONEUSD, fee ${cfgPool.fee})` });
+          const cfgPool = sv.pool!;
+          if (!sv.factory) return;
+          const usdtx = chains.one.tokens.USDTx!.address, oneusd = chains.one.tokens.ONEUSD!.address;
+          if (sv.dex === 'cl') { // Slipstream pools are keyed by int24 tickSpacing (the pool fee is dynamic)
+            const got = await readContract<string>(ctx.rpc('one'), clFactoryI, getAddress(sv.factory), 'getPool', [usdtx, oneusd, sv.tickSpacing]);
+            add('factory.getPool(USDTx, ONEUSD, tickSpacing) == configured pool', got.toLowerCase() === cfgPool.toLowerCase(), got, { level: 'error', code: 'POOL_NOT_FOUND', message: `CL factory has no pool ${cfgPool} for (USDTx, ONEUSD, tickSpacing ${sv.tickSpacing})` });
+            return;
           }
+          const got = await readContract<string>(ctx.rpc('one'), v3FactoryI, getAddress(sv.factory), 'getPool', [usdtx, oneusd, sv.fee]);
+          add('factory.getPool(USDTx, ONEUSD, fee) == configured pool', got.toLowerCase() === cfgPool.toLowerCase(), got, { level: 'error', code: 'POOL_NOT_FOUND', message: `factory has no pool ${cfgPool} for (USDTx, ONEUSD, fee ${sv.fee})` });
         });
         await guard('x1 pool liquidity', async () => {
-          const pool = getAddress(chains.one.swap!.x1Pool!.pool);
+          const pool = getAddress(sv.pool!);
           const liq = await readContract<bigint>(ctx.rpc('one'), poolI, pool, 'liquidity', []);
           add('USDTx/ONEUSD pool liquidity > 0', liq > 0n, String(liq), { level: 'error', code: 'POOL_NO_LIQUIDITY', message: 'the swap pool has no liquidity' });
         });

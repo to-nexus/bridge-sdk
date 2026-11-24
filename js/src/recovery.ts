@@ -2,7 +2,7 @@ import { getAddress } from 'ethers';
 import { backoffOf, type Ctx } from './ctx.js';
 import { buildHandle, linkSwapTransfer, matchesBridgeIntent, matchesSwapIntent, parseInitiated, quoteHandleInput, TOPIC_BRIDGE_INITIATED, TOPIC_SWAP_BRIDGE, type RawReceipt } from './handle.js';
 import { AmbiguousSourceError, NetworkMismatchError } from './errors.js';
-import { chainKeyById } from './networks.js';
+import { chainKeyById, swapView } from './networks.js';
 import type { ChainKey } from './networks-types.js';
 import { sbrI } from './quote.js';
 import { fromHexQty, withBackoff } from './rpc.js';
@@ -27,7 +27,8 @@ function handleInputFor(intent: SubmittedIntent, receipt: RawReceipt, checkpoint
 /** the CONFIGURED SwapBridgeRouter (ONE chain only) and source bridge of a chain: the only emitters whose logs can be attributed */
 function linkCfg(ctx: Ctx, key: ChainKey): { router: string | null; bridge: string } {
   const c = ctx.net.chains[key];
-  const router = key === 'one' && ctx.net.chains.one.swap?.swapBridgeRouter ? getAddress(ctx.net.chains.one.swap.swapBridgeRouter) : null;
+  const sbr = key === 'one' ? swapView(ctx.net).sbr : null;
+  const router = sbr ? getAddress(sbr) : null;
   return { router, bridge: getAddress(c.bridge!) };
 }
 

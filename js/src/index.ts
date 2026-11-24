@@ -12,11 +12,11 @@ export {
   SenderMismatchError, AmbiguousSourceError, SourceTransferNotFoundError, UnsupportedRouteError, RouteMismatchError, InvalidOptionError, SignerMisbehaviorError, RpcTimeoutError, decodeBridgeError, extractRevertData,
 } from './errors.js';
 export type { DecodedError } from './errors.js';
-export { getNetwork, getNetworksData, NATIVE_TOKEN } from './networks.js';
-export type { ChainKey, NetworkName, NetworksData, NetworkData, ChainConfig } from './networks-types.js';
+export { getNetwork, getNetworksData, NATIVE_TOKEN, dexOf } from './networks.js';
+export type { ChainKey, NetworkName, NetworksData, NetworkData, ChainConfig, SwapConfig, ClSwapConfig, DexKind } from './networks-types.js';
 export {
   encodeBridgeToken, encodeForwardExtraData, encodeCoreExtraData, encodeX1ExtraData, encodeSwapBridge, packExtraData,
-  FORWARD_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR,
+  FORWARD_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, CL_EXACT_INPUT_SINGLE_SELECTOR, CL_QUOTE_EXACT_INPUT_SINGLE_SELECTOR, INT24_MIN, INT24_MAX,
 } from './encoding.js';
 export { floorBps, multihopAmounts, resolveForwardAmounts, expectedBridgeAmount, coreAmounts, parseUnits, formatUnits } from './math.js';
 export { classifyHop } from './tracking.js';

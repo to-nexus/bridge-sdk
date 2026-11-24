@@ -60,7 +60,8 @@ const SCHEMA = o({
   request: o({
     route: { t: 'enum', values: ROUTES }, amount: big(), sender: addr(), recipient: addr(), recipients: recipients(true), hypercore: { t: 'bool', opt: true },
     swap: { ...o({ slippageBps: { t: 'int', opt: true }, deadlineSec: num(true) }), opt: true },
-    x3: { ...o({ tokenIn: { t: 'addr', native: true }, tokenOut: addr(), poolFee: { t: 'int' }, toChain: { t: 'enum', values: ['bsc', 'hyperevm'] } }), opt: true },
+    // tickSpacing: Slipstream CL only (absent for V3, so V3 payloads stay byte-identical)
+    x3: { ...o({ tokenIn: { t: 'addr', native: true }, tokenOut: addr(), poolFee: { t: 'int' }, tickSpacing: { t: 'int', opt: true }, toChain: { t: 'enum', values: ['bsc', 'hyperevm'] } }), opt: true },
     hop2FeeBuffer: big(true), limits: { ...o({ maxTotalSpend: big(true), minDelivered: big(true) }), opt: true }, quoteTtlMs: num(true),
   }),
   kind: { t: 'enum', values: ['single', 'multihop', 'x1', 'x3'] },

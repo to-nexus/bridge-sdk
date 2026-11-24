@@ -1,10 +1,10 @@
 import { getAddress } from 'ethers';
 import type { Ctx } from './ctx.js';
 import { checkX1, checkX2 } from './extra.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR } from './encoding.js';
+import { CL_EXACT_INPUT_SINGLE_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, exactInputSelector } from './encoding.js';
 import { AmbiguousSourceError, RouteMismatchError, SourceTransferNotFoundError, UnsupportedRouteError, type SourceCandidateInfo } from './errors.js';
 import { decodeForward, linkSwapTransfer, parseInitiated, TOPIC_BRIDGE_INITIATED, type ParsedInitiated, type RawReceipt } from './handle.js';
-import { chainKeyById } from './networks.js';
+import { chainKeyById, swapView } from './networks.js';
 import type { ChainKey } from './networks-types.js';
 import { sbrI } from './quote.js';
 import { Route } from './types.js';
@@ -42,7 +42,7 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
   const src = net.chains[srcKey];
   if (!src.bridge) throw new UnsupportedRouteError(`the source bridge of ${srcKey} is not configured`);
   const srcBridge = getAddress(src.bridge);
-  const routerCfg = srcKey === 'one' ? net.chains.one.swap?.swapBridgeRouter : null;
+  const routerCfg = srcKey === 'one' ? swapView(net).sbr : null;
   const router = routerCfg ? getAddress(routerCfg) : null;
 
   const bridgeLogs: ParsedInitiated[] = [];
@@ -95,7 +95,9 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
     const target = getAddress('0x' + e.extraData.slice(2, 42));
     const selector = ('0x' + e.extraData.slice(42, 50)).toLowerCase();
     const hub = net.chains.one.bridge ? getAddress(net.chains.one.bridge) : null;
-    const v3 = net.chains.one.swap?.v3SwapRouter ? getAddress(net.chains.one.swap.v3SwapRouter) : null;
+    const sv = swapView(net);
+    const swapRouter = sv.router ? getAddress(sv.router) : null; // the X1 target of the configured DEX
+    const x1Sel = exactInputSelector(sv.dex);
     const heTok = net.chains.hyperevm.tokens.ONE ? getAddress(net.chains.hyperevm.tokens.ONE.address) : null;
     if (hub && sameAddr(target, hub) && selector === FORWARD_SELECTOR) {
       if (destKey !== 'one') throw unsupported('a hub forward must be sent to the hub chain', target, selector);
@@ -112,7 +114,9 @@ export function inferFromReceipt(ctx: Ctx, srcKey: ChainKey, receipt: RawReceipt
         if (r === Route.BSC_TO_ONE_TO_HYPEREVM && heTok && it && sameAddr(it, heTok) && isel === CORE_SELECTOR) { checkX2(net, fwd.inner, fwd.value); hypercore = true; }
         else throw unsupported('unsupported nested hop-2 extraData', it ?? undefined, isel);
       }
-    } else if (v3 && sameAddr(target, v3) && selector === EXACT_INPUT_SINGLE_SELECTOR && srcKey === 'bsc' && destKey === 'one') {
+    } else if (swapRouter && sameAddr(target, swapRouter) && selector !== x1Sel && (selector === EXACT_INPUT_SINGLE_SELECTOR || selector === CL_EXACT_INPUT_SINGLE_SELECTOR)) {
+      throw unsupported(`exactInputSingle selector ${selector} does not match the configured dex "${sv.dex}" (expected ${x1Sel})`, target, selector);
+    } else if (swapRouter && sameAddr(target, swapRouter) && selector === x1Sel && srcKey === 'bsc' && destKey === 'one') {
       checkX1(net, e.extraData, e.value);
       route = Route.BSC_USDT_TO_ONEUSD;
     } else if (heTok && sameAddr(target, heTok) && selector === CORE_SELECTOR && srcKey === 'one' && destKey === 'hyperevm') {

@@ -4,7 +4,7 @@
 // quote restored from the (already type-checked) payload and reports the ACTUAL wire path of the offending field (QuoteWireV1: `limits.amountOutMinimum`,
 // `deadlineSec`, `v2`, `fees.hop2`, `fees.hop2ExFeeDeclared`, `verifiers.hub`, `details.hubChainKey`, `details.hop2Kind`, `tx.data`, `details.extraData`, ...).
 // Recipients are resolved with the SAME function quote() uses (spec.ts resolveRecipients); extraData is decoded with the SAME decoders as handle building (extra.ts).
-import { bridgeIface, hashExtraData, swapBridgeRouterIface } from './encoding.js';
+import { INT24_MAX, bridgeIface, hashExtraData, swapBridgeRouterCLIface, swapBridgeRouterIface } from './encoding.js';
 import { decodeForward, decodeX1Struct, decodeX2Struct } from './extra.js';
 import { resolveRecipients, specFor } from './spec.js';
 import { Route } from './types.js';
@@ -113,13 +113,18 @@ function x3Rules(q: Quote, req: Quote['request'], rec: ReturnType<typeof resolve
   if (q.deadline === undefined) bad('deadlineSec', 'required for an X3 quote');
   const x3 = req.x3!;
   const native = x3.tokenIn === 'native';
+  // the wrapper ABI follows the request: tickSpacing = SwapBridgeRouterCL, poolFee = SwapBridgeRouter (the client binding check ties it to the client's dex)
+  const cl = x3.tickSpacing !== undefined;
+  if (cl && !(x3.tickSpacing! > 0 && x3.tickSpacing! <= INT24_MAX)) return bad('request.x3.tickSpacing', 'out of range (int24, > 0)');
+  if (cl && x3.poolFee !== 0) return bad('request.x3.poolFee', 'must be 0 with tickSpacing (Slipstream CL)');
   let d: any;
-  try { d = swapBridgeRouterIface.parseTransaction({ data: q.tx.data, value: q.tx.value }); } catch { return bad('tx.data', 'not a SwapBridgeRouter call'); }
+  try { d = (cl ? swapBridgeRouterCLIface : swapBridgeRouterIface).parseTransaction({ data: q.tx.data, value: q.tx.value }); } catch { return bad('tx.data', 'not a SwapBridgeRouter call'); }
   if (!d || d.name !== (native ? 'swapBridgeExactInputSingleETH' : 'swapBridgeExactInputSingle')) return bad('tx.data', 'unexpected swap function');
   const p = d.args[0];
   if (!native && !eq(p[0], x3.tokenIn)) bad('tx.data', 'tokenIn differs from request.x3.tokenIn'); // native: tokenIn is the client's WCROSS (client binding check)
   if (!eq(p[1], x3.tokenOut)) bad('tx.data', 'tokenOut differs from request.x3.tokenOut');
-  if (Number(p[2]) !== x3.poolFee) bad('tx.data', 'fee differs from request.x3.poolFee');
+  if (cl) { if (Number(p[2]) !== x3.tickSpacing) bad('tx.data', 'tickSpacing differs from request.x3.tickSpacing'); }
+  else if (Number(p[2]) !== x3.poolFee) bad('tx.data', 'fee differs from request.x3.poolFee');
   if (p[3] !== req.amount) bad('tx.data', 'amountIn differs from request.amount');
   if (p[4] !== q.limits.amountOutMinimum) bad('tx.data', 'amountOutMinimum differs from limits.amountOutMinimum');
   if (BigInt(p[6][0]) !== BigInt(q.details.destChainId)) bad('tx.data', 'toChainID differs from details.destChainId');

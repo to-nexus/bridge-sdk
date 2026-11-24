@@ -28,7 +28,11 @@ export interface QuoteRequest {
   /** X1 / X3 slippage + deadline (defaults 50 bps / 1800 s) */
   swap?: { slippageBps?: number; deadlineSec?: number };
   /** X3 only */
-  x3?: { tokenIn: string | 'native'; tokenOut: string; poolFee: number; toChain: 'bsc' | 'hyperevm' };
+  /**
+   * X3 swap. The pool follows the network's dex: `poolFee` (uint24) for 'v3'; `tickSpacing` (int24, > 0) with `poolFee: 0` for 'cl'.
+   * Setting tickSpacing on a 'v3' network (or omitting it on a 'cl' network) is refused with InvalidOptionError.
+   */
+  x3?: { tokenIn: string | 'native'; tokenOut: string; poolFee: number; tickSpacing?: number; toChain: 'bsc' | 'hyperevm' };
   /** multihop: wei added to the declared hop-2 exFee (see GUIDE §6, fees). default 0 */
   hop2FeeBuffer?: bigint;
   /** explicit, tighter user limits (otherwise derived from the first quote) */
@@ -213,7 +217,12 @@ export interface ScanState {
 }
 
 /** Decoded X1 `exactInputSingle` call, stored in the handle (all numbers as decimal strings). */
-export interface X1Expect { router: string; tokenIn: string; tokenOut: string; fee: number; recipient: string; deadline: string; amountIn: string; amountOutMinimum: string }
+export interface X1Expect {
+  router: string; tokenIn: string; tokenOut: string; fee: number; recipient: string; deadline: string; amountIn: string; amountOutMinimum: string;
+  /** set ('cl') for a Slipstream CL call only, together with tickSpacing (fee is then 0); absent for V3 so V3 handles keep their shape */
+  dex?: 'cl';
+  tickSpacing?: number;
+}
 /** Decoded X2 `transferToCoreFor` call, stored in the handle. `encodedAmount` is the amount the extraData asks for (the committed amount). */
 export interface X2Expect { token: string; coreRecipient: string; encodedAmount: string }
 

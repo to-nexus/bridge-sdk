@@ -4,12 +4,15 @@ import {
   erc20Abi,
   quoterV2Abi,
   swapBridgeRouterAbi,
+  swapBridgeRouterCLAbi,
   verifierAbi,
   v3PoolAbi,
   hyperTokenAbi,
+  clQuoterV2Abi,
 } from './abi/index.js';
 import type { Ctx } from './ctx.js';
 import {
+  checkPoolTickSpacing,
   encodeBridgeToken,
   encodeCoreExtraData,
   encodeForwardExtraData,
@@ -24,8 +27,8 @@ export { specFor } from './spec.js';
 export type { Spec } from './spec.js';
 import { InvalidOptionError, LimitViolationError, PreflightError, RequoteRequiredError } from './errors.js';
 import { coreAmounts, floorBps, multihopAmounts } from './math.js';
-import { NATIVE_TOKEN, configValue, requireConfigured, chainOf } from './networks.js';
-import type { ChainKey } from './networks-types.js';
+import { NATIVE_TOKEN, configValue, requireConfigured, chainOf, dexOf, dexPath, swapView } from './networks.js';
+import type { ChainKey, DexKind } from './networks-types.js';
 import { readContract } from './rpc.js';
 import { Route } from './types.js';
 import type { FeeTriple, HopKind, Limits, MatchSpec, Quote, QuoteRequest } from './types.js';
@@ -35,6 +38,9 @@ export const verifierI = new Interface(verifierAbi as any);
 export const erc20I = new Interface(erc20Abi as any);
 export const quoterI = new Interface(quoterV2Abi as any);
 export const sbrI = new Interface(swapBridgeRouterAbi as any);
+/** SwapBridgeRouterCL (int24 tickSpacing); its SwapBridge event and fee helpers are identical to sbrI */
+export const sbrCLI = new Interface(swapBridgeRouterCLAbi as any);
+export const clQuoterI = new Interface(clQuoterV2Abi as any);
 export const poolI = new Interface(v3PoolAbi as any);
 export const hyperTokenI = new Interface(hyperTokenAbi as any);
 
@@ -59,6 +65,17 @@ function swapOptions(req: QuoteRequest): { slippageBps: number; deadlineSec: num
 
 const rand = () => hexlify(randomBytes(8));
 
+/** The X3 pool key against the network's dex: poolFee for 'v3' (tickSpacing must be absent); tickSpacing (int24, > 0) with poolFee 0 for 'cl'. */
+function checkX3Pool(dex: DexKind, x3: NonNullable<QuoteRequest['x3']>): void {
+  if (dex === 'cl') {
+    if (x3.tickSpacing === undefined) throw new InvalidOptionError('x3.tickSpacing is required on a network whose dex is "cl" (Slipstream pools are keyed by tick spacing, not fee)');
+    try { checkPoolTickSpacing(x3.tickSpacing); } catch (e) { throw new InvalidOptionError(`x3.tickSpacing: ${(e as Error).message}`); }
+    if (x3.poolFee !== 0) throw new InvalidOptionError('x3.poolFee must be 0 on a network whose dex is "cl" (set x3.tickSpacing)');
+    return;
+  }
+  if (x3.tickSpacing !== undefined) throw new InvalidOptionError(`x3.tickSpacing is only valid on a network whose dex is "cl" (this network uses "${dex}": set x3.poolFee)`);
+}
+
 async function readFee(ctx: Ctx, key: ChainKey, verifier: string, toChainId: number, token: string, value: bigint): Promise<FeeTriple> {
   const r = await readContract<any>(ctx.rpc(key), verifierI, verifier, 'calculateFee', [toChainId, token, value]);
   return { minimumValue: r[0], networkFee: r[1], exFee: r[2] };
@@ -79,7 +96,10 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
   if ((req.x3 as { extraData?: string } | undefined)?.extraData !== undefined) throw new InvalidOptionError('x3.extraData is not supported (X3 supports extraData = 0x only)');
   const route = req.route;
   const spec = specFor(route, req);
-  requireConfigured(route, ctx.net, spec.required);
+  // the swap routes follow the network's dex: their required config paths are those of the active DEX (one.swap.* for V3, one.swap.cl.* for CL)
+  const dex: DexKind = spec.kind === 'x1' || spec.kind === 'x3' ? dexOf(ctx.net) : 'v3';
+  requireConfigured(route, ctx.net, spec.required.map((p) => dexPath(dex, p)));
+  if (spec.kind === 'x3') checkX3Pool(dex, req.x3!);
   if (req.amount <= 0n) throw new RangeError('amount must be > 0');
   const chains = ctx.net.chains;
   const src = chainOf(ctx.net, spec.src);
@@ -93,7 +113,10 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
   // ---------------------------------------------------------------------------------------- X3
   if (spec.kind === 'x3') {
     const x3 = req.x3!;
-    const router = getAddress(chains.one.swap!.swapBridgeRouter!);
+    const router = getAddress(swapView(ctx.net).sbr!);
+    const cl = dex === 'cl';
+    const routerI = cl ? sbrCLI : sbrI;
+    const poolKey = cl ? x3.tickSpacing! : x3.poolFee;
     const toChainId = chains[spec.dest].chainId;
     const native = x3.tokenIn === 'native';
     const tokenIn = native ? getAddress(chains.one.tokens.WCROSS!.address) : getAddress(x3.tokenIn);
@@ -102,7 +125,7 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     const deadline = frozen?.deadline ?? Math.floor(ctx.now() / 1000) + deadlineSec;
     const extraData = '0x'; // X3 supports extraData = 0x only
 
-    const r: any = await readContract(ctx.rpc('one'), sbrI, router, 'getAmountSwapBridgeOut', [toChainId, tokenIn, tokenOut, x3.poolFee, req.amount], { from: req.sender });
+    const r: any = await readContract(ctx.rpc('one'), routerI, router, 'getAmountSwapBridgeOut', [toChainId, tokenIn, tokenOut, poolKey, req.amount], { from: req.sender });
     const status = Number(r[0]);
     if (status !== 1) throw new PreflightError([{ level: 'error', code: `X3_QUOTE_${QUOTE_STATUS[status] ?? status}`, message: `SwapBridgeRouter quote status ${QUOTE_STATUS[status] ?? status}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' }]);
     // the EXPECTED destination token: the hub pair's remoteToken (read on the chain-verified hub RPC); a missing pair fails the quote
@@ -115,7 +138,7 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     const hop1 = { minimumValue: 0n, networkFee: BigInt(r[3]), exFee: BigInt(r[4]) };
 
     const amountOutMinimum = frozen?.amountOutMinimum ?? floorBps(swapAmountOut, slippageBps);
-    const eb: any = await readContract(ctx.rpc('one'), sbrI, router, 'getExpectedBridgeAmount', [toChainId, tokenOut, amountOutMinimum]);
+    const eb: any = await readContract(ctx.rpc('one'), routerI, router, 'getExpectedBridgeAmount', [toChainId, tokenOut, amountOutMinimum]);
     const ebStatus = Number(eb[0]);
     const deliveryAtFloor: bigint = eb[1];
     if (frozen) {
@@ -125,7 +148,7 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
       throw new PreflightError([{ level: 'error', code: `X3_FLOOR_${QUOTE_STATUS[ebStatus] ?? ebStatus}`, message: `the delivery floor cannot be bridged (status ${QUOTE_STATUS[ebStatus] ?? ebStatus}); lower slippage or raise the amount` }]);
     }
     const minBridgeValue = frozen?.minBridgeValue ?? deliveryAtFloor;
-    const data = encodeSwapBridge({ tokenIn, tokenOut, fee: x3.poolFee, amountIn: req.amount, amountOutMinimum, toChainId, recipient: rec.dest, extraData, deadline, native });
+    const data = encodeSwapBridge({ tokenIn, tokenOut, fee: x3.poolFee, amountIn: req.amount, amountOutMinimum, toChainId, recipient: rec.dest, extraData, deadline, native, ...(cl ? { dex: 'cl' as const, tickSpacing: x3.tickSpacing! } : {}) });
     const match: MatchSpec = { kind: 'swap', tokenIn, tokenOut, amountIn: req.amount, toChainID: toChainId, toToken: getAddress(xpair.remoteToken), recipient: rec.dest, extraDataHash: hashExtraData(extraData) };
     const limits: Limits = frozen?.limits ?? {
       maxTotalSpend: req.limits?.maxTotalSpend ?? req.amount,
@@ -213,19 +236,23 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     hop1Kind = 'hubForward';
   } else if (spec.kind === 'x1') {
     const oneChain = chains.one;
-    const swapCfg = oneChain.swap!;
-    const pool = swapCfg.x1Pool!;
-    const router = getAddress(swapCfg.v3SwapRouter!);
+    const sv = swapView(ctx.net);
+    const router = getAddress(sv.router!);
+    if (sv.dex === 'cl') {
+      try { checkPoolTickSpacing(sv.tickSpacing); } catch (e) { throw new RangeError(`one.swap.cl.x1Pool: ${(e as Error).message}`); }
+    }
     const { slippageBps, deadlineSec } = swapOptions(req);
     deadline = frozen?.deadline ?? Math.floor(ctx.now() / 1000) + deadlineSec;
     const usdtx = getAddress(oneChain.tokens.USDTx!.address);
     const oneusd = getAddress(oneChain.tokens.ONEUSD!.address);
     await ctx.assertChain('one');
-    const q = await readContract<any>(ctx.rpc('one'), quoterI, getAddress(swapCfg.quoterV2!), 'quoteExactInputSingle', [[usdtx, oneusd, value, pool.fee, 0]]);
+    const q = sv.dex === 'cl'
+      ? await readContract<any>(ctx.rpc('one'), clQuoterI, getAddress(sv.quoter!), 'quoteExactInputSingle', [[usdtx, oneusd, value, sv.tickSpacing, 0]])
+      : await readContract<any>(ctx.rpc('one'), quoterI, getAddress(sv.quoter!), 'quoteExactInputSingle', [[usdtx, oneusd, value, sv.fee, 0]]);
     expectedSwapOut = BigInt(q[0]);
     amountOutMinimum = frozen?.amountOutMinimum ?? floorBps(expectedSwapOut, slippageBps);
     if (frozen && expectedSwapOut < amountOutMinimum) violated.push('swapOutputBelowFloor');
-    extraData = encodeX1ExtraData({ router, tokenIn: usdtx, tokenOut: oneusd, fee: pool.fee, recipient: rec.dest, deadline, amountIn: value, amountOutMinimum });
+    extraData = encodeX1ExtraData({ router, tokenIn: usdtx, tokenOut: oneusd, fee: sv.fee, recipient: rec.dest, deadline, amountIn: value, amountOutMinimum, ...(sv.dex === 'cl' ? { dex: 'cl' as const, tickSpacing: sv.tickSpacing } : {}) });
     hop1Kind = 'x1';
     destToChainId = chains.one.chainId;
   }

@@ -1,8 +1,12 @@
-// Full decoding + validation of the extraData the SDK supports (X1 exactInputSingle, X2 transferToCoreFor). Anything else is unsupported.
+// Full decoding + validation of the extraData the SDK supports (X1 exactInputSingle on V3 or Slipstream CL, X2 transferToCoreFor). Anything else is unsupported.
 import { getAddress } from 'ethers';
-import { FORWARD_SELECTOR, bridgeIface, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, encodeCoreExtraData, encodeX1ExtraData, hyperTokenIface, v3RouterIface } from './encoding.js';
+import {
+  FORWARD_SELECTOR, bridgeIface, CORE_SELECTOR, CL_EXACT_INPUT_SINGLE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, checkPoolTickSpacing, clRouterIface, encodeCoreExtraData,
+  encodeX1ExtraData, exactInputSelector, hyperTokenIface, v3RouterIface,
+} from './encoding.js';
 import { BridgeSdkError, UnsupportedRouteError } from './errors.js';
-import type { NetworkData } from './networks-types.js';
+import { swapView } from './networks.js';
+import type { DexKind, NetworkData } from './networks-types.js';
 import type { X1Expect, X2Expect } from './types.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
@@ -11,40 +15,58 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const U24_MAX = 0xffffff;
 
 /**
- * X1, STRUCTURAL and config-free: `target(20 B) || exactInputSingle(params)`. Requires selector exactInputSingle, a decodable call, a well-formed non-zero
- * tokenOut, a valid uint24 fee, sqrtPriceLimitX96 == 0, a non-zero recipient and a canonical encoding (no trailing bytes). Nothing is compared to any configuration.
+ * X1, STRUCTURAL and config-free: `target(20 B) || exactInputSingle(params)` of either DEX (by selector: V3 0x414bf389 or Slipstream CL 0xa026383e).
+ * Requires a decodable call, a well-formed non-zero tokenOut, a valid uint24 fee (V3) or an int24 tickSpacing > 0 (CL), sqrtPriceLimitX96 == 0, a non-zero
+ * recipient and a canonical encoding (no trailing bytes). Nothing is compared to any configuration (which DEX is allowed is checked by checkX1).
  */
 export function decodeX1Struct(extraData: string): X1Expect {
   const bad = (why: string) => new UnsupportedRouteError(`unsupported X1 extraData: ${why}`);
   if (extraData.length < 2 + 48) throw bad('shorter than target + selector');
   const target = getAddress('0x' + extraData.slice(2, 42));
-  if (('0x' + extraData.slice(42, 50)).toLowerCase() !== EXACT_INPUT_SINGLE_SELECTOR) throw bad('selector is not exactInputSingle');
+  const selector = ('0x' + extraData.slice(42, 50)).toLowerCase();
+  const dex: DexKind | null = selector === EXACT_INPUT_SINGLE_SELECTOR ? 'v3' : selector === CL_EXACT_INPUT_SINGLE_SELECTOR ? 'cl' : null;
+  if (!dex) throw bad(`selector is not exactInputSingle (V3 ${EXACT_INPUT_SINGLE_SELECTOR} or Slipstream CL ${CL_EXACT_INPUT_SINGLE_SELECTOR})`);
   let p: any;
-  try { p = v3RouterIface.decodeFunctionData('exactInputSingle', '0x' + extraData.slice(42))[0]; } catch (e) { throw bad(`undecodable call (${(e as Error).message})`); }
-  const [tokenIn, tokenOut, fee, recipient, deadline, amountIn, amountOutMinimum, sqrtLimit] = [p[0], p[1], Number(p[2]), p[3], BigInt(p[4]), BigInt(p[5]), BigInt(p[6]), BigInt(p[7])];
+  try { p = (dex === 'cl' ? clRouterIface : v3RouterIface).decodeFunctionData('exactInputSingle', '0x' + extraData.slice(42))[0]; } catch (e) { throw bad(`undecodable call (${(e as Error).message})`); }
+  const [tokenIn, tokenOut, poolKey, recipient, deadline, amountIn, amountOutMinimum, sqrtLimit] = [p[0], p[1], Number(p[2]), p[3], BigInt(p[4]), BigInt(p[5]), BigInt(p[6]), BigInt(p[7])];
   if (same(tokenOut, ZERO)) throw bad('tokenOut is the zero address');
-  if (!Number.isInteger(fee) || fee < 0 || fee > U24_MAX) throw bad(`fee ${fee} is not a valid uint24`);
+  if (dex === 'v3' && (!Number.isInteger(poolKey) || poolKey < 0 || poolKey > U24_MAX)) throw bad(`fee ${poolKey} is not a valid uint24`);
+  if (dex === 'cl') {
+    try { checkPoolTickSpacing(poolKey); } catch { throw bad(`tickSpacing ${poolKey} is not a valid pool tick spacing (int24, > 0)`); }
+  }
   if (sqrtLimit !== 0n) throw bad('sqrtPriceLimitX96 must be 0');
   if (same(recipient, ZERO)) throw bad('recipient is the zero address');
-  const canonical = encodeX1ExtraData({ router: target, tokenIn, tokenOut, fee, recipient, deadline, amountIn, amountOutMinimum });
+  const canonical = dex === 'cl'
+    ? encodeX1ExtraData({ router: target, tokenIn, tokenOut, fee: 0, recipient, deadline, amountIn, amountOutMinimum, dex: 'cl', tickSpacing: poolKey })
+    : encodeX1ExtraData({ router: target, tokenIn, tokenOut, fee: poolKey, recipient, deadline, amountIn, amountOutMinimum });
   if (canonical.toLowerCase() !== extraData.toLowerCase()) throw bad('non-canonical encoding (trailing or extra bytes)');
-  return { router: target, tokenIn: getAddress(tokenIn), tokenOut: getAddress(tokenOut), fee, recipient: getAddress(recipient), deadline: deadline.toString(), amountIn: amountIn.toString(), amountOutMinimum: amountOutMinimum.toString() };
+  const x: X1Expect = { router: target, tokenIn: getAddress(tokenIn), tokenOut: getAddress(tokenOut), fee: dex === 'cl' ? 0 : poolKey, recipient: getAddress(recipient), deadline: deadline.toString(), amountIn: amountIn.toString(), amountOutMinimum: amountOutMinimum.toString() };
+  if (dex === 'cl') { x.dex = 'cl'; x.tickSpacing = poolKey; } // V3 handles keep their JSON shape
+  return x;
 }
 
+const dexLabel = (d: DexKind) => (d === 'cl' ? 'Slipstream CL' : 'V3');
+
 /**
- * X1 against a configuration (handle build / inference; the client binding check uses the same comparisons against the CLIENT's config): target is the configured V3 router,
- * tokenIn == hub USDTx, tokenOut == ONEUSD, fee == the configured pool fee, amountIn == the committed value.
+ * X1 against a configuration (handle build / inference; the client binding check uses the same comparisons against the CLIENT's config): the selector is the
+ * configured DEX's exactInputSingle, target is the configured swap router, tokenIn == hub USDTx, tokenOut == ONEUSD, fee (V3) / tickSpacing (CL) == the
+ * configured pool's, amountIn == the committed value.
  */
 export function checkX1(net: NetworkData, extraData: string, committedValue: bigint): X1Expect {
   const oneChain = net.chains.one;
   const bad = (why: string) => new UnsupportedRouteError(`unsupported X1 extraData: ${why}`);
-  const router = oneChain.swap?.v3SwapRouter, pool = oneChain.swap?.x1Pool, usdtx = oneChain.tokens.USDTx?.address, oneusd = oneChain.tokens.ONEUSD?.address;
-  if (!router || !pool || !usdtx || !oneusd) throw bad('the X1 router / pool / tokens are not configured');
+  let sv;
+  try { sv = swapView(net); } catch (e) { throw bad((e as Error).message); }
+  const usdtx = oneChain.tokens.USDTx?.address, oneusd = oneChain.tokens.ONEUSD?.address;
+  if (!sv.router || !sv.pool || !usdtx || !oneusd) throw bad('the X1 router / pool / tokens are not configured');
   const x = decodeX1Struct(extraData);
-  if (!same(x.router, router)) throw bad(`target ${x.router} is not the configured V3 router`);
+  const xdex: DexKind = x.dex ?? 'v3';
+  if (xdex !== sv.dex) throw bad(`exactInputSingle selector ${exactInputSelector(xdex)} is the ${dexLabel(xdex)} variant, but the configured dex is "${sv.dex}" (expected selector ${exactInputSelector(sv.dex)})`);
+  if (!same(x.router, sv.router)) throw bad(`target ${x.router} is not the configured ${dexLabel(sv.dex)} router`);
   if (!same(x.tokenIn, usdtx)) throw bad(`tokenIn ${x.tokenIn} is not the hub USDTx ${usdtx}`);
   if (!same(x.tokenOut, oneusd)) throw bad(`tokenOut ${x.tokenOut} is not the configured ONEUSD ${oneusd}`);
-  if (x.fee !== pool.fee) throw bad(`fee ${x.fee} != configured pool fee ${pool.fee}`);
+  if (sv.dex === 'v3' && x.fee !== sv.fee) throw bad(`fee ${x.fee} != configured pool fee ${sv.fee}`);
+  if (sv.dex === 'cl' && x.tickSpacing !== sv.tickSpacing) throw bad(`tickSpacing ${x.tickSpacing} != configured pool tickSpacing ${sv.tickSpacing}`);
   if (BigInt(x.amountIn) !== committedValue) throw bad(`amountIn ${x.amountIn} != the committed value ${committedValue}`);
   return x;
 }

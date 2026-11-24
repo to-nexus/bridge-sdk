@@ -8,7 +8,7 @@ import { bridgeI, hyperTokenI } from './quote.js';
 import { fromHexQty, readContract, withBackoff } from './rpc.js';
 import { headBlock, hex32, scanLogs } from './scan.js';
 import { TERMINAL_STATES } from './types.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR } from './encoding.js';
+import { CORE_SELECTOR, exactInputSelector } from './encoding.js';
 import type { HopKind, HopStatus, RawLog, ScanState, TrackResult, TransferHandle, TransferState, X1Expect, X2Expect } from './types.js';
 
 export const FINALIZE_STATUS = [
@@ -162,7 +162,8 @@ export async function classifyHop(c: ClassifyInput): Promise<Classified> {
   if (!c.x1) return unsupported('the handle carries no decoded exactInputSingle call');
   if (BigInt(value) !== BigInt(c.x1.amountIn)) return unsupported(`finalized value ${value} != the decoded exactInputSingle amountIn ${c.x1.amountIn}`);
   if (success === true) {
-    if (!callIs(c.x1.router, EXACT_INPUT_SINGLE_SELECTOR)) return unsupported(`ExtraCallExecuted target/method (${ecDec!.args[2]}, ${ecDec!.args[3]}) is not exactInputSingle on ${c.x1.router}`);
+    // the selector of the DEX the handle's decoded call was built for
+    if (!callIs(c.x1.router, exactInputSelector(c.x1.dex))) return unsupported(`ExtraCallExecuted target/method (${ecDec!.args[2]}, ${ecDec!.args[3]}) is not exactInputSingle on ${c.x1.router}`);
     let amount: string | 'unknown' = 'unknown';
     try {
       const rd = String(ecDec!.args[6]);

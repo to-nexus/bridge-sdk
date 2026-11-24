@@ -1,11 +1,13 @@
 import { getAddress } from 'ethers';
 import type { Ctx } from './ctx.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, v3RouterIface } from './encoding.js';
+import { CL_EXACT_INPUT_SINGLE_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, clRouterIface, exactInputSelector, v3RouterIface } from './encoding.js';
 import { LimitViolationError, NetworkMismatchError } from './errors.js';
 import { decodeForward } from './handle.js';
 import { NATIVE_TOKEN } from './networks.js';
 import type { ChainKey } from './networks-types.js';
-import { bridgeI, sbrI, specFor } from './quote.js';
+import { bridgeI, sbrCLI, sbrI, specFor } from './quote.js';
+import { dexOf, dexPath } from './networks.js';
+import type { DexKind } from './networks-types.js';
 import type { Quote } from './types.js';
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
@@ -49,7 +51,12 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
   if (spec.src !== q.sourceChainKey) cfgMismatch('sourceChainKey', spec.src, q.sourceChainKey);
   if (spec.kind !== q.kind) tamper('kind');
   const wantBridge = requireCfg<string>(`chains.${srcKey}.bridge`, q.sourceBridge);
-  const wantContract = q.kind === 'x3' ? requireCfg<string>('chains.one.swap.swapBridgeRouter', q.sourceContract) : wantBridge;
+  // this client's DEX decides which swap contracts the quote may target (an invalid dex value is a configuration mismatch)
+  const cfgDex = (quoteValue: string): DexKind => {
+    try { return dexOf(ctx.net); } catch (e) { throw new NetworkMismatchError('chains.one.swap.dex', (e as Error).message, quoteValue); }
+  };
+  const swapCfg = (v3Path: string, quoteValue: string) => requireCfg<string>(`chains.${dexPath(cfgDex(quoteValue), v3Path)}`, quoteValue);
+  const wantContract = q.kind === 'x3' ? swapCfg('one.swap.swapBridgeRouter', q.sourceContract) : wantBridge;
   if (!same(q.sourceBridge, wantBridge)) cfgMismatch('sourceBridge', wantBridge, q.sourceBridge);
   if (!same(q.sourceContract, wantContract)) cfgMismatch('sourceContract', wantContract, q.sourceContract);
   if (!same(q.tx.to, wantContract)) cfgMismatch('tx.to', wantContract, q.tx.to);
@@ -67,16 +74,20 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
     const x3 = req.x3;
     if (!x3) return tamper('x3 request');
     const native = x3.tokenIn === 'native';
+    const quoteDex: DexKind = x3.tickSpacing !== undefined ? 'cl' : 'v3';
+    const dex = cfgDex(quoteDex);
+    if (dex !== quoteDex) cfgMismatch('request.x3(dex)', dex, quoteDex);
     let d;
     try {
-      d = sbrI.parseTransaction({ data: q.tx.data, value: q.tx.value });
+      d = (dex === 'cl' ? sbrCLI : sbrI).parseTransaction({ data: q.tx.data, value: q.tx.value });
     } catch { return tamper('calldata is not a SwapBridgeRouter call'); }
     if (!d || d.name !== (native ? 'swapBridgeExactInputSingleETH' : 'swapBridgeExactInputSingle')) return tamper('swap function');
     const p = d.args[0];
     if (native) { const wcross = requireCfg<string>('chains.one.tokens.WCROSS.address', p[0]); if (!same(p[0], wcross)) cfgMismatch('tokenIn(WCROSS)', wcross, p[0]); }
     if (!native && !same(p[0], x3.tokenIn)) return tamper('tokenIn');
     if (!same(p[1], x3.tokenOut)) return tamper('tokenOut');
-    if (Number(p[2]) !== x3.poolFee) return tamper('poolFee');
+    if (dex === 'cl') { if (Number(p[2]) !== x3.tickSpacing) return tamper('tickSpacing'); }
+    else if (Number(p[2]) !== x3.poolFee) return tamper('poolFee');
     if (p[3] !== req.amount) return tamper('amountIn');
     if (Number(p[6][0]) !== destChainId) cfgMismatch('toChainID', destChainId, Number(p[6][0]));
     if (!same(p[6][1], recDest)) return tamper('recipient');
@@ -111,16 +122,25 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
       if (!same(innerTarget, he) || ('0x' + f.inner.slice(42, 50)).toLowerCase() !== CORE_SELECTOR) cfgMismatch('extraData.inner.target(HyperEVM ONE)', he, innerTarget);
     }
   } else if (spec.kind === 'x1') {
-    const v3 = requireCfg<string>('chains.one.swap.v3SwapRouter', target || '(empty)');
-    if (!same(target, v3) || sel !== EXACT_INPUT_SINGLE_SELECTOR) return cfgMismatch('extraData.target(V3 router)', v3, target || '(empty)');
-    const sw = v3RouterIface.decodeFunctionData('exactInputSingle', '0x' + ed.slice(42))[0];
+    const dex = cfgDex(target || '(empty)');
+    const router = swapCfg('one.swap.v3SwapRouter', target || '(empty)');
+    const want = exactInputSelector(dex);
+    if (sel !== want && (sel === EXACT_INPUT_SINGLE_SELECTOR || sel === CL_EXACT_INPUT_SINGLE_SELECTOR)) return cfgMismatch(`extraData.selector(dex ${dex})`, want, sel);
+    if (!same(target, router) || sel !== want) return cfgMismatch(`extraData.target(${dex === 'cl' ? 'Slipstream CL' : 'V3'} router)`, router, target || '(empty)');
+    let sw;
+    try { sw = (dex === 'cl' ? clRouterIface : v3RouterIface).decodeFunctionData('exactInputSingle', '0x' + ed.slice(42))[0]; } catch { return tamper('x1 extraData'); }
     const usdtx = requireCfg<string>('chains.one.tokens.USDTx.address', sw[0]);
     if (!same(sw[0], usdtx)) cfgMismatch('x1.tokenIn(USDTx)', usdtx, sw[0]);
     if (!same(q.details.hop1ToToken, usdtx)) cfgMismatch('details.hop1ToToken(USDTx)', usdtx, q.details.hop1ToToken);
     const oneusd = requireCfg<string>('chains.one.tokens.ONEUSD.address', sw[1]);
     if (!same(sw[1], oneusd)) cfgMismatch('x1.tokenOut(ONEUSD)', oneusd, sw[1]);
-    const poolFee = requireCfg<number>('chains.one.swap.x1Pool.fee', Number(sw[2]));
-    if (Number(sw[2]) !== poolFee) cfgMismatch('x1.fee', poolFee, Number(sw[2]));
+    if (dex === 'cl') {
+      const ts = requireCfg<number>('chains.one.swap.cl.x1Pool.tickSpacing', Number(sw[2]));
+      if (Number(sw[2]) !== ts) cfgMismatch('x1.tickSpacing', ts, Number(sw[2]));
+    } else {
+      const poolFee = requireCfg<number>('chains.one.swap.x1Pool.fee', Number(sw[2]));
+      if (Number(sw[2]) !== poolFee) cfgMismatch('x1.fee', poolFee, Number(sw[2]));
+    }
     if (!same(sw[3], recDest)) return tamper('x1 swap recipient');
   } else if (spec.core) {
     const he = requireCfg<string>('chains.hyperevm.tokens.ONE.address', target || '(empty)');
