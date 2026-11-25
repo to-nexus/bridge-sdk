@@ -3,6 +3,7 @@ import { Interface, getAddress } from 'ethers';
 import { bridgeAbi, erc20Abi, executorAbi, quoterV2Abi, swapBridgeRouterAbi, verifierAbi, hyperTokenAbi, v3PoolAbi } from '../src/abi/index.js';
 import type { ClientOptions } from '../src/ctx.js';
 import { expectedBridgeAmount } from '../src/math.js';
+import { splitX3Path } from '../src/encoding.js';
 import { getNetworksData } from '../src/networks.js';
 import type { ChainKey, NetworkData, NetworkName, NetworksData } from '../src/networks-types.js';
 import { FakeChain, type FakeContract, type LogInput, type TxCtx } from './fake.js';
@@ -195,7 +196,11 @@ export class World {
         iface: sbrI,
         call: {
           bridge: () => w.routerBridgeOverride ?? w.net.chains.one.bridge!,
-          getAmountSwapBridgeOut: ([to, , tokenOut, , amountIn]) => {
+          // X3 uses only the path entry points (the single-pool ones do not exist on a CL router), so the fake router has no single-pool methods
+          getAmountSwapBridgeOutMultihop: ([to, path, amountIn]) => {
+            const hop = splitX3Path(path);
+            if (!hop) throw revert('0x');
+            const tokenOut = hop.tokenOut;
             const f = w.getFee('one', Number(to), tokenOut);
             const eb = expectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min);
             const st = w.swapStatus !== null ? BigInt(w.swapStatus) : eb.status === 'Success' ? 1n : eb.status === 'InsufficientForFee' ? 3n : 4n;
@@ -208,8 +213,8 @@ export class World {
           },
         },
         tx: {
-          swapBridgeExactInputSingle: ([params], c) => w.execSwapBridge(router, params, c, false),
-          swapBridgeExactInputSingleETH: ([params], c) => w.execSwapBridge(router, params, c, true),
+          swapBridgeExactInput: ([params], c) => w.execSwapBridge(router, params, c, false),
+          swapBridgeExactInputETH: ([params], c) => w.execSwapBridge(router, params, c, true),
         },
       });
     }
@@ -251,7 +256,10 @@ export class World {
   }
 
   execSwapBridge(router: string, params: any, c: TxCtx, native: boolean): LogInput[] {
-    const [tokenIn, tokenOut, , amountIn, amountOutMinimum, , bp] = params as any[];
+    const [path, amountIn, amountOutMinimum, bp] = params as any[];
+    const hop = splitX3Path(path);
+    if (!hop) throw revert('0x');
+    const { tokenIn, tokenOut } = hop;
     const [toChainID, recipient, extra] = bp as any[];
     if (this.swapOut < amountOutMinimum) throw revert('0x');
     const f = this.getFee('one', Number(toChainID), tokenOut);

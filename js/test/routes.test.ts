@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Interface, Wallet, getAddress } from 'ethers';
 import { BridgeClient, InvalidOptionError, PreflightError, RequoteRequiredError, Route, decodeBridgeError, floorBps } from '../src/index.js';
+import { splitX3Path } from '../src/encoding.js';
 import { swapBridgeRouterAbi, v3RouterAbi } from '../src/abi/index.js';
 import { FakeWalletSigner } from './fake.js';
 import { E18, NATIVE, RECIPIENT, SENDER, TOKEN_A, World, bridgeI } from './world.js';
@@ -135,8 +136,8 @@ test('X3 quote: both floors (swap floor enforced on chain, delivery floor shown)
   assert.equal(q.limits.amountOutMinimum, 99n * E18);
   assert.equal(q.limits.minBridgeValue, 99n * E18 - nf);
   const sb = new Interface(swapBridgeRouterAbi as any).parseTransaction({ data: q.tx.data, value: q.tx.value })!;
-  assert.equal(sb.name, 'swapBridgeExactInputSingleETH');
-  assert.equal(sb.args[0][0], c.one.tokens.WCROSS!.address);
+  assert.equal(sb.name, 'swapBridgeExactInputETH');
+  assert.equal(splitX3Path(sb.args[0][0])!.tokenIn, c.one.tokens.WCROSS!.address);
   const erc = await client.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: SENDER, recipient: RECIPIENT, x3: { tokenIn: usdtx, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } }).catch((e) => e);
   assert.ok(erc instanceof Error || erc.approval); // tokenIn == tokenOut is a contract-level revert; SDK surfaces via preflight/simulation
 });

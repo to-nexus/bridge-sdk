@@ -343,8 +343,13 @@ func (w *world) deployOneExtras() {
 					}
 					return []interface{}{common.HexToAddress(*w.net.Chains[ChainOne].Bridge)}, nil
 				},
-				"getAmountSwapBridgeOut": func(args []interface{}, c callCtx) ([]interface{}, error) {
-					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), args[2].(common.Address))
+				// X3 uses only the path entry points (the single-pool ones do not exist on a CL router), so the fake router has no single-pool methods
+				"getAmountSwapBridgeOutMultihop": func(args []interface{}, c callCtx) ([]interface{}, error) {
+					_, _, tokenOut, ok := splitX3Path(args[1].([]byte))
+					if !ok {
+						return nil, revert("0x")
+					}
+					f := w.getFee(ChainOne, args[0].(*big.Int).Uint64(), tokenOut)
 					eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
 					st := status(eb.Status)
 					if w.swapStatus != nil {
@@ -359,10 +364,10 @@ func (w *world) deployOneExtras() {
 				},
 			},
 			tx: map[string]func([]interface{}, txCtx) ([]types.Log, error){
-				"swapBridgeExactInputSingle": func(args []interface{}, c txCtx) ([]types.Log, error) {
+				"swapBridgeExactInput": func(args []interface{}, c txCtx) ([]types.Log, error) {
 					return w.execSwapBridge(router, args, c, false)
 				},
-				"swapBridgeExactInputSingleETH": func(args []interface{}, c txCtx) ([]types.Log, error) {
+				"swapBridgeExactInputETH": func(args []interface{}, c txCtx) ([]types.Log, error) {
 					return w.execSwapBridge(router, args, c, true)
 				},
 			}})
@@ -461,29 +466,33 @@ func (w *world) execBridge(k ChainKey, bridgeAddr common.Address, args []interfa
 }
 
 func (w *world) execSwapBridge(router common.Address, args []interface{}, c txCtx, native bool) ([]types.Log, error) {
-	p := *abi.ConvertType(args[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
+	p := *abi.ConvertType(args[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputParams)
+	tokenIn, _, tokenOut, ok := splitX3Path(p.Path)
+	if !ok {
+		return nil, revert("0x")
+	}
 	if w.swapOut.Cmp(p.AmountOutMinimum) < 0 {
 		return nil, revert("0x")
 	}
-	f := w.getFee(ChainOne, p.BridgeParams.ToChainID.Uint64(), p.TokenOut)
+	f := w.getFee(ChainOne, p.BridgeParams.ToChainID.Uint64(), tokenOut)
 	eb := ExpectedBridgeAmount(w.swapOut, f.nf, f.rate, f.min)
 	if eb.Status != "Success" {
 		return nil, revert("0x")
 	}
 	if !native {
-		if w.allowance(ChainOne, p.TokenIn, c.From, router).Cmp(p.AmountIn) < 0 {
+		if w.allowance(ChainOne, tokenIn, c.From, router).Cmp(p.AmountIn) < 0 {
 			return nil, revert("0xfb8f41b2")
 		}
-		w.setBal(ChainOne, p.TokenIn, c.From, new(big.Int).Sub(w.bal(ChainOne, p.TokenIn, c.From), p.AmountIn))
+		w.setBal(ChainOne, tokenIn, c.From, new(big.Int).Sub(w.bal(ChainOne, tokenIn, c.From), p.AmountIn))
 	}
 	hub := common.HexToAddress(*w.net.Chains[ChainOne].Bridge)
 	remote := nativeAdr
-	if pr, ok := w.pairs[key(ChainOne, p.BridgeParams.ToChainID, p.TokenOut)]; ok {
+	if pr, ok := w.pairs[key(ChainOne, p.BridgeParams.ToChainID, tokenOut)]; ok {
 		remote = pr.RemoteToken
 	}
-	bi := w.initiatedLog(ChainOne, hub, p.BridgeParams.ToChainID.Uint64(), p.TokenOut, remote, router, p.BridgeParams.Recipient, eb.BridgeValue, eb.NetworkFee, eb.ExFee, p.BridgeParams.ExtraData)
+	bi := w.initiatedLog(ChainOne, hub, p.BridgeParams.ToChainID.Uint64(), tokenOut, remote, router, p.BridgeParams.Recipient, eb.BridgeValue, eb.NetworkFee, eb.ExFee, p.BridgeParams.ExtraData)
 	idx := new(big.Int).Sub(w.initIdx[key(ChainOne, p.BridgeParams.ToChainID)], big.NewInt(1))
-	sb := w.encodeEvent(sbrABI, "SwapBridge", router, c.From, p.TokenIn, p.TokenOut, p.AmountIn, w.swapOut, p.BridgeParams.ToChainID, idx, eb.BridgeValue, eb.NetworkFee, eb.ExFee)
+	sb := w.encodeEvent(sbrABI, "SwapBridge", router, c.From, tokenIn, tokenOut, p.AmountIn, w.swapOut, p.BridgeParams.ToChainID, idx, eb.BridgeValue, eb.NetworkFee, eb.ExFee)
 	return []types.Log{sb, bi}, nil
 }
 

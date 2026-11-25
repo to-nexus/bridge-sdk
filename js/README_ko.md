@@ -74,7 +74,7 @@ new BridgeClient({
 | `recipients` | 홉별 수령인 `{ onHub, dest, core }` (선택) |
 | `hypercore` | R5 에서 HyperCore 입금(X2)까지 할지 (선택) |
 | `swap` | X1 · X3 의 `{ slippageBps, deadlineSec }`. 기본 50 bps / 1800 초 |
-| `x3` | X3 전용 `{ tokenIn, tokenOut, poolFee, toChain }` |
+| `x3` | X3 전용 `{ tokenIn, tokenOut, poolFee, toChain }`. `poolFee` 는 1-hop 스왑 path 의 3바이트 풀 키: V3 네트워크는 fee tier, Slipstream CL 네트워크는 tick spacing |
 | `hop2FeeBuffer` | 멀티홉에서 두 번째 홉 수수료에 더할 여유분 (선택) |
 | `limits` | `{ maxTotalSpend, minDelivered }` — 직접 정하는 지출 상한 / 도착 하한 (선택) |
 

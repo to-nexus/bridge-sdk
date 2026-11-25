@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	binding "github.com/to-nexus/bridge-contracts/binding/go/src"
 )
 
 // The ONE way the binding check reads a config-owned value (same pattern as the JS requireCfg): a component this client's config does not have raises
@@ -160,19 +158,10 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if x3 == nil {
 			return tamper("x3 request")
 		}
-		name := "swapBridgeExactInputSingle"
-		if x3.NativeIn {
-			name = "swapBridgeExactInputSingleETH"
+		p, why := decodeX3Call(q.Tx.Data, x3.NativeIn)
+		if p == nil {
+			return tamper(why)
 		}
-		m := sbrABI.Methods[name]
-		if len(q.Tx.Data) < 4 || !bytes.Equal(q.Tx.Data[:4], m.ID) {
-			return tamper("swap function")
-		}
-		out, err := m.Inputs.Unpack(q.Tx.Data[4:])
-		if err != nil || len(out) != 2 {
-			return tamper("calldata is not a SwapBridgeRouter call")
-		}
-		p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 		if x3.NativeIn {
 			wcross, err := c.cfgToken(ChainOne, "WCROSS", p.TokenIn.Hex())
 			if err != nil {
@@ -188,19 +177,19 @@ func (c *Client) assertQuoteBelongs(q *Quote) error {
 		if p.TokenOut != x3.TokenOut {
 			return tamper("tokenOut")
 		}
-		if p.Fee.Uint64() != uint64(x3.PoolFee) {
+		if p.PoolKey != x3.PoolFee {
 			return tamper("poolFee")
 		}
 		if p.AmountIn.Cmp(req.Amount) != 0 {
 			return tamper("amountIn")
 		}
-		if p.BridgeParams.ToChainID.Int64() != destChainID {
-			return mism("toChainID", fmt.Sprint(destChainID), p.BridgeParams.ToChainID.String())
+		if p.Bridge.ToChainID.Int64() != destChainID {
+			return mism("toChainID", fmt.Sprint(destChainID), p.Bridge.ToChainID.String())
 		}
-		if p.BridgeParams.Recipient != recDest {
+		if p.Bridge.Recipient != recDest {
 			return tamper("recipient")
 		}
-		if len(p.BridgeParams.ExtraData) != 0 {
+		if len(p.Bridge.ExtraData) != 0 {
 			return tamper("extraData")
 		}
 		if q.Approval != nil && (q.Approval.Token != x3.TokenIn || q.Approval.Amount.Cmp(req.Amount) != 0) {

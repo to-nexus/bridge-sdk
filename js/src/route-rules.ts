@@ -4,7 +4,7 @@
 // quote restored from the (already type-checked) payload and reports the ACTUAL wire path of the offending field (QuoteWireV1: `limits.amountOutMinimum`,
 // `deadlineSec`, `v2`, `fees.hop2`, `fees.hop2ExFeeDeclared`, `verifiers.hub`, `details.hubChainKey`, `details.hop2Kind`, `tx.data`, `details.extraData`, ...).
 // Recipients are resolved with the SAME function quote() uses (spec.ts resolveRecipients); extraData is decoded with the SAME decoders as handle building (extra.ts).
-import { bridgeIface, hashExtraData, swapBridgeRouterIface } from './encoding.js';
+import { bridgeIface, decodeX3Call, hashExtraData } from './encoding.js';
 import { decodeForward, decodeX1Struct, decodeX2Struct } from './extra.js';
 import { resolveRecipients, specFor } from './spec.js';
 import { Route } from './types.js';
@@ -113,19 +113,17 @@ function x3Rules(q: Quote, req: Quote['request'], rec: ReturnType<typeof resolve
   if (q.deadline === undefined) bad('deadlineSec', 'required for an X3 quote');
   const x3 = req.x3!;
   const native = x3.tokenIn === 'native';
-  let d: any;
-  try { d = swapBridgeRouterIface.parseTransaction({ data: q.tx.data, value: q.tx.value }); } catch { return bad('tx.data', 'not a SwapBridgeRouter call'); }
-  if (!d || d.name !== (native ? 'swapBridgeExactInputSingleETH' : 'swapBridgeExactInputSingle')) return bad('tx.data', 'unexpected swap function');
-  const p = d.args[0];
-  if (!native && !eq(p[0], x3.tokenIn)) bad('tx.data', 'tokenIn differs from request.x3.tokenIn'); // native: tokenIn is the client's WCROSS (client binding check)
-  if (!eq(p[1], x3.tokenOut)) bad('tx.data', 'tokenOut differs from request.x3.tokenOut');
-  if (Number(p[2]) !== x3.poolFee) bad('tx.data', 'fee differs from request.x3.poolFee');
-  if (p[3] !== req.amount) bad('tx.data', 'amountIn differs from request.amount');
-  if (p[4] !== q.limits.amountOutMinimum) bad('tx.data', 'amountOutMinimum differs from limits.amountOutMinimum');
-  if (BigInt(p[6][0]) !== BigInt(q.details.destChainId)) bad('tx.data', 'toChainID differs from details.destChainId');
-  if (!eq(p[6][1], rec.dest)) bad('tx.data', 'recipient differs from the resolved destination recipient');
-  if (String(p[6][2]) !== '0x') bad('tx.data', 'X3 supports extraData = 0x only');
-  if (BigInt(d.args[1]) !== BigInt(q.deadline!)) bad('tx.data', 'deadline differs from deadlineSec');
+  const p = decodeX3Call(q.tx.data, native);
+  if (typeof p === 'string') return bad('tx.data', p);
+  if (!native && !eq(p.tokenIn, x3.tokenIn)) bad('tx.data', 'tokenIn differs from request.x3.tokenIn'); // native: tokenIn is the client's WCROSS (client binding check)
+  if (!eq(p.tokenOut, x3.tokenOut)) bad('tx.data', 'tokenOut differs from request.x3.tokenOut');
+  if (p.poolKey !== x3.poolFee) bad('tx.data', 'pool key differs from request.x3.poolFee');
+  if (p.amountIn !== req.amount) bad('tx.data', 'amountIn differs from request.amount');
+  if (p.amountOutMinimum !== q.limits.amountOutMinimum) bad('tx.data', 'amountOutMinimum differs from limits.amountOutMinimum');
+  if (p.toChainId !== BigInt(q.details.destChainId)) bad('tx.data', 'toChainID differs from details.destChainId');
+  if (!eq(p.recipient, rec.dest)) bad('tx.data', 'recipient differs from the resolved destination recipient');
+  if (p.extraData !== '0x') bad('tx.data', 'X3 supports extraData = 0x only');
+  if (p.deadline !== BigInt(q.deadline!)) bad('tx.data', 'deadline differs from deadlineSec');
   if (q.tx.value !== (native ? req.amount : 0n)) bad('tx.value', 'must equal amountIn for a native input, 0 otherwise');
   const m = q.match as Extract<Quote['match'], { kind: 'swap' }>;
   if (m.amountIn !== req.amount) bad('match.amountIn', 'differs from request.amount');

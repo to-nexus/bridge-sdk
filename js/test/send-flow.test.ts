@@ -109,8 +109,8 @@ test('X3: requote with a higher swap output but a higher bridge fee -> RequoteRe
   const q3 = await client3.quote({ route: Route.SWAP_BRIDGE, amount: 50n * E18, sender: wallet3.address, recipient: RECIPIENT, swap: { slippageBps: 100 }, x3: { tokenIn: TOKEN_A, tokenOut: usdtx, poolFee: 0, toChain: 'bsc' } });
   w3.onApprove = () => { w3.swapOut = 120n; };
   const sent = await client3.send(wallet3, q3);
-  const d = new Interface((await import('../src/abi/index.js')).swapBridgeRouterAbi as any).decodeFunctionData('swapBridgeExactInputSingle', sent.intent.data);
-  assert.equal(d[0][4], 99n, 'original amountOutMinimum kept');
+  const d = new Interface((await import('../src/abi/index.js')).swapBridgeRouterAbi as any).decodeFunctionData('swapBridgeExactInput', sent.intent.data);
+  assert.equal(d[0][2], 99n, 'original amountOutMinimum kept');
   assert.equal(sent.quote.limits.amountOutMinimum, 99n);
 });
 

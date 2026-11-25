@@ -1,7 +1,11 @@
 package bridgesdk
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -116,7 +120,7 @@ func EncodeX1ExtraData(i X1Input) ([]byte, error) {
 type SwapBridgeInput struct {
 	TokenIn          common.Address
 	TokenOut         common.Address
-	Fee              uint32 // pool fee tier
+	Fee              uint32 // 3-byte pool key of the 1-hop path: the V3 fee tier, or the tick spacing on a Slipstream CL router
 	AmountIn         *big.Int
 	AmountOutMinimum *big.Int // minimum swap output
 	ToChainID        uint64   // destination chain id of the bridge
@@ -126,18 +130,78 @@ type SwapBridgeInput struct {
 	Native           bool   // true: the input is native ONE sent as msg.value (the ETH variant of the call)
 }
 
-// EncodeSwapBridge: SwapBridgeRouter.swapBridgeExactInputSingle(ETH)((...), deadline)
+// maxPoolKey is the largest 3-byte pool key a path can carry.
+const maxPoolKey = 0xffffff
+
+// X3Path is the 1-hop SwapBridgeRouter path `tokenIn (20 B) | pool key (3 B) | tokenOut (20 B)`. The pool key is the V3 fee tier, or the tick
+// spacing when the router is deployed against a Slipstream CL swap router: the router passes the 3 bytes through unchanged.
+func X3Path(tokenIn common.Address, poolKey uint32, tokenOut common.Address) ([]byte, error) {
+	if poolKey > maxPoolKey {
+		return nil, fmt.Errorf("pool key %d does not fit in 3 bytes", poolKey)
+	}
+	p := make([]byte, 0, 43)
+	p = append(p, tokenIn.Bytes()...)
+	p = append(p, byte(poolKey>>16), byte(poolKey>>8), byte(poolKey))
+	return append(p, tokenOut.Bytes()...), nil
+}
+
+// splitX3Path is the inverse of X3Path; any length other than one hop (43 B) is rejected.
+func splitX3Path(p []byte) (tokenIn common.Address, poolKey uint32, tokenOut common.Address, ok bool) {
+	if len(p) != 43 {
+		return tokenIn, 0, tokenOut, false
+	}
+	return common.BytesToAddress(p[:20]), uint32(p[20])<<16 | uint32(p[21])<<8 | uint32(p[22]), common.BytesToAddress(p[23:]), true
+}
+
+// x3Method is the SwapBridgeRouter entry point X3 uses: the path variant (the single-pool variants do not exist on a CL router).
+func x3Method(native bool) string {
+	if native {
+		return "swapBridgeExactInputETH"
+	}
+	return "swapBridgeExactInput"
+}
+
+// EncodeSwapBridge: SwapBridgeRouter.swapBridgeExactInput(ETH)((path, amountIn, amountOutMinimum, (toChainID, recipient, extraData)), deadline)
+// with the 1-hop path X3Path(TokenIn, Fee, TokenOut).
 func EncodeSwapBridge(i SwapBridgeInput) ([]byte, error) {
-	p := binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams{
-		TokenIn: i.TokenIn, TokenOut: i.TokenOut, Fee: u(uint64(i.Fee)), AmountIn: i.AmountIn, AmountOutMinimum: i.AmountOutMinimum,
-		SqrtPriceLimitX96: new(big.Int),
-		BridgeParams:      binding.ISwapBridgeRouterBridgeParams{ToChainID: u(i.ToChainID), Recipient: i.Recipient, ExtraData: nonNil(i.ExtraData)},
+	path, err := X3Path(i.TokenIn, i.Fee, i.TokenOut)
+	if err != nil {
+		return nil, err
 	}
-	m := "swapBridgeExactInputSingle"
-	if i.Native {
-		m = "swapBridgeExactInputSingleETH"
+	p := binding.ISwapBridgeRouterSwapBridgeExactInputParams{
+		Path: path, AmountIn: i.AmountIn, AmountOutMinimum: i.AmountOutMinimum,
+		BridgeParams: binding.ISwapBridgeRouterBridgeParams{ToChainID: u(i.ToChainID), Recipient: i.Recipient, ExtraData: nonNil(i.ExtraData)},
 	}
-	return sbrABI.Pack(m, p, u(i.Deadline))
+	return sbrABI.Pack(x3Method(i.Native), p, u(i.Deadline))
+}
+
+// x3Call is a decoded X3 SwapBridgeRouter call (path variant, one hop).
+type x3Call struct {
+	TokenIn, TokenOut common.Address
+	PoolKey           uint32
+	AmountIn          *big.Int
+	AmountOutMinimum  *big.Int
+	Bridge            binding.ISwapBridgeRouterBridgeParams
+	Deadline          *big.Int
+}
+
+// decodeX3Call decodes `swapBridgeExactInput(ETH)` calldata with a 1-hop path. The reason is empty on success.
+func decodeX3Call(data []byte, native bool) (*x3Call, string) {
+	m := sbrABI.Methods[x3Method(native)]
+	if len(data) < 4 || !bytes.Equal(data[:4], m.ID) {
+		return nil, "unexpected swap function"
+	}
+	out, err := m.Inputs.Unpack(data[4:])
+	if err != nil || len(out) != 2 {
+		return nil, "not a SwapBridgeRouter call"
+	}
+	p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputParams)
+	tin, key, tout, ok := splitX3Path(p.Path)
+	if !ok {
+		return nil, "path is not a single pool (tokenIn | 3-byte pool key | tokenOut)"
+	}
+	return &x3Call{TokenIn: tin, TokenOut: tout, PoolKey: key, AmountIn: p.AmountIn, AmountOutMinimum: p.AmountOutMinimum, Bridge: p.BridgeParams,
+		Deadline: out[1].(*big.Int)}, ""
 }
 
 func hashExtraData(b []byte) common.Hash { return crypto.Keccak256Hash(nonNil(b)) }

@@ -14,6 +14,7 @@ import {
   encodeCoreExtraData,
   encodeForwardExtraData,
   encodeSwapBridge,
+  x3Path,
   encodeX1ExtraData,
   hashExtraData,
 } from './encoding.js';
@@ -102,7 +103,9 @@ export async function buildQuote(ctx: Ctx, request: QuoteRequest, frozen?: Froze
     const deadline = frozen?.deadline ?? Math.floor(ctx.now() / 1000) + deadlineSec;
     const extraData = '0x'; // X3 supports extraData = 0x only
 
-    const r: any = await readContract(ctx.rpc('one'), sbrI, router, 'getAmountSwapBridgeOut', [toChainId, tokenIn, tokenOut, x3.poolFee, req.amount], { from: req.sender });
+    let path: string;
+    try { path = x3Path(tokenIn, x3.poolFee, tokenOut); } catch (e) { throw new InvalidOptionError(`x3.poolFee: ${(e as Error).message}`); }
+    const r: any = await readContract(ctx.rpc('one'), sbrI, router, 'getAmountSwapBridgeOutMultihop', [toChainId, path, req.amount], { from: req.sender });
     const status = Number(r[0]);
     if (status !== 1) throw new PreflightError([{ level: 'error', code: `X3_QUOTE_${QUOTE_STATUS[status] ?? status}`, message: `SwapBridgeRouter quote status ${QUOTE_STATUS[status] ?? status}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' }]);
     // the EXPECTED destination token: the hub pair's remoteToken (read on the chain-verified hub RPC); a missing pair fails the quote

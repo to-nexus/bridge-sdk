@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# X3  Swap on the ONE chain (Uniswap V3 via SwapBridgeRouter) and bridge the output in ONE tx. Atomic: any failure reverts everything.
-#   AMOUNT = amountIn.  TOKEN_IN=<address>|native  TOKEN_OUT=<address>  POOL_FEE=<uint24, default 0>  TO_CHAIN=bsc|hyperevm (default bsc)
+# X3  Swap on the ONE chain (SwapBridgeRouter) and bridge the output in ONE tx. Atomic: any failure reverts everything.
+#   AMOUNT = amountIn.  TOKEN_IN=<address>|native  TOKEN_OUT=<address>  POOL_FEE=<3-byte pool key, default 0>  TO_CHAIN=bsc|hyperevm (default bsc)
+#   The swap is sent as a 1-hop path `tokenIn | POOL_FEE (3 B) | tokenOut` through the path entry points (swapBridgeExactInput / ...ETH),
+#   which exist on both router kinds. POOL_FEE is the V3 fee tier, or the tick spacing when the router runs on a Slipstream CL DEX.
 #   SLIPPAGE_BPS (default 50), DEADLINE_SEC (default 1800).
 #   Defaults (assumption A6, when configured): ONEUSD -> USDTx -> BSC USDT.
 # Two floors, both printed: the SWAP-OUTPUT floor (amountOutMinimum, enforced on chain) and the BRIDGE-DELIVERY floor (minBridgeValue,
@@ -17,24 +19,26 @@ if [ -z "$TOKEN_IN" ] && [ "${QUOTE_ONLY:-0}" = "1" ]; then TOKEN_IN=native; fi
 [ -n "$TOKEN_IN" ] || die "TOKEN_IN is required on $NETWORK (no default: ONEUSD is not configured)"
 [ -n "$TOKEN_OUT" ] || die "TOKEN_OUT is required"
 POOL_FEE=${POOL_FEE:-0}
+[[ "$POOL_FEE" =~ ^[0-9]+$ ]] && [ "$POOL_FEE" -le 16777215 ] || die "POOL_FEE must be an integer in [0, 16777215] (3 bytes), got '$POOL_FEE'"
 NATIVE_IN=0; TOKEN_IN_ADDR=$TOKEN_IN
 if [ "$TOKEN_IN" = "native" ]; then need ONE_WCROSS; NATIVE_IN=1; TOKEN_IN_ADDR=$ONE_WCROSS; fi
 check_chain ONE; chain_vars ONE; RPC=$C_RPC; ROUTER=$ONE_SWAP_BRIDGE_ROUTER
 AMOUNT_IN=$(amount_wei)
-SBR_STRUCT_SIG="swapBridgeExactInputSingle((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
-[ $NATIVE_IN = 1 ] && SBR_STRUCT_SIG="swapBridgeExactInputSingleETH((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)"
+X3_PATH=$(cast concat-hex "$TOKEN_IN_ADDR" "$(printf '0x%06x' "$POOL_FEE")" "$TOKEN_OUT")
+SBR_STRUCT_SIG="swapBridgeExactInput((bytes,uint256,uint256,(uint256,address,bytes)),uint256)"
+[ $NATIVE_IN = 1 ] && SBR_STRUCT_SIG="swapBridgeExactInputETH((bytes,uint256,uint256,(uint256,address,bytes)),uint256)"
 FROZEN_MIN=""; FROZEN_BRIDGE_MIN=""; DEADLINE=""
 
 quote_route() {
   local out status
-  out=$(cast call --from "$FROM" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,uint24,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_FEE" "$AMOUNT_IN" --rpc-url "$RPC") || die "SwapBridgeRouter quote reverted"
+  out=$(cast call --from "$FROM" "$ROUTER" "getAmountSwapBridgeOutMultihop(uint256,bytes,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$X3_PATH" "$AMOUNT_IN" --rpc-url "$RPC") || die "SwapBridgeRouter quote reverted"
   status=$(echo "$out" | line 1); SWAP_OUT=$(echo "$out" | line 2); BRIDGE_VALUE=$(echo "$out" | line 3); NF=$(echo "$out" | line 4); EF=$(echo "$out" | line 5)
   [[ "$status" =~ ^[0-9]+$ ]] || die "router quote status could not be decoded: '$status'"
   if [ "$status" != "1" ]; then
     # exit 5 (00-quote.sh: SKIPPED_ACCEPTED) ONLY on positive evidence: the quote eth_call SUCCEEDED and returned status 0 (Invalid) or 5 (InvalidSwap)
-    # on TESTNET = the known "no V3 pool for the pair" limitation. Any other status, any RPC error, any decode error is a plain failure (exit 1).
+    # on TESTNET = the known "no pool for the pair" limitation. Any other status, any RPC error, any decode error is a plain failure (exit 1).
     if [ "${QUOTE_ONLY:-0}" = "1" ] && [ "$NETWORK" = "testnet" ] && { [ "$status" = "0" ] || [ "$status" = "5" ]; }; then
-      say "ACCEPTED_SKIP X3 testnet quote-status=$status ($([ "$status" = 0 ] && echo Invalid || echo InvalidSwap)): the quote eth_call succeeded; the testnet router has no V3 pool for the pair (known limitation)"
+      say "ACCEPTED_SKIP X3 testnet quote-status=$status ($([ "$status" = 0 ] && echo Invalid || echo InvalidSwap)): the quote eth_call succeeded; the testnet router has no pool for the pair (known limitation)"
       exit 5
     fi
     die "router quote status $status (1=Success 2=NoPair 3=InsufficientForFee 4=InsufficientValue 5=InvalidSwap)"
@@ -53,7 +57,7 @@ quote_route() {
     ge_wei "$DELIVERY_AT_FLOOR" "$FROZEN_BRIDGE_MIN" || die "re-quote: delivery at the ORIGINAL floor is now $DELIVERY_AT_FLOOR < approved $FROZEN_BRIDGE_MIN (bridge fees rose). Nothing was sent."
     MIN_BRIDGE=$FROZEN_BRIDGE_MIN
   fi
-  PARAMS="($TOKEN_IN_ADDR,$TOKEN_OUT,$POOL_FEE,$AMOUNT_IN,$OUT_MIN,0,($TO_ID,$(rec_dest),0x))"
+  PARAMS="($X3_PATH,$AMOUNT_IN,$OUT_MIN,($TO_ID,$(rec_dest),0x))"
 }
 quote_route
 say "X3 on $NETWORK: amountIn=$AMOUNT_IN swapOut=$SWAP_OUT -> bridge value=$BRIDGE_VALUE networkFee=$NF exFee=$EF"

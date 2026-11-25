@@ -14,9 +14,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	binding "github.com/to-nexus/bridge-contracts/binding/go/src"
 )
 
 // maxDurationMs is the largest ms value that fits a time.Duration without wrapping (checked BEFORE any multiplication).
@@ -239,19 +237,10 @@ func x3Rules(w *quoteWireV1, q *Quote, req *QuoteRequest, dest common.Address) *
 		return bad("deadlineSec", "required for an X3 quote")
 	}
 	x3 := req.X3
-	name := "swapBridgeExactInputSingle"
-	if x3.NativeIn {
-		name = "swapBridgeExactInputSingleETH"
+	p, why := decodeX3Call(q.Tx.Data, x3.NativeIn)
+	if p == nil {
+		return bad("tx.data", "%s", why)
 	}
-	m := sbrABI.Methods[name]
-	if len(q.Tx.Data) < 4 || !bytes.Equal(q.Tx.Data[:4], m.ID) {
-		return bad("tx.data", "unexpected swap function")
-	}
-	out, err := m.Inputs.Unpack(q.Tx.Data[4:])
-	if err != nil || len(out) != 2 {
-		return bad("tx.data", "not a SwapBridgeRouter call")
-	}
-	p := abi.ConvertType(out[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 	val := new(big.Int)
 	if x3.NativeIn {
 		val = req.Amount
@@ -261,19 +250,19 @@ func x3Rules(w *quoteWireV1, q *Quote, req *QuoteRequest, dest common.Address) *
 		return bad("tx.data", "tokenIn differs from request.x3.tokenIn")
 	case p.TokenOut != x3.TokenOut:
 		return bad("tx.data", "tokenOut differs from request.x3.tokenOut")
-	case !p.Fee.IsUint64() || p.Fee.Uint64() != uint64(x3.PoolFee):
-		return bad("tx.data", "fee differs from request.x3.poolFee")
+	case p.PoolKey != x3.PoolFee:
+		return bad("tx.data", "pool key differs from request.x3.poolFee")
 	case p.AmountIn.Cmp(req.Amount) != 0:
 		return bad("tx.data", "amountIn differs from request.amount")
 	case p.AmountOutMinimum.Cmp(q.Limits.AmountOutMinimum) != 0:
 		return bad("tx.data", "amountOutMinimum differs from limits.amountOutMinimum")
-	case p.BridgeParams.ToChainID.Cmp(u(q.Details.DestChainID)) != 0:
+	case p.Bridge.ToChainID.Cmp(u(q.Details.DestChainID)) != 0:
 		return bad("tx.data", "toChainID differs from details.destChainId")
-	case p.BridgeParams.Recipient != dest:
+	case p.Bridge.Recipient != dest:
 		return bad("tx.data", "recipient differs from the resolved destination recipient")
-	case len(p.BridgeParams.ExtraData) != 0:
+	case len(p.Bridge.ExtraData) != 0:
 		return bad("tx.data", "X3 supports extraData = 0x only")
-	case out[1].(*big.Int).Cmp(u(q.Deadline)) != 0:
+	case p.Deadline.Cmp(u(q.Deadline)) != 0:
 		return bad("tx.data", "deadline differs from deadlineSec")
 	case q.Tx.Value.Cmp(val) != 0:
 		return bad("tx.value", "must equal amountIn for a native input, 0 otherwise")

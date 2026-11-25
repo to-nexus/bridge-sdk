@@ -1,7 +1,7 @@
 import { getNetwork } from '../src/index.js';
 import { Route, runExample } from './_common.js';
 
-// X3  Swap on the ONE chain (Uniswap V3 via SwapBridgeRouter) and bridge the output in ONE tx. Atomic: any failure reverts everything.
+// X3  Swap on the ONE chain (SwapBridgeRouter, 1-hop path; -fee is the V3 fee tier or the CL tick spacing) and bridge the output in ONE tx. Atomic: any failure reverts everything.
 //     Representative combination (assumption A6): ONEUSD -> USDTx -> BSC USDT (addresses come from the built-in config).
 //     Override with --tokenIn/--tokenOut/--fee/--to.  --tokenIn native = swap native ONE (through WCROSS) instead of an ERC20.
 await runExample('X3', (a) => {

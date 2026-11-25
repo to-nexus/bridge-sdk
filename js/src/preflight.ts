@@ -1,7 +1,7 @@
 import { Interface, getAddress } from 'ethers';
 import { executorAbi } from './abi/index.js';
 import type { Ctx } from './ctx.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR } from './encoding.js';
+import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, x3Path } from './encoding.js';
 import { NetworkMismatchError, PreflightError } from './errors.js';
 import { NATIVE_TOKEN, chainOf } from './networks.js';
 import type { ChainKey } from './networks-types.js';
@@ -91,7 +91,7 @@ export async function preflight(ctx: Ctx, q: Quote, stage?: PreflightStage): Pro
     const m = q.match;
     // fresh quote status through the timed RPC: a status other than Success (1) blocks at every stage, before any approve
     await guard('x3 quote status', async () => {
-      const r: any = await readContract(ctx.rpc('one'), sbrI, q.sourceContract, 'getAmountSwapBridgeOut', [m.toChainID, m.tokenIn, m.tokenOut, q.request.x3!.poolFee, m.amountIn], { from: q.sender });
+      const r: any = await readContract(ctx.rpc('one'), sbrI, q.sourceContract, 'getAmountSwapBridgeOutMultihop', [m.toChainID, x3Path(m.tokenIn, q.request.x3!.poolFee, m.tokenOut), m.amountIn], { from: q.sender });
       const status = Number(r[0]);
       const name = QUOTE_STATUS[status] ?? String(status);
       add('router quote status == Success', status === 1, name, { level: 'error', code: `X3_QUOTE_${name}`, message: `SwapBridgeRouter quote status ${name}`, hint: 'NoPair: tokenOut has no hub pair to the destination; InsufficientForFee/InsufficientValue: amount too small; InvalidSwap: no pool / liquidity.' });

@@ -144,7 +144,11 @@ func (c *Client) preflightAt(ctx context.Context, q *Quote, stage string) (*Pref
 			if q.Request.X3 != nil {
 				poolFee = q.Request.X3.PoolFee
 			}
-			out, err := c.callABI(ctx, ChainOne, sbrABI, q.SourceContract, "getAmountSwapBridgeOut", &sender, u(q.Match.ToChainID), q.Match.TokenIn, q.Match.TokenOut, u(uint64(poolFee)), q.Match.AmountIn)
+			path, err := X3Path(q.Match.TokenIn, poolFee, q.Match.TokenOut)
+			if err != nil {
+				return err
+			}
+			out, err := c.callABI(ctx, ChainOne, sbrABI, q.SourceContract, "getAmountSwapBridgeOutMultihop", &sender, u(q.Match.ToChainID), path, q.Match.AmountIn)
 			if err != nil {
 				return err
 			}

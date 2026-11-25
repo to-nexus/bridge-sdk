@@ -193,7 +193,11 @@ func (c *Client) buildQuote(ctx context.Context, reqIn QuoteRequest, fz *frozenQ
 			deadline = fz.deadline
 		}
 		sender := req.Sender
-		out, err := c.callABI(ctx, ChainOne, sbrABI, router, "getAmountSwapBridgeOut", &sender, u(toChainID), tokenIn, x3.TokenOut, u(uint64(x3.PoolFee)), req.Amount)
+		path, err := X3Path(tokenIn, x3.PoolFee, x3.TokenOut)
+		if err != nil {
+			return nil, &InvalidOptionError{Msg: "X3.PoolFee: " + err.Error()}
+		}
+		out, err := c.callABI(ctx, ChainOne, sbrABI, router, "getAmountSwapBridgeOutMultihop", &sender, u(toChainID), path, req.Amount)
 		if err != nil {
 			return nil, err
 		}
