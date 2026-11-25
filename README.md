@@ -47,7 +47,7 @@ Contract addresses and RPC endpoints are listed in [GUIDE.md §3](GUIDE.md#3-네
 Requires Node.js 18 or later. The package is not published to the npm registry yet, so build it from source:
 
 ```bash
-git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.2 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack     # creates to-nexus-bridge-sdk-<version>.tgz
 
@@ -60,7 +60,7 @@ npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
 Requires Go 1.24 or later.
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.1
+go get github.com/to-nexus/bridge-sdk/go@v0.1.2
 ```
 
 ### cast

@@ -15,7 +15,7 @@ See the [root README](../README.md) for the supported routes and an overview.
 The package is not published to the npm registry yet, so build it from source:
 
 ```bash
-git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.2 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack
 

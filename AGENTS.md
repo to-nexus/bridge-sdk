@@ -19,12 +19,12 @@ Chain IDs: ONE 612055 (testnet 612044), BSC 56 (97), HyperEVM 999 (998). Contrac
 
 - **TypeScript**: the package is **not on the npm registry**. `npm install @to-nexus/bridge-sdk` fails. Build a tarball from a release tag:
   ```bash
-  git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
+  git clone --branch v0.1.2 https://github.com/to-nexus/bridge-sdk.git
   cd bridge-sdk/js && npm ci && npm run build && npm pack
   # then, in the target project:
   npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
   ```
-- **Go**: `go get github.com/to-nexus/bridge-sdk/go@v0.1.1`. The tag in git is `go/v0.1.1`, because the module lives in `go/`; `go get` takes the version without the prefix.
+- **Go**: `go get github.com/to-nexus/bridge-sdk/go@v0.1.2`. The tag in git is `go/v0.1.2`, because the module lives in `go/`; `go get` takes the version without the prefix.
 
 ## Choosing a route
 

@@ -47,7 +47,7 @@ BSC · ONE · HyperEVM 사이에서 ONE 과 USDT 를 옮기는 **ONE 브리지 S
 Node.js 18 이상이 필요합니다. 아직 npm 레지스트리에 배포하지 않았으므로 소스에서 패키지를 만들어 설치합니다.
 
 ```bash
-git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
+git clone --branch v0.1.2 https://github.com/to-nexus/bridge-sdk.git
 cd bridge-sdk/js
 npm ci && npm run build && npm pack     # to-nexus-bridge-sdk-<버전>.tgz 생성
 
@@ -60,7 +60,7 @@ npm install /path/to/to-nexus-bridge-sdk-<버전>.tgz ethers
 Go 1.24 이상이 필요합니다.
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.1
+go get github.com/to-nexus/bridge-sdk/go@v0.1.2
 ```
 
 ### cast

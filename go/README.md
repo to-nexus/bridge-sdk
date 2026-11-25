@@ -13,7 +13,7 @@ See the [root README](../README.md) for the supported routes and an overview.
 ## Installation
 
 ```bash
-go get github.com/to-nexus/bridge-sdk/go@v0.1.1
+go get github.com/to-nexus/bridge-sdk/go@v0.1.2
 ```
 
 Version tags have the form `go/vX.Y.Z`, because this module lives in the repository's `go/` directory. With `go get`, write the version without the prefix (`@vX.Y.Z`).

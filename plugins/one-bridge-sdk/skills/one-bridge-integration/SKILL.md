@@ -15,12 +15,12 @@ Ask which language the project uses if it is not obvious from the codebase.
 
 - **TypeScript** (Node ≥ 18, ethers v6, ESM). The package is **not on the npm registry**, so `npm install @to-nexus/bridge-sdk` fails. Build a tarball:
   ```bash
-  git clone --branch v0.1.1 https://github.com/to-nexus/bridge-sdk.git
+  git clone --branch v0.1.2 https://github.com/to-nexus/bridge-sdk.git
   cd bridge-sdk/js && npm ci && npm run build && npm pack
   # in the project:
   npm install /path/to/to-nexus-bridge-sdk-<version>.tgz ethers
   ```
-- **Go** (≥ 1.24): `go get github.com/to-nexus/bridge-sdk/go@v0.1.1`, then `import "github.com/to-nexus/bridge-sdk/go/bridgesdk"`.
+- **Go** (≥ 1.24): `go get github.com/to-nexus/bridge-sdk/go@v0.1.2`, then `import "github.com/to-nexus/bridge-sdk/go/bridgesdk"`.
 
 ## 2. Pick the route
 
