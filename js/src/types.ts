@@ -28,6 +28,7 @@ export interface QuoteRequest {
   /** X1 / X3 slippage + deadline (defaults 50 bps / 1800 s) */
   swap?: { slippageBps?: number; deadlineSec?: number };
   /** X3 only */
+  /** poolFee: 3-byte pool key of the 1-hop swap path — the V3 fee tier, or the tick spacing on a Slipstream CL network (max 0xffffff) */
   x3?: { tokenIn: string | 'native'; tokenOut: string; poolFee: number; toChain: 'bsc' | 'hyperevm' };
   /** multihop: wei added to the declared hop-2 exFee (see GUIDE §6, fees). default 0 */
   hop2FeeBuffer?: bigint;

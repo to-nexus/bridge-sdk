@@ -74,7 +74,7 @@ new BridgeClient({
 | `recipients` | Per-hop recipients `{ onHub, dest, core }` (optional) |
 | `hypercore` | For R5, also deposit into HyperCore (X2) (optional) |
 | `swap` | `{ slippageBps, deadlineSec }` for X1 and X3. Defaults to 50 bps / 1800 seconds |
-| `x3` | X3 only: `{ tokenIn, tokenOut, poolFee, toChain }` |
+| `x3` | X3 only: `{ tokenIn, tokenOut, poolFee, toChain }`. `poolFee` is the 3-byte pool key of the 1-hop swap path: the V3 fee tier, or the tick spacing on a Slipstream CL network |
 | `hop2FeeBuffer` | Extra margin added to the second-hop fee of a multihop route (optional) |
 | `limits` | `{ maxTotalSpend, minDelivered }`: your own spending cap and delivery floor (optional) |
 

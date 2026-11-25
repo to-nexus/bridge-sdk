@@ -67,7 +67,7 @@ export const swapBridgeRouterAbi = [
   },
   {
     "type": "function",
-    "name": "getAmountSwapBridgeOut",
+    "name": "getAmountSwapBridgeOutMultihop",
     "inputs": [
       {
         "name": "toChainID",
@@ -75,19 +75,9 @@ export const swapBridgeRouterAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "tokenIn",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "tokenOut",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "fee",
-        "type": "uint24",
-        "internalType": "uint24"
+        "name": "path",
+        "type": "bytes",
+        "internalType": "bytes"
       },
       {
         "name": "amountIn",
@@ -183,27 +173,17 @@ export const swapBridgeRouterAbi = [
   },
   {
     "type": "function",
-    "name": "swapBridgeExactInputSingle",
+    "name": "swapBridgeExactInput",
     "inputs": [
       {
         "name": "params",
         "type": "tuple",
-        "internalType": "struct ISwapBridgeRouter.SwapBridgeExactInputSingleParams",
+        "internalType": "struct ISwapBridgeRouter.SwapBridgeExactInputParams",
         "components": [
           {
-            "name": "tokenIn",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "tokenOut",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "fee",
-            "type": "uint24",
-            "internalType": "uint24"
+            "name": "path",
+            "type": "bytes",
+            "internalType": "bytes"
           },
           {
             "name": "amountIn",
@@ -214,11 +194,6 @@ export const swapBridgeRouterAbi = [
             "name": "amountOutMinimum",
             "type": "uint256",
             "internalType": "uint256"
-          },
-          {
-            "name": "sqrtPriceLimitX96",
-            "type": "uint160",
-            "internalType": "uint160"
           },
           {
             "name": "bridgeParams",
@@ -261,27 +236,17 @@ export const swapBridgeRouterAbi = [
   },
   {
     "type": "function",
-    "name": "swapBridgeExactInputSingleETH",
+    "name": "swapBridgeExactInputETH",
     "inputs": [
       {
         "name": "params",
         "type": "tuple",
-        "internalType": "struct ISwapBridgeRouter.SwapBridgeExactInputSingleParams",
+        "internalType": "struct ISwapBridgeRouter.SwapBridgeExactInputParams",
         "components": [
           {
-            "name": "tokenIn",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "tokenOut",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "fee",
-            "type": "uint24",
-            "internalType": "uint24"
+            "name": "path",
+            "type": "bytes",
+            "internalType": "bytes"
           },
           {
             "name": "amountIn",
@@ -292,11 +257,6 @@ export const swapBridgeRouterAbi = [
             "name": "amountOutMinimum",
             "type": "uint256",
             "internalType": "uint256"
-          },
-          {
-            "name": "sqrtPriceLimitX96",
-            "type": "uint160",
-            "internalType": "uint160"
           },
           {
             "name": "bridgeParams",

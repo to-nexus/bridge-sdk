@@ -1,6 +1,6 @@
 import { getAddress } from 'ethers';
 import type { Ctx } from './ctx.js';
-import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, v3RouterIface } from './encoding.js';
+import { CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR, FORWARD_SELECTOR, decodeX3Call, v3RouterIface } from './encoding.js';
 import { LimitViolationError, NetworkMismatchError } from './errors.js';
 import { decodeForward } from './handle.js';
 import { NATIVE_TOKEN } from './networks.js';
@@ -67,20 +67,16 @@ export function assertQuoteBelongs(ctx: Ctx, q: Quote): void {
     const x3 = req.x3;
     if (!x3) return tamper('x3 request');
     const native = x3.tokenIn === 'native';
-    let d;
-    try {
-      d = sbrI.parseTransaction({ data: q.tx.data, value: q.tx.value });
-    } catch { return tamper('calldata is not a SwapBridgeRouter call'); }
-    if (!d || d.name !== (native ? 'swapBridgeExactInputSingleETH' : 'swapBridgeExactInputSingle')) return tamper('swap function');
-    const p = d.args[0];
-    if (native) { const wcross = requireCfg<string>('chains.one.tokens.WCROSS.address', p[0]); if (!same(p[0], wcross)) cfgMismatch('tokenIn(WCROSS)', wcross, p[0]); }
-    if (!native && !same(p[0], x3.tokenIn)) return tamper('tokenIn');
-    if (!same(p[1], x3.tokenOut)) return tamper('tokenOut');
-    if (Number(p[2]) !== x3.poolFee) return tamper('poolFee');
-    if (p[3] !== req.amount) return tamper('amountIn');
-    if (Number(p[6][0]) !== destChainId) cfgMismatch('toChainID', destChainId, Number(p[6][0]));
-    if (!same(p[6][1], recDest)) return tamper('recipient');
-    if (p[6][2] !== '0x') return tamper('extraData');
+    const p = decodeX3Call(q.tx.data, native);
+    if (typeof p === 'string') return tamper(p);
+    if (native) { const wcross = requireCfg<string>('chains.one.tokens.WCROSS.address', p.tokenIn); if (!same(p.tokenIn, wcross)) cfgMismatch('tokenIn(WCROSS)', wcross, p.tokenIn); }
+    if (!native && !same(p.tokenIn, x3.tokenIn)) return tamper('tokenIn');
+    if (!same(p.tokenOut, x3.tokenOut)) return tamper('tokenOut');
+    if (p.poolKey !== x3.poolFee) return tamper('poolFee');
+    if (p.amountIn !== req.amount) return tamper('amountIn');
+    if (Number(p.toChainId) !== destChainId) cfgMismatch('toChainID', destChainId, Number(p.toChainId));
+    if (!same(p.recipient, recDest)) return tamper('recipient');
+    if (p.extraData !== '0x') return tamper('extraData');
     if (q.approval && (!same(q.approval.token, x3.tokenIn) || q.approval.amount !== req.amount)) return tamper('approval');
     if (native && q.tx.value !== req.amount) return tamper('msg.value');
     return;

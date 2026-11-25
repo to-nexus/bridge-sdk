@@ -15,7 +15,7 @@ export type { DecodedError } from './errors.js';
 export { getNetwork, getNetworksData, NATIVE_TOKEN } from './networks.js';
 export type { ChainKey, NetworkName, NetworksData, NetworkData, ChainConfig } from './networks-types.js';
 export {
-  encodeBridgeToken, encodeForwardExtraData, encodeCoreExtraData, encodeX1ExtraData, encodeSwapBridge, packExtraData,
+  encodeBridgeToken, encodeForwardExtraData, encodeCoreExtraData, encodeX1ExtraData, encodeSwapBridge, x3Path, packExtraData,
   FORWARD_SELECTOR, CORE_SELECTOR, EXACT_INPUT_SINGLE_SELECTOR,
 } from './encoding.js';
 export { floorBps, multihopAmounts, resolveForwardAmounts, expectedBridgeAmount, coreAmounts, parseUnits, formatUnits } from './math.js';

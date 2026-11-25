@@ -46,7 +46,7 @@ type X3Request struct {
 	NativeIn bool
 	TokenIn  common.Address
 	TokenOut common.Address
-	PoolFee  uint32
+	PoolFee  uint32   // 3-byte pool key of the 1-hop swap path: the V3 fee tier, or the tick spacing on a Slipstream CL network (max 0xffffff)
 	ToChain  ChainKey // bsc | hyperevm
 	// X3 supports extraData = 0x only (no extraData option): the SwapBridgeRouter extraCall path is not a supported product path.
 }

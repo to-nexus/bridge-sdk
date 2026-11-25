@@ -244,7 +244,7 @@ preflight_route() { # <route> [pre-approve|post-approve]
       pf_read "x3 router.bridge()" "$PF_RPC" "$ROUTER" "bridge()(address)" && {
         if [ "$(echo "$PF_OUT" | tr 'A-F' 'a-f')" = "$(echo "$hub" | tr 'A-F' 'a-f')" ]; then pf_note "router.bridge() == hub"; else pf_issue ROUTER_BRIDGE_MISMATCH "SwapBridgeRouter.bridge() is $PF_OUT, expected the hub $hub"; fi; }
       PF_FROM=$FROM
-      pf_read "x3 quote status" "$PF_RPC" "$ROUTER" "getAmountSwapBridgeOut(uint256,address,address,uint24,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$TOKEN_IN_ADDR" "$TOKEN_OUT" "$POOL_FEE" "$AMOUNT_IN" && {
+      pf_read "x3 quote status" "$PF_RPC" "$ROUTER" "getAmountSwapBridgeOutMultihop(uint256,bytes,uint256)(uint8,uint256,uint256,uint256,uint256)" "$TO_ID" "$X3_PATH" "$AMOUNT_IN" && {
         local st; st=$(echo "$PF_OUT" | line 1)
         if [ "$st" = 1 ]; then pf_note "router quote status == Success"; else pf_issue "X3_QUOTE_STATUS_$st" "SwapBridgeRouter quote status $st (1=Success 2=NoPair 3=InsufficientForFee 4=InsufficientValue 5=InvalidSwap)"; fi; }
       PF_FROM=""

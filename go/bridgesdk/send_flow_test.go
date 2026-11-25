@@ -175,8 +175,9 @@ func TestX3RequoteFloorsAndRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args, _ := sbrABI.Methods["swapBridgeExactInputSingle"].Inputs.Unpack(sent.Intent.Data[4:])
-	_ = args
+	if p, why := decodeX3Call(sent.Intent.Data, false); p == nil {
+		t.Fatalf("X3 must send swapBridgeExactInput with a 1-hop path: %s", why)
+	}
 	if sent.Quote.Limits.AmountOutMinimum.Int64() != 99 {
 		t.Fatal("original floor must be kept")
 	}

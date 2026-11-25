@@ -69,14 +69,18 @@ const BRIDGE_SIG = 'bridgeToken(uint256,address,address,uint256,uint256,uint256,
 const FWD_SIG = 'bridgeTokenForwarded(uint256,address,uint256,uint256,uint256,bytes)';
 const CORE_SIG = 'transferToCoreFor(address,uint256)';
 const EIS_SIG = 'exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))';
-const SBR_SIG = 'swapBridgeExactInputSingle((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)';
-const SBR_ETH_SIG = 'swapBridgeExactInputSingleETH((address,address,uint24,uint256,uint256,uint160,(uint256,address,bytes)),uint256)';
+// X3 uses the path entry points only (a single pool is a 1-hop path `tokenIn | 3-byte pool key | tokenOut`); the 3 bytes are the V3 fee tier,
+// or the tick spacing on a Slipstream CL deployment of the same router. The path selectors are identical on both router kinds.
+const SBR_SIG = 'swapBridgeExactInput((bytes,uint256,uint256,(uint256,address,bytes)),uint256)';
+const SBR_ETH_SIG = 'swapBridgeExactInputETH((bytes,uint256,uint256,(uint256,address,bytes)),uint256)';
 
 const bridgeCall = (i) => calldata(BRIDGE_SIG, i.toChainId, i.fromToken, i.to, i.value, i.networkFee, i.exFee, i.extraData);
 const forwardExtra = (i) => concat(i.hub, calldata(FWD_SIG, i.destChainId, i.toDest, i.value2, i.networkFee2, i.exFee2Declared, i.inner));
 const coreExtra = (i) => concat(i.token, calldata(CORE_SIG, i.coreRecipient, i.value));
 const x1Extra = (i) => concat(i.router, calldata(EIS_SIG, `(${i.tokenIn},${i.tokenOut},${i.fee},${i.recipient},${i.deadline},${i.amountIn},${i.amountOutMinimum},0)`));
-const sbrCall = (i, eth) => calldata(eth ? SBR_ETH_SIG : SBR_SIG, `(${i.tokenIn},${i.tokenOut},${i.fee},${i.amountIn},${i.amountOutMinimum},0,(${i.toChainId},${i.recipient},${i.extraData}))`, i.deadline);
+const poolKey3 = (k) => '0x' + BigInt(k).toString(16).padStart(6, '0');
+const x3Path = (i) => concat(i.tokenIn, poolKey3(i.fee), i.tokenOut);
+const sbrCall = (i, eth) => calldata(eth ? SBR_ETH_SIG : SBR_SIG, `(${x3Path(i)},${i.amountIn},${i.amountOutMinimum},(${i.toChainId},${i.recipient},${i.extraData}))`, i.deadline);
 
 const M = nets.mainnet.chains, T = nets.testnet.chains;
 const E18 = 10n ** 18n;
@@ -137,6 +141,8 @@ for (const [route, network, i, note] of single) encoding.push({ name: `${route}-
   encoding.push({ name: 'X3-erc20-mainnet-shape', kind: 'x3', route: 'X3', network: 'mainnet', note: 'ONEUSD -> USDTx -> BSC USDT', inputs: s(sb), expected: { calldata: sbrCall(sb, false) } });
   const sbe = { ...sb, tokenIn: M.one.tokens.WCROSS.address, tokenOut: M.one.tokens.USDTx.address };
   encoding.push({ name: 'X3-native-mainnet-shape', kind: 'x3eth', route: 'X3', network: 'mainnet', note: 'native ONE (tokenIn = WCROSS) -> USDTx -> BSC USDT, msg.value = amountIn', inputs: s(sbe), expected: { calldata: sbrCall(sbe, true) } });
+  const sbc = { ...sb, tokenIn: T.one.tokens.WCROSS.address, tokenOut: T.one.tokens.USDTx.address, fee: 200, toChainId: 97 };
+  encoding.push({ name: 'X3-erc20-cl-tickspacing-shape', kind: 'x3', route: 'X3', network: 'testnet', note: 'Slipstream CL router: the 3-byte pool key is the tick spacing (200 = 0x0000c8)', inputs: s(sbc), expected: { calldata: sbrCall(sbc, false) } });
 }
 
 // ---- 3. arithmetic vectors (plain BigInt, formulas from SwapBridgeRouter) -----------------------------

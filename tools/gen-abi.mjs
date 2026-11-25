@@ -44,7 +44,7 @@ const abis = {
   }),
   erc20: pick(art('ERC20.sol', 'ERC20'), { fn: ['balanceOf', 'allowance', 'approve', 'decimals', 'symbol', 'transfer'] }),
   swapBridgeRouter: pick(art('SwapBridgeRouter.sol', 'SwapBridgeRouter'), {
-    fn: ['swapBridgeExactInputSingle', 'swapBridgeExactInputSingleETH', 'getAmountSwapBridgeOut', 'getExpectedBridgeAmount', 'calculateBridgeFees', 'bridge', 'swapRouter', 'quoter', 'WETH9'],
+    fn: ['swapBridgeExactInput', 'swapBridgeExactInputETH', 'getAmountSwapBridgeOutMultihop', 'getExpectedBridgeAmount', 'calculateBridgeFees', 'bridge', 'swapRouter', 'quoter', 'WETH9'],
     ev: ['SwapBridge'],
   }),
   v3Router: pick(art('ISwapRouter.sol', 'ISwapRouter'), { fn: ['exactInputSingle'], errors: false }),

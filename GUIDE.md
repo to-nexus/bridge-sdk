@@ -143,7 +143,7 @@ BSC 의 USDT 를 보내면 ONE 체인에서 USDTx 로 도착해 Uniswap V3 로 *
 | R6 | HyperEVM → ONE → BSC | HyperEVM 브리지, extraData 에 허브 `bridgeTokenForwarded` | ONE ERC20 → (허브 네이티브) → ONE ERC20(BSC) | 2 |
 | X1 | BSC USDT → ONEUSD | BSC 브리지, extraData = V3 router `exactInputSingle` | USDT → USDTx → ONEUSD | 1 + extraCall |
 | X2 | HyperCore 입금 | R3/R5 의 가장 안쪽 extraData = `transferToCoreFor` | HyperCore 스팟 잔고 | + extraCall |
-| X3 | 스왑 후 브리지 | `SwapBridgeRouter.swapBridgeExactInputSingle(ETH)` | tokenIn → 스왑 → tokenOut 브리지 | 스왑 + 1 |
+| X3 | 스왑 후 브리지 | `SwapBridgeRouter.swapBridgeExactInput(ETH)` (1-hop path) | tokenIn → 스왑 → tokenOut 브리지 | 스왑 + 1 |
 
 ```
 R5   BSC ──bridgeToken(extraData1)──▶ ONE 허브 ──bridgeTokenForwarded──▶ HyperEVM ──(X2: transferToCoreFor)──▶ HyperCore
@@ -323,10 +323,12 @@ JS `x1-usdt-to-oneusd.ts` · Go `x1-usdt-to-oneusd` · cast `cast/x1.sh`.
 
 ### X3 · SwapBridgeRouter (ONE 체인에서 스왑 후 브리지)
 
-한 트랜잭션: Uniswap V3 로 `tokenIn → tokenOut` 스왑 후 `tokenOut` 을 `toChainID` 로 브리지. 어느 단계든 실패하면 **전부 revert**(아무것도 안 움직임).
-- 네이티브 입력: `swapBridgeExactInputSingleETH`, `tokenIn == WCROSS`, `msg.value == amountIn`. ERC20 입력: `swapBridgeExactInputSingle`, `msg.value = 0`, **라우터에 `amountIn` approve**(브리지 수수료는 스왑 출력에서 차감된다).
+한 트랜잭션: ONE 체인 DEX 로 `tokenIn → tokenOut` 스왑 후 `tokenOut` 을 `toChainID` 로 브리지. 어느 단계든 실패하면 **전부 revert**(아무것도 안 움직임).
+- **path 진입점만 쓴다**: 단일 풀도 1-hop path `path = tokenIn(20B) ‖ poolKey(3B) ‖ tokenOut(20B)` 로 보낸다. path 진입점(`swapBridgeExactInput(ETH)`, `getAmountSwapBridgeOutMultihop`)은 Uniswap V3 라우터와 Slipstream CL 라우터에서 selector 가 같아서 같은 SwapBridgeRouter 코드가 두 DEX 모두에서 동작한다. 단일 풀 진입점(`…Single…`)은 CL 라우터에 없으므로 SDK 는 호출하지 않는다.
+- `poolKey`(요청의 `poolFee`, 3바이트)는 V3 네트워크에서는 fee tier, Slipstream CL 네트워크에서는 **tick spacing** 이다(예: 200 → `0x0000c8`). 라우터는 3바이트를 그대로 넘긴다.
+- 네이티브 입력: `swapBridgeExactInputETH`, path 의 `tokenIn == WCROSS`, `msg.value == amountIn`. ERC20 입력: `swapBridgeExactInput`, `msg.value = 0`, **라우터에 `amountIn` approve**(브리지 수수료는 스왑 출력에서 차감된다).
 - `tokenOut` 은 허브에 `toChainID` 페어가 있는 ERC20 이어야 한다(없으면 견적 status `NoPair`).
-- 견적: `getAmountSwapBridgeOut(toChainID, tokenIn, tokenOut, fee, amountIn)` → `(status, swapAmountOut, bridgeValue, networkFee, exFee)` (view 가 아니라 `eth_call` 로 호출).
+- 견적: `getAmountSwapBridgeOutMultihop(toChainID, path, amountIn)` → `(status, swapAmountOut, bridgeValue, networkFee, exFee)` (view 가 아니라 `eth_call` 로 호출). path 진입점은 라우터가 전량 체결을 강제한다(부분 체결이 없다).
 - **바닥이 두 개**다: ① 스왑 출력 바닥 `amountOutMinimum = floor(swapAmountOut×(10000−bps)/10000)` — **온체인에서 강제**; ② 도착 바닥 `minBridgeValue = getExpectedBridgeAmount(…, amountOutMinimum).bridgeValue` — 사용자에게 보여주는 값(견적~포함 사이에 브리지 수수료가 오르지 않는 한 유지).
 - **extraData 미지원**: X3 는 `extraData = 0x` 만 지원한다(`x3` 요청에 extraData 옵션이 없고, JS 가 런타임에 넣으면 `InvalidOptionError`). 영수증의 X3 `BridgeInitiated.extraData` 가 비어 있지 않으면 `handleFromTx` 는 `UnsupportedRouteError`.
 - 대표 예: ONE 체인 **ONEUSD → USDTx → BSC USDT**. SDK 는 임의 조합을 받는다.

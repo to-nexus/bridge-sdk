@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { Transaction, Wallet, getAddress, keccak256 } from 'ethers';
 import { BridgeClient, LimitViolationError, NetworkMismatchError, Route, SenderMismatchError, encodeBridgeToken, encodeX1ExtraData, getNetworksData } from '../src/index.js';
 import type { Quote } from '../src/index.js';
-import { bridgeIface } from '../src/encoding.js';
+import { bridgeIface, x3Path } from '../src/encoding.js';
 import type { NetworksData } from '../src/networks-types.js';
 import { openQuote } from '../src/seal.js';
 import { FakeChain, FakeWalletSigner } from './fake.js';
@@ -97,7 +97,7 @@ test('X3 with a tokenIn that is NOT in config passes the binding check, and the 
   assert.equal(sent.intent.data, q.tx.data);
   assert.equal(Transaction.from(sent.raw!).data, q.tx.data);
   // but a quote whose calldata encodes another tokenOut than the request is internal tampering
-  const other = sbrI.encodeFunctionData('swapBridgeExactInputSingle', [[TOKEN_A, OTHER, 0, 50n * E18, 1n, 0, [c.bsc.chainId, RECIPIENT, '0x']], 2_000_000_000]);
+  const other = sbrI.encodeFunctionData('swapBridgeExactInput', [[x3Path(TOKEN_A, 0, OTHER), 50n * E18, 1n, [c.bsc.chainId, RECIPIENT, '0x']], 2_000_000_000]);
   await assert.rejects(() => client.send(wallet, sealForTest({ ...q, tx: { ...q.tx, data: other } })), (e: any) => e instanceof LimitViolationError);
   void w;
 });

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	binding "github.com/to-nexus/bridge-contracts/binding/go/src"
 )
@@ -114,14 +113,15 @@ func TestQuoteX3Floors(t *testing.T) {
 	if q.Tx.Value.Cmp(n18(50)) != 0 || q.Approval != nil || q.Limits.AmountOutMinimum.Cmp(n18(99)) != 0 || q.Limits.MinBridgeValue.Cmp(new(big.Int).Sub(n18(99), nf18)) != 0 {
 		t.Fatalf("X3 native: %+v %s %s", q.Approval, q.Limits.AmountOutMinimum, q.Limits.MinBridgeValue)
 	}
-	m := sbrABI.Methods["swapBridgeExactInputSingleETH"]
-	if !bytes.Equal(q.Tx.Data[:4], m.ID) {
-		t.Fatal("native input must use swapBridgeExactInputSingleETH")
+	p, why := decodeX3Call(q.Tx.Data, true)
+	if p == nil {
+		t.Fatalf("native input must use swapBridgeExactInputETH with a 1-hop path: %s", why)
 	}
-	args, _ := m.Inputs.Unpack(q.Tx.Data[4:])
-	p := *abi.ConvertType(args[0], new(binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)).(*binding.ISwapBridgeRouterSwapBridgeExactInputSingleParams)
 	if p.TokenIn != common.HexToAddress(ch[ChainOne].Tokens["WCROSS"].Address) {
 		t.Fatalf("tokenIn must be WCROSS for native input, got %s", p.TokenIn)
+	}
+	if _, why := decodeX3Call(q.Tx.Data, false); why == "" {
+		t.Fatal("a native quote must not decode as the ERC20 entry point")
 	}
 }
 
